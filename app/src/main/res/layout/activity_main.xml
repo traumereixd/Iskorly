@@ -97,11 +97,13 @@
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/button_view_history"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            style="@style/Widget.Material3.Button"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="@string/btn_history" />
+                            android:text="@string/btn_history"
+                            app:backgroundTint="@color/md3_beige_primary"
+                            android:textColor="@color/md3_beige_onPrimary" />
                     </LinearLayout>
 
                     <com.google.android.material.button.MaterialButton
@@ -111,16 +113,18 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
                         android:text="@string/btn_capture" />
-                    
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/button_back_to_menu"
-                        style="@style/Widget.Material3.Button.TextButton"
+                        style="@style/Widget.Material3.Button"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="center_horizontal"
                         android:layout_marginTop="8dp"
                         android:text="Back to Main Menu"
-                        android:textSize="12sp" />
+                        android:textSize="12sp"
+                        app:backgroundTint="@color/md3_beige_primary"
+                        android:textColor="@color/md3_beige_onPrimary" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
@@ -542,20 +546,24 @@
 
                                 <com.google.android.material.button.MaterialButton
                                     android:id="@+id/button_try_again"
-                                    style="@style/Widget.Material3.Button.OutlinedButton"
+                                    style="@style/Widget.Material3.Button"
                                     android:layout_width="0dp"
                                     android:layout_height="wrap_content"
                                     android:layout_weight="1"
                                     android:layout_marginEnd="6dp"
-                                    android:text="Scan Again" />
+                                    android:text="Scan Again"
+                                    app:backgroundTint="@color/md3_beige_primary"
+                                    android:textColor="@color/md3_beige_onPrimary" />
 
                                 <com.google.android.material.button.MaterialButton
                                     android:id="@+id/button_cancel_scan"
-                                    style="@style/Widget.Material3.Button.OutlinedButton"
+                                    style="@style/Widget.Material3.Button"
                                     android:layout_width="0dp"
                                     android:layout_height="wrap_content"
                                     android:layout_weight="1"
-                                    android:text="@string/btn_cancel" />
+                                    android:text="@string/btn_cancel"
+                                    app:backgroundTint="@color/md3_beige_primary"
+                                    android:textColor="@color/md3_beige_onPrimary" />
                             </LinearLayout>
                         </LinearLayout>
                     </LinearLayout>
@@ -576,13 +584,15 @@
                         android:layout_height="wrap_content"
                         android:layout_marginEnd="8dp"
                         android:text="Scan" />
-                    
+
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/button_import_photos"
-                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        style="@style/Widget.Material3.Button"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/btn_import_photos" />
+                        android:text="@string/btn_import_photos"
+                        app:backgroundTint="@color/md3_beige_primary"
+                        android:textColor="@color/md3_beige_onPrimary" />
                 </LinearLayout>
             </FrameLayout>
         </LinearLayout>
