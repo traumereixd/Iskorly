@@ -73,7 +73,19 @@ public class SimpleCropActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_simple_crop);
-        
+        // Inside onCreate or after setImageUriAsync load completion:
+        int orientationHint = getIntent().getIntExtra("EXTRA_JPEG_ORIENTATION", 0);
+// orientationHint is how much the JPEG was rotated when encoded.
+// To display upright, if orientationHint != 0, rotate back to 0 by applying orientationHint degrees:
+        if (orientationHint != 0) {
+            // Depending on your rotate method direction, you might need (360 - orientationHint)
+            cropImageView.post(() -> {
+                int adjust = (360 - (orientationHint % 360)) % 360;
+                if (adjust != 0) {
+                    cropImageView.rotateImage(adjust);
+                }
+            });
+        }
         // Get URIs from intent
         Intent intent = getIntent();
         String sourceUriString = intent.getStringExtra(EXTRA_IMAGE_URI);

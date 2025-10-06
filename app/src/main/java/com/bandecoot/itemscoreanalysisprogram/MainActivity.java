@@ -89,7 +89,13 @@ public class MainActivity extends AppCompatActivity {
     private static final int CAMERA_WIDTH = 1280;
     private static final int CAMERA_HEIGHT = 720;
     private static final float SIMPLE_CROP_MARGIN_RATIO = 0.07f; // 7% trim each edge for fallback
-
+    private static final android.util.SparseIntArray ORIENTATIONS = new android.util.SparseIntArray();
+    static {
+        ORIENTATIONS.put(Surface.ROTATION_0, 90);
+        ORIENTATIONS.put(Surface.ROTATION_90, 0);
+        ORIENTATIONS.put(Surface.ROTATION_180, 270);
+        ORIENTATIONS.put(Surface.ROTATION_270, 180);
+    }
     // UI components
     private Button backToMenuButton;
     private LinearLayout mainLayout, answerKeyLayout, testHistoryLayout, scanSessionLayout, masterlistLayout;
@@ -141,6 +147,8 @@ public class MainActivity extends AppCompatActivity {
 
     // State
     private boolean scanSessionActive = false;
+    private boolean cropInProgress = false;
+    private int lastCapturedJpegOrientation = 0;
     private volatile boolean cameraSessionReady = false; // Camera session readiness flag
     private boolean inScanSession = false; // Track if we're in an active scan session for back navigation
     
@@ -1144,134 +1152,84 @@ public class MainActivity extends AppCompatActivity {
 
     // Trigger still capture (user taps Try/Take Photo)
     private void triggerStillCapture() {
-        // Defensive checks
-        if (!scanSessionActive) {
-            Log.d(CAMERA_FLOW, "Ignoring capture - scan session not active");
-            return;
-        }
-        
-        // Check camera session readiness
-        if (!cameraSessionReady) {
-            runOnUiThread(() -> Toast.makeText(this, "Camera not ready, please wait...", Toast.LENGTH_SHORT).show());
-            Log.d(CAMERA_FLOW, "Camera not ready for capture");
-            return;
-        }
-        
-        if (cameraDevice == null || cameraCaptureSession == null || jpegReader == null) {
+        if (!scanSessionActive || !cameraSessionReady || cameraDevice == null || cameraCaptureSession == null || jpegReader == null) {
             runOnUiThread(() -> Toast.makeText(this, "Camera not ready", Toast.LENGTH_SHORT).show());
-            Log.e(CAMERA_FLOW, "Camera components not initialized");
+            Log.d(CAMERA_FLOW, "Capture ignored (not ready)");
             return;
         }
         if (!waitingForJpeg.compareAndSet(false, true)) {
-            Log.d(CAMERA_FLOW, "Already waiting for JPEG, ignoring capture request");
+            Log.d(CAMERA_FLOW, "Already waiting for JPEG");
             return;
         }
 
-        Log.d(CAMERA_FLOW, "Triggering still capture");
         shutterFlash();
 
         try {
             final CaptureRequest.Builder stillBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
             stillBuilder.addTarget(jpegReader.getSurface());
-            try {
-                stillBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE);
-            } catch (Throwable ignored) {
-            }
-            try {
-                stillBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH);
-            } catch (Throwable ignored) {
-            }
-            try {
-                stillBuilder.set(CaptureRequest.JPEG_ORIENTATION, 90);
-            } catch (Throwable ignored) {
-            }
+            try { stillBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE); } catch (Throwable ignored) {}
+            try { stillBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH); } catch (Throwable ignored) {}
+
+            // Compute correct orientation
+            CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+            CameraCharacteristics chars = manager.getCameraCharacteristics(manager.getCameraIdList()[0]);
+            int sensorOrientation = chars.get(CameraCharacteristics.SENSOR_ORIENTATION);
+            int deviceRotation = getWindowManager().getDefaultDisplay().getRotation();
+            int baseRotation = ORIENTATIONS.get(deviceRotation);
+            // Standard formula
+            int jpegOrientation = (baseRotation + sensorOrientation + 270) % 360;
+            lastCapturedJpegOrientation = jpegOrientation;
+            stillBuilder.set(CaptureRequest.JPEG_ORIENTATION, jpegOrientation);
+            Log.d(CAMERA_FLOW, "JPEG orientation set: " + jpegOrientation);
 
             cameraCaptureSession.stopRepeating();
-            cameraCaptureSession.capture(stillBuilder.build(), new CameraCaptureSession.CaptureCallback() {
-            }, backgroundHandler);
-            // Resume preview
+            cameraCaptureSession.capture(stillBuilder.build(), new CameraCaptureSession.CaptureCallback() {}, backgroundHandler);
             cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, backgroundHandler);
         } catch (Throwable e) {
             waitingForJpeg.set(false);
-            Log.e(TAG, "triggerStillCapture failed", e);
+            Log.e(CAMERA_FLOW, "triggerStillCapture failed", e);
             runOnUiThread(() -> Toast.makeText(this, "Capture failed", Toast.LENGTH_SHORT).show());
         }
     }
 
     private final ImageReader.OnImageAvailableListener onJpegAvailableListener = reader -> {
-        Log.d(CROP_FLOW, "JPEG image available from camera");
-        Log.d(CROP_FIX, "Capture triggered, session active: " + scanSessionActive);
-        
-        // Defensive check: if not in active scan session, discard
+        Log.d(CROP_FLOW, "JPEG image available");
         if (!scanSessionActive) {
-            Log.d(CROP_FLOW, "Discarding JPEG - scan session not active");
-            Image img = reader.acquireLatestImage();
-            if (img != null) img.close();
+            Image drop = reader.acquireLatestImage();
+            if (drop != null) drop.close();
             waitingForJpeg.set(false);
             return;
         }
-        
         Image img = reader.acquireLatestImage();
         if (img == null) {
-            Log.d(CROP_FLOW, "JPEG image is null");
             waitingForJpeg.set(false);
             return;
         }
-        
         try {
             Image.Plane plane = img.getPlanes()[0];
             ByteBuffer buffer = plane.getBuffer();
-            byte[] bytes = new byte[buffer.remaining()];
-            buffer.get(bytes);
+            byte[] jpegBytes = new byte[buffer.remaining()];
+            buffer.get(jpegBytes);
 
-            final Bitmap bmp = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-            if (bmp == null) {
-                runOnUiThread(() -> Toast.makeText(this, "Invalid photo data", Toast.LENGTH_SHORT).show());
-                return;
+            // Save raw JPEG (keeps EXIF + orientation)
+            String fileName = "capture_" + System.currentTimeMillis() + ".jpg";
+            lastCapturedFile = new java.io.File(getCacheDir(), fileName);
+            try (java.io.FileOutputStream fos = new java.io.FileOutputStream(lastCapturedFile)) {
+                fos.write(jpegBytes);
             }
-            Log.d(CROP_FIX, "Bitmap decoded: " + bmp.getWidth() + "x" + bmp.getHeight());
-
-            // Feature #2.1: Save to file and launch crop
-            try {
-                // Save bitmap to temporary file
-                String fileName = "capture_" + System.currentTimeMillis() + ".jpg";
-                lastCapturedFile = new java.io.File(getCacheDir(), fileName);
-                java.io.FileOutputStream fos = new java.io.FileOutputStream(lastCapturedFile);
-                bmp.compress(Bitmap.CompressFormat.JPEG, 90, fos);
-                fos.flush(); // Ensure data written to disk
-                fos.close();
-                Log.d(CROP_FLOW, "Saved capture to file: " + lastCapturedFile.getAbsolutePath());
-                Log.d(CROP_FIX, "File size after save: " + lastCapturedFile.length() + " bytes");
-                
-                // Use FileProvider to get secure URI
-                lastCapturedImageUri = FileProvider.getUriForFile(
+            lastCapturedImageUri = FileProvider.getUriForFile(
                     this,
                     getApplicationContext().getPackageName() + ".fileprovider",
                     lastCapturedFile
-                );
-                Log.d(CROP_FLOW, "Created FileProvider URI: " + lastCapturedImageUri);
-                Log.d(CROP_FIX, "URI authority: " + lastCapturedImageUri.getAuthority());
-                
-                // Now it's safe to recycle bitmap after file is flushed
-                bmp.recycle();
-                
-                // Launch crop activity on UI thread
-                runOnUiThread(() -> {
-                    startCropActivity(lastCapturedImageUri);
-                });
-                
-            } catch (Exception e) {
-                Log.e(TAG, "Error saving capture for crop", e);
-                Log.e(CROP_FLOW, "Failed to save/crop, falling back to direct OCR", e);
-                Log.e(CROP_FIX, "Save exception", e);
-                // Fallback: process without crop
-                processImageWithOcrFallback(bmp);
-            }
-            
-        } catch (Throwable t) {
-            Log.e(TAG, "onJpegAvailableListener error", t);
-            Log.e(CROP_FIX, "Listener exception", t);
-            runOnUiThread(() -> Toast.makeText(this, "Analyze failed", Toast.LENGTH_SHORT).show());
+            );
+            Log.d(CROP_FLOW, "Saved JPEG: " + lastCapturedFile.getAbsolutePath() + " size=" + lastCapturedFile.length());
+
+            runOnUiThread(() -> {
+                startCropActivity(lastCapturedImageUri); // will auto-orient in crop activity
+            });
+        } catch (Exception e) {
+            Log.e(CROP_FLOW, "Save/launch crop failed", e);
+            runOnUiThread(() -> Toast.makeText(this, "Save failed", Toast.LENGTH_SHORT).show());
         } finally {
             try { img.close(); } catch (Throwable ignored) {}
             waitingForJpeg.set(false);
@@ -2142,7 +2100,9 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onPause() {
-        if (scanSessionActive) stopScanSession();
+        if (scanSessionActive && !cropInProgress) {
+            stopScanSession();
+        }
         super.onPause();
     }
 
@@ -2632,29 +2592,28 @@ public class MainActivity extends AppCompatActivity {
      * Handle crop result from SimpleCropActivity.
      */
     private void onCropResult(androidx.activity.result.ActivityResult result) {
+        cropInProgress = false;
         if (result.getResultCode() == RESULT_OK && result.getData() != null) {
             android.net.Uri croppedUri = result.getData().getData();
             if (croppedUri != null) {
-                Log.d(CROP_FLOW, "Crop successful, processing cropped image: " + croppedUri);
+                // Ensure OCR ready (was stopped if previous code paused it)
+                if (ocrProcessor == null) {
+                    Log.w(OCR_FLOW, "ocrProcessor null on crop result - reinitializing");
+                    ocrProcessor = new OcrProcessor(
+                            BuildConfig.GCLOUD_VISION_API_KEY,
+                            BuildConfig.OCR_SPACE_API_KEY,
+                            new HashMap<>(currentAnswerKey)
+                    );
+                }
                 processCroppedImage(croppedUri);
             } else {
-                Log.e(CROP_FLOW, "Crop result OK but URI is null");
-                Toast.makeText(this, "Crop failed, try again", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Crop failed (no URI)", Toast.LENGTH_SHORT).show();
             }
         } else if (result.getResultCode() == RESULT_CANCELED) {
-            // User canceled crop
-            Log.d(CROP_FLOW, "Crop canceled by user");
-            Toast.makeText(this, "Crop canceled", Toast.LENGTH_SHORT).show();
-            // Return to camera preview - do nothing else
+            Log.d(CROP_FLOW, "Crop canceled");
         } else {
-            Log.e(CROP_FLOW, "Crop error occurred");
-            Toast.makeText(this, "Crop failed, processing original image", Toast.LENGTH_SHORT).show();
-            
-            // Fallback: use simple auto-crop on original image
-            if (lastCapturedImageUri != null) {
-                Log.d(CROP_FLOW, "Falling back to simple auto-crop");
-                processFallbackAutoCrop(lastCapturedImageUri);
-            }
+            Toast.makeText(this, "Crop failed, using fallback", Toast.LENGTH_SHORT).show();
+            if (lastCapturedImageUri != null) processFallbackAutoCrop(lastCapturedImageUri);
         }
     }
     
@@ -2663,43 +2622,30 @@ public class MainActivity extends AppCompatActivity {
      */
     private void processCroppedImage(android.net.Uri croppedUri) {
         Log.d(OCR_FLOW, "Processing cropped image: " + croppedUri);
-        
+        if (ocrProcessor == null) {
+            Log.w(OCR_FLOW, "ocrProcessor was null; reinitializing");
+            ocrProcessor = new OcrProcessor(
+                    BuildConfig.GCLOUD_VISION_API_KEY,
+                    BuildConfig.OCR_SPACE_API_KEY,
+                    new HashMap<>(currentAnswerKey)
+            );
+        }
         new Thread(() -> {
-            try {
-                java.io.InputStream inputStream = getContentResolver().openInputStream(croppedUri);
-                Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-                if (inputStream != null) inputStream.close();
-                
+            try (java.io.InputStream is = getContentResolver().openInputStream(croppedUri)) {
+                Bitmap bitmap = BitmapFactory.decodeStream(is);
                 if (bitmap == null) {
-                    Log.e(OCR_FLOW, "Failed to load bitmap from URI");
                     runOnUiThread(() -> Toast.makeText(this, "Failed to load cropped image", Toast.LENGTH_SHORT).show());
                     return;
                 }
-                
-                if (ocrProcessor == null) {
-                    Log.e(OCR_FLOW, "OcrProcessor is null");
-                    bitmap.recycle();
-                    runOnUiThread(() -> Toast.makeText(this, "OCR not initialized", Toast.LENGTH_SHORT).show());
-                    return;
-                }
-                
-                // Use OcrProcessor to handle enhancement, OCR, and parsing
-                Log.d(OCR_FLOW, "Using OcrProcessor to process image");
                 HashMap<Integer, String> parsed = ocrProcessor.processImage(bitmap);
                 bitmap.recycle();
-                
-                lastDetectedAnswers = (parsed != null) ? parsed : new HashMap<>();
-                Log.d(OCR_FLOW, "Parsed " + lastDetectedAnswers.size() + " answers");
-                
-                // Update UI
+                lastDetectedAnswers = parsed != null ? parsed : new HashMap<>();
                 runOnUiThread(() -> {
                     populateParsedAnswersEditable();
                     sessionScoreTextView.setText(getString(R.string.live_score_placeholder));
                 });
-                
             } catch (Exception e) {
-                Log.e(TAG, "Error processing cropped image", e);
-                Log.e(OCR_FLOW, "Failed to process image", e);
+                Log.e(OCR_FLOW, "Cropped processing failed", e);
                 runOnUiThread(() -> Toast.makeText(this, "Failed to process image", Toast.LENGTH_SHORT).show());
             }
         }).start();
@@ -2728,26 +2674,19 @@ public class MainActivity extends AppCompatActivity {
      */
     private void startCropActivity(android.net.Uri sourceUri) {
         try {
-            Log.d(CROP_FLOW, "Starting SimpleCropActivity with source: " + sourceUri);
-            Log.d(CROP_FIX, "Source file exists: " + (lastCapturedFile != null && lastCapturedFile.exists()));
-
-            // Create output file for cropped image
-            java.io.File croppedFile = new java.io.File(getCacheDir(), "cropped_" + System.currentTimeMillis() + ".jpg");
-            android.net.Uri outputUri = android.net.Uri.fromFile(croppedFile);
-            
-            // Launch SimpleCropActivity
-            Intent cropIntent = SimpleCropActivity.createIntent(this, sourceUri, outputUri);
-            Log.d(CROP_FLOW, "Launching SimpleCropActivity");
+            cropInProgress = true;
+            Log.d(CROP_FLOW, "Launching SimpleCropActivity with orientation hint: " + lastCapturedJpegOrientation);
+            Intent cropIntent = SimpleCropActivity.createIntent(this, sourceUri, null)
+                    .putExtra("EXTRA_JPEG_ORIENTATION", lastCapturedJpegOrientation);
             cropLauncher.launch(cropIntent);
-            
         } catch (Exception e) {
-            Log.e(CROP_FLOW, "SimpleCropActivity launch failed, using simple fallback", e);
-            Log.e(CROP_FIX, "Launch exception details", e);
+            cropInProgress = false;
+            Log.e(CROP_FLOW, "Launch crop failed", e);
             Toast.makeText(this, "Crop not available (fallback)", Toast.LENGTH_SHORT).show();
             processFallbackAutoCrop(sourceUri);
         }
     }
-    
+
     /**
      * Fallback auto-crop when crop is unavailable or disabled.
      */
