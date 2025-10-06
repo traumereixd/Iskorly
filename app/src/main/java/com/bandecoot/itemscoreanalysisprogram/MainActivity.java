@@ -43,6 +43,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 
 
 import com.google.android.material.appbar.MaterialToolbar;
@@ -81,6 +82,7 @@ import android.content.res.ColorStateList;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "ISA_VISION";
+    private static final String CAMERA_FLOW = "CAMERA_FLOW";
     private static final int CAMERA_PERMISSION_REQUEST_CODE = 200;
 
     // UI components
@@ -134,6 +136,7 @@ public class MainActivity extends AppCompatActivity {
 
     // State
     private boolean scanSessionActive = false;
+    private volatile boolean cameraSessionReady = false; // Camera session readiness flag
 
     // Data
     private SharedPreferences answerKeyPreferences, historyPreferences, appPreferences;
@@ -928,13 +931,16 @@ public class MainActivity extends AppCompatActivity {
 
     private void startScanSession() {
         scanSessionActive = true;
+        cameraSessionReady = false; // Reset readiness flag
         toggleView("scan");
         sessionScoreTextView.setText(getString(R.string.live_score_placeholder));
         if (resultsCard != null) resultsCard.setVisibility(View.GONE);
         if (captureResultButton != null) {
             captureResultButton.setVisibility(View.VISIBLE);
             captureResultButton.setText("Scan");
+            captureResultButton.setEnabled(false); // Disable until session is ready
         }
+        Log.d(CAMERA_FLOW, "Starting scan session, button disabled until camera ready");
         startBackgroundThread();
         // ... rest unchanged
 
@@ -950,6 +956,8 @@ public class MainActivity extends AppCompatActivity {
 
     private void stopScanSession() {
         scanSessionActive = false;
+        cameraSessionReady = false; // Reset readiness flag
+        Log.d(CAMERA_FLOW, "Stopping scan session");
         closeCamera();
         stopBackgroundThread();
         cameraPreviewTextureView.setSurfaceTextureListener(null);
@@ -977,6 +985,7 @@ public class MainActivity extends AppCompatActivity {
     };
 
     private void openCameraPreview(int viewWidth, int viewHeight) {
+        Log.d(CAMERA_FLOW, "Opening camera preview");
         CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         try {
             String cameraId = manager.getCameraIdList()[0];
@@ -1019,6 +1028,7 @@ public class MainActivity extends AppCompatActivity {
             manager.openCamera(cameraId, new CameraDevice.StateCallback() {
                 @Override
                 public void onOpened(@NonNull CameraDevice camera) {
+                    Log.d(CAMERA_FLOW, "Camera device opened successfully");
                     cameraDevice = camera;
                     try {
                         captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
@@ -1034,6 +1044,7 @@ public class MainActivity extends AppCompatActivity {
                         } catch (Throwable ignored) {
                         }
 
+                        Log.d(CAMERA_FLOW, "Creating capture session...");
                         cameraDevice.createCaptureSession(
                                 Arrays.asList(previewSurface, readerSurface, jpegSurface),
                                 new CameraCaptureSession.StateCallback() {
@@ -1041,6 +1052,16 @@ public class MainActivity extends AppCompatActivity {
                                     public void onConfigured(@NonNull CameraCaptureSession session) {
                                         if (cameraDevice == null) return;
                                         cameraCaptureSession = session;
+                                        cameraSessionReady = true; // Mark session as ready
+                                        Log.d(CAMERA_FLOW, "Camera session configured and ready");
+                                        
+                                        // Enable scan button on UI thread
+                                        runOnUiThread(() -> {
+                                            if (captureResultButton != null) {
+                                                captureResultButton.setEnabled(true);
+                                            }
+                                        });
+                                        
                                         try {
                                             cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, backgroundHandler);
                                         } catch (CameraAccessException e) {
@@ -1050,29 +1071,35 @@ public class MainActivity extends AppCompatActivity {
 
                                     @Override
                                     public void onConfigureFailed(@NonNull CameraCaptureSession session) {
+                                        Log.e(CAMERA_FLOW, "Camera session configuration failed");
                                         runOnUiThread(() -> Toast.makeText(MainActivity.this, "Failed to create camera session", Toast.LENGTH_SHORT).show());
                                     }
                                 }, backgroundHandler);
                     } catch (CameraAccessException e) {
+                        Log.e(CAMERA_FLOW, "Error creating camera session", e);
                         Log.e(TAG, "openCameraPreview create session", e);
                     }
                 }
 
                 @Override
                 public void onDisconnected(@NonNull CameraDevice camera) {
+                    Log.d(CAMERA_FLOW, "Camera device disconnected");
                     camera.close();
                 }
 
                 @Override
                 public void onError(@NonNull CameraDevice camera, int error) {
+                    Log.e(CAMERA_FLOW, "Camera device error: " + error);
                     camera.close();
                     cameraDevice = null;
                 }
             }, backgroundHandler);
 
         } catch (CameraAccessException e) {
+            Log.e(CAMERA_FLOW, "CameraAccessException in openCameraPreview", e);
             Log.e(TAG, "openCameraPreview", e);
         } catch (SecurityException se) {
+            Log.e(CAMERA_FLOW, "SecurityException - camera permission missing", se);
             Log.e(TAG, "Camera permission", se);
         }
     }
@@ -1085,6 +1112,12 @@ public class MainActivity extends AppCompatActivity {
 
     // Trigger still capture (user taps Try/Take Photo)
     private void triggerStillCapture() {
+        // Check camera session readiness
+        if (!cameraSessionReady) {
+            runOnUiThread(() -> Toast.makeText(this, "Camera not ready, please wait...", Toast.LENGTH_SHORT).show());
+            return;
+        }
+        
         if (cameraDevice == null || cameraCaptureSession == null || jpegReader == null) {
             runOnUiThread(() -> Toast.makeText(this, "Camera not ready", Toast.LENGTH_SHORT).show());
             return;
@@ -1146,7 +1179,12 @@ public class MainActivity extends AppCompatActivity {
                 bmp.compress(Bitmap.CompressFormat.JPEG, 90, fos);
                 fos.close();
                 
-                lastCapturedImageUri = android.net.Uri.fromFile(tempFile);
+                // Use FileProvider to get secure URI
+                lastCapturedImageUri = FileProvider.getUriForFile(
+                    this,
+                    getApplicationContext().getPackageName() + ".fileprovider",
+                    tempFile
+                );
                 
                 // Launch crop activity on UI thread
                 runOnUiThread(() -> {
@@ -2548,9 +2586,16 @@ public class MainActivity extends AppCompatActivity {
      */
     private void startCropActivity(android.net.Uri sourceUri) {
         try {
-            // Create destination URI for cropped image
+            // Create destination file for cropped image
             String destFileName = "cropped_" + System.currentTimeMillis() + ".jpg";
-            android.net.Uri destUri = android.net.Uri.fromFile(new java.io.File(getCacheDir(), destFileName));
+            java.io.File destFile = new java.io.File(getCacheDir(), destFileName);
+            
+            // Use FileProvider to get secure URI for destination
+            android.net.Uri destUri = FileProvider.getUriForFile(
+                this,
+                getApplicationContext().getPackageName() + ".fileprovider",
+                destFile
+            );
             
             // Configure uCrop
             com.yalantis.ucrop.UCrop.Options options = new com.yalantis.ucrop.UCrop.Options();
@@ -2561,6 +2606,10 @@ public class MainActivity extends AppCompatActivity {
             android.content.Intent cropIntent = com.yalantis.ucrop.UCrop.of(sourceUri, destUri)
                     .withOptions(options)
                     .getIntent(this);
+            
+            // Grant read and write URI permissions for uCrop
+            cropIntent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            cropIntent.addFlags(android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
             
             cropLauncher.launch(cropIntent);
             
