@@ -1228,6 +1228,70 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Feature #3: Check if OCR.Space API key is configured.
+     */
+    private boolean hasOcrSpaceKey() {
+        try {
+            String key = BuildConfig.OCR_SPACE_API_KEY;
+            return key != null && !key.trim().isEmpty();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    /**
+     * Feature #3: Call OCR.Space API as fallback for handwriting recognition.
+     */
+    private String callOcrSpaceAndRecognize(byte[] jpegBytes) {
+        try {
+            String apiKey = BuildConfig.OCR_SPACE_API_KEY;
+            if (apiKey == null || apiKey.trim().isEmpty()) {
+                Log.d(TAG, "OCR.Space API key not configured");
+                return null;
+            }
+            
+            Log.d(TAG, "Using OCR.Space fallback engine");
+            
+            String base64Image = Base64.encodeToString(jpegBytes, Base64.NO_WRAP);
+            String body = "base64Image=" + java.net.URLEncoder.encode("data:image/jpeg;base64," + base64Image, "UTF-8")
+                    + "&language=eng"
+                    + "&isOverlayRequired=false";
+            
+            MediaType mediaType = MediaType.parse("application/x-www-form-urlencoded; charset=UTF-8");
+            RequestBody requestBody = RequestBody.create(body, mediaType);
+            
+            Request request = new Request.Builder()
+                    .url("https://api.ocr.space/parse/image")
+                    .post(requestBody)
+                    .addHeader("apikey", apiKey)
+                    .build();
+            
+            try (Response resp = httpClient.newCall(request).execute()) {
+                if (!resp.isSuccessful()) {
+                    Log.e(TAG, "OCR.Space API error: " + resp.code());
+                    return null;
+                }
+                
+                String respStr = resp.body().string();
+                JSONObject respJson = new JSONObject(respStr);
+                JSONArray parsed = respJson.optJSONArray("ParsedResults");
+                
+                if (parsed != null && parsed.length() > 0) {
+                    JSONObject pr = parsed.getJSONObject(0);
+                    String text = pr.optString("ParsedText", "");
+                    Log.d(TAG, "OCR.Space returned " + text.length() + " chars");
+                    return text.trim();
+                }
+                
+                return null;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "OCR.Space API call failed", e);
+            return null;
+        }
+    }
+
     // Enhanced parser using the new Parser class with roman numeral support
     private HashMap<Integer, String> parseAnswersFromText(String text) {
         if (text == null) return new HashMap<>();
@@ -2231,12 +2295,28 @@ public class MainActivity extends AppCompatActivity {
                         continue;
                     }
                     
-                    // Resize and compress
-                    byte[] processedJpeg = ImageUtil.resizeAndCompress(bitmap, 1600);
+                    // Feature #3: Enhance for OCR
+                    Bitmap enhanced = ImageUtil.enhanceForOcr(bitmap);
                     bitmap.recycle();
                     
-                    // OCR
+                    if (enhanced == null) {
+                        Log.e(TAG, "Failed to enhance image from URI: " + uri);
+                        continue;
+                    }
+                    
+                    // Resize and compress
+                    byte[] processedJpeg = ImageUtil.resizeAndCompress(enhanced, 1600);
+                    enhanced.recycle();
+                    
+                    // OCR with fallback
                     String recognizedText = callVisionApiAndRecognize(processedJpeg);
+                    
+                    // Feature #3: Fallback to OCR.Space if Vision returns empty
+                    if ((recognizedText == null || recognizedText.trim().isEmpty()) && hasOcrSpaceKey()) {
+                        Log.d(TAG, "Vision OCR returned empty, trying OCR.Space fallback for image " + (processedCount + 1));
+                        recognizedText = callOcrSpaceAndRecognize(processedJpeg);
+                    }
+                    
                     if (recognizedText == null) recognizedText = "";
                     
                     // Parse answers
@@ -2322,12 +2402,28 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
                 
-                // Resize and compress
-                byte[] processedJpeg = ImageUtil.resizeAndCompress(bitmap, 1600);
+                // Feature #3: Enhance for OCR (grayscale + contrast)
+                Bitmap enhanced = ImageUtil.enhanceForOcr(bitmap);
                 bitmap.recycle();
                 
-                // OCR
+                if (enhanced == null) {
+                    runOnUiThread(() -> Toast.makeText(this, "Failed to enhance image", Toast.LENGTH_SHORT).show());
+                    return;
+                }
+                
+                // Resize and compress
+                byte[] processedJpeg = ImageUtil.resizeAndCompress(enhanced, 1600);
+                enhanced.recycle();
+                
+                // OCR with fallback
                 String recognizedText = callVisionApiAndRecognize(processedJpeg);
+                
+                // Feature #3: Fallback to OCR.Space if Vision returns empty
+                if ((recognizedText == null || recognizedText.trim().isEmpty()) && hasOcrSpaceKey()) {
+                    Log.d(TAG, "Vision OCR returned empty, trying OCR.Space fallback");
+                    recognizedText = callOcrSpaceAndRecognize(processedJpeg);
+                }
+                
                 if (recognizedText == null) recognizedText = "";
                 
                 // Parse answers

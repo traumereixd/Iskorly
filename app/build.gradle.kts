@@ -29,6 +29,16 @@ android {
             else -> ""
         }
         buildConfigField("String", "GCLOUD_VISION_API_KEY", "\"$visionKey\"")
+        
+        // OCR.Space API key (optional fallback for handwriting)
+        val ocrSpaceKeyFromProp = (project.findProperty("OCR_SPACE_API_KEY") as? String)?.trim()
+        val ocrSpaceKeyFromLocal = props.getProperty("OCR_SPACE_API_KEY")?.trim()
+        val ocrSpaceKey = when {
+            !ocrSpaceKeyFromProp.isNullOrEmpty() -> ocrSpaceKeyFromProp
+            !ocrSpaceKeyFromLocal.isNullOrEmpty() -> ocrSpaceKeyFromLocal
+            else -> ""
+        }
+        buildConfigField("String", "OCR_SPACE_API_KEY", "\"$ocrSpaceKey\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
