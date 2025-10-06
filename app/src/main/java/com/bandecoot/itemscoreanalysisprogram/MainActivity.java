@@ -85,17 +85,17 @@ public class MainActivity extends AppCompatActivity {
 
     // UI components
     private MaterialToolbar topAppBar;
-    private LinearLayout mainLayout, answerKeyLayout, testHistoryLayout, scanSessionLayout;
+    private LinearLayout mainLayout, answerKeyLayout, testHistoryLayout, scanSessionLayout, masterlistLayout;
     private EditText studentNameInput, sectionNameInput, examNameInput;
     private EditText questionNumberInput, removeQuestionInput;
     private MaterialAutoCompleteTextView answerDropdown;
     private Button startScanButton, setupButton, viewHistoryButton;
     private Button saveAnswerButton, removeAnswerButton, clearButton, backButton;
     private Button historyBackButton, tryAgainButton, captureResultButton, cancelScanButton;
-    private Button confirmParsedButton;
-    private TextView currentKeyTextView, sessionScoreTextView, parsedLabel;
+    private Button confirmParsedButton, importPhotosButton, masterlistButton, masterlistBackButton, exportCsvButton;
+    private TextView currentKeyTextView, sessionScoreTextView, parsedLabel, masterlistInfoTextView;
     private MaterialCardView resultsCard;
-    private LinearLayout testHistoryList, parsedAnswersContainer;
+    private LinearLayout testHistoryList, parsedAnswersContainer, masterlistContent;
     private TextureView cameraPreviewTextureView;
     private View shutterView;
     
@@ -147,6 +147,13 @@ public class MainActivity extends AppCompatActivity {
     // Document picker launchers
     private ActivityResultLauncher<String[]> importSlotLauncher;
     private ActivityResultLauncher<String> exportSlotLauncher;
+    
+    // Multi-image import launcher (Feature #2)
+    private ActivityResultLauncher<String> importPhotosLauncher;
+    
+    // Crop launcher (Feature #2.1)
+    private ActivityResultLauncher<android.content.Intent> cropLauncher;
+    private android.net.Uri lastCapturedImageUri;
 
     // General settings
     private static final int CAMERA_WIDTH = 1280;
@@ -707,6 +714,37 @@ public class MainActivity extends AppCompatActivity {
             v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
             toggleView("main");
         });
+        
+        // Masterlist button in history
+        masterlistButton = findViewById(R.id.button_masterlist);
+        if (masterlistButton != null) {
+            masterlistButton.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                toggleView("masterlist");
+                displayMasterlist();
+            });
+        }
+        
+        // Export CSV button in history (Feature #4)
+        exportCsvButton = findViewById(R.id.button_export_csv);
+        if (exportCsvButton != null) {
+            exportCsvButton.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                exportHistoryCsv();
+            });
+        }
+        
+        // Masterlist overlay
+        masterlistLayout = findViewById(R.id.masterlist_layout);
+        masterlistContent = findViewById(R.id.masterlist_content);
+        masterlistInfoTextView = findViewById(R.id.textView_masterlist_info);
+        masterlistBackButton = findViewById(R.id.button_masterlist_back);
+        if (masterlistBackButton != null) {
+            masterlistBackButton.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                toggleView("history");
+            });
+        }
 
         // Scan session  
         scanSessionLayout = findViewById(R.id.scan_session_layout);
@@ -715,6 +753,7 @@ public class MainActivity extends AppCompatActivity {
         resultsCard = findViewById(R.id.results_card);
         tryAgainButton = findViewById(R.id.button_try_again);
         captureResultButton = findViewById(R.id.button_capture_result);
+        importPhotosButton = findViewById(R.id.button_import_photos);
         cancelScanButton = findViewById(R.id.button_cancel_scan);
         shutterView = findViewById(R.id.shutterView);
 
@@ -734,6 +773,18 @@ public class MainActivity extends AppCompatActivity {
         createCsvLauncher = registerForActivityResult(
                 new ActivityResultContracts.CreateDocument("text/csv"),
                 this::onCsvDocumentCreated
+        );
+        
+        // Multi-image import launcher (Feature #2)
+        importPhotosLauncher = registerForActivityResult(
+                new ActivityResultContracts.GetMultipleContents(),
+                this::onPhotosImported
+        );
+        
+        // Crop launcher (Feature #2.1)
+        cropLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                this::onCropResult
         );
 
         // Toolbar menu
@@ -818,6 +869,14 @@ public class MainActivity extends AppCompatActivity {
             v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
             triggerStillCapture();
         });
+        
+        // Import photos button (Feature #2)
+        if (importPhotosButton != null) {
+            importPhotosButton.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                importPhotosLauncher.launch("image/*");
+            });
+        }
 
         cancelScanButton.setOnClickListener(v -> {
             v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
@@ -1078,36 +1137,62 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            // Pure-Java resize/compress to max 1600px
-            byte[] processedJpeg = resizeAndCompress(bmp, 1600);
-            bmp.recycle();
-
-            // runOnUiThread(() -> sessionOcrTextView.setText("Analyzing (cloud)…"));
-            // Send to cloud on background handler
-            backgroundHandler.post(() -> {
-                try {
-                    String recognizedText = callVisionApiAndRecognize(processedJpeg);
-                    if (recognizedText == null) recognizedText = "";
-                    HashMap<Integer, String> parsed = parseAnswersFromText(recognizedText);
-                    lastDetectedAnswers = (parsed != null) ? parsed : new HashMap<>();
-
-                    runOnUiThread(() -> {
-                        populateParsedAnswersEditable();
-                        sessionScoreTextView.setText(getString(R.string.live_score_placeholder));
-                        // Show results popup and hide the bottom Scan button are handled in populateParsedAnswersEditable()
-                    });
-                } finally {
-                    try { img.close(); } catch (Throwable ignored) {}
-                    waitingForJpeg.set(false);
-                }
-            });
+            // Feature #2.1: Save to file and launch crop
+            try {
+                // Save bitmap to temporary file
+                String fileName = "capture_" + System.currentTimeMillis() + ".jpg";
+                java.io.File tempFile = new java.io.File(getCacheDir(), fileName);
+                java.io.FileOutputStream fos = new java.io.FileOutputStream(tempFile);
+                bmp.compress(Bitmap.CompressFormat.JPEG, 90, fos);
+                fos.close();
+                
+                lastCapturedImageUri = android.net.Uri.fromFile(tempFile);
+                
+                // Launch crop activity on UI thread
+                runOnUiThread(() -> {
+                    startCropActivity(lastCapturedImageUri);
+                });
+                
+                bmp.recycle();
+                
+            } catch (Exception e) {
+                Log.e(TAG, "Error saving capture for crop", e);
+                // Fallback: process without crop
+                byte[] processedJpeg = resizeAndCompress(bmp, 1600);
+                bmp.recycle();
+                processImageWithOcr(processedJpeg);
+            }
+            
         } catch (Throwable t) {
             Log.e(TAG, "onJpegAvailableListener error", t);
             runOnUiThread(() -> Toast.makeText(this, "Analyze failed", Toast.LENGTH_SHORT).show());
+        } finally {
             try { img.close(); } catch (Throwable ignored) {}
             waitingForJpeg.set(false);
         }
     };
+    
+    /**
+     * Process image with OCR (extracted from previous inline code).
+     */
+    private void processImageWithOcr(byte[] processedJpeg) {
+        backgroundHandler.post(() -> {
+            try {
+                String recognizedText = callVisionApiAndRecognize(processedJpeg);
+                if (recognizedText == null) recognizedText = "";
+                HashMap<Integer, String> parsed = parseAnswersFromText(recognizedText);
+                lastDetectedAnswers = (parsed != null) ? parsed : new HashMap<>();
+
+                runOnUiThread(() -> {
+                    populateParsedAnswersEditable();
+                    sessionScoreTextView.setText(getString(R.string.live_score_placeholder));
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "OCR processing error", e);
+                runOnUiThread(() -> Toast.makeText(this, "OCR failed", Toast.LENGTH_SHORT).show());
+            }
+        });
+    }
 
     // Pure-Java resize and compress to JPEG, max dimension
     private byte[] resizeAndCompress(Bitmap src, int maxDim) {
@@ -1174,6 +1259,70 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    /**
+     * Feature #3: Check if OCR.Space API key is configured.
+     */
+    private boolean hasOcrSpaceKey() {
+        try {
+            String key = BuildConfig.OCR_SPACE_API_KEY;
+            return key != null && !key.trim().isEmpty();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    /**
+     * Feature #3: Call OCR.Space API as fallback for handwriting recognition.
+     */
+    private String callOcrSpaceAndRecognize(byte[] jpegBytes) {
+        try {
+            String apiKey = BuildConfig.OCR_SPACE_API_KEY;
+            if (apiKey == null || apiKey.trim().isEmpty()) {
+                Log.d(TAG, "OCR.Space API key not configured");
+                return null;
+            }
+            
+            Log.d(TAG, "Using OCR.Space fallback engine");
+            
+            String base64Image = Base64.encodeToString(jpegBytes, Base64.NO_WRAP);
+            String body = "base64Image=" + java.net.URLEncoder.encode("data:image/jpeg;base64," + base64Image, "UTF-8")
+                    + "&language=eng"
+                    + "&isOverlayRequired=false";
+            
+            MediaType mediaType = MediaType.parse("application/x-www-form-urlencoded; charset=UTF-8");
+            RequestBody requestBody = RequestBody.create(body, mediaType);
+            
+            Request request = new Request.Builder()
+                    .url("https://api.ocr.space/parse/image")
+                    .post(requestBody)
+                    .addHeader("apikey", apiKey)
+                    .build();
+            
+            try (Response resp = httpClient.newCall(request).execute()) {
+                if (!resp.isSuccessful()) {
+                    Log.e(TAG, "OCR.Space API error: " + resp.code());
+                    return null;
+                }
+                
+                String respStr = resp.body().string();
+                JSONObject respJson = new JSONObject(respStr);
+                JSONArray parsed = respJson.optJSONArray("ParsedResults");
+                
+                if (parsed != null && parsed.length() > 0) {
+                    JSONObject pr = parsed.getJSONObject(0);
+                    String text = pr.optString("ParsedText", "");
+                    Log.d(TAG, "OCR.Space returned " + text.length() + " chars");
+                    return text.trim();
+                }
+                
+                return null;
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "OCR.Space API call failed", e);
+            return null;
+        }
+    }
+
     // Enhanced parser using the new Parser class with roman numeral support
     private HashMap<Integer, String> parseAnswersFromText(String text) {
         if (text == null) return new HashMap<>();
@@ -1181,9 +1330,12 @@ public class MainActivity extends AppCompatActivity {
         // Use the enhanced parser from Parser.java
         LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextToAnswers(text);
         
+        // Filter to only answer key questions (Feature #1: Parsing Must Follow Answer Key Only)
+        LinkedHashMap<Integer, String> filtered = Parser.filterToAnswerKey(parsed, currentAnswerKey);
+        
         // Convert LinkedHashMap to HashMap for compatibility
         HashMap<Integer, String> result = new HashMap<>();
-        result.putAll(parsed);
+        result.putAll(filtered);
         
         return result;
     }
@@ -1838,6 +1990,7 @@ public class MainActivity extends AppCompatActivity {
         fadeOut(answerKeyLayout);
         fadeOut(testHistoryLayout);
         fadeOut(scanSessionLayout);
+        fadeOut(masterlistLayout);
         
         // Then fade in the target view after a short delay
         new Handler().postDelayed(() -> {
@@ -1853,6 +2006,9 @@ public class MainActivity extends AppCompatActivity {
                     break;
                 case "scan":
                     fadeIn(scanSessionLayout);
+                    break;
+                case "masterlist":
+                    fadeIn(masterlistLayout);
                     break;
             }
         }, 150); // 150ms delay for smoother transition
@@ -1922,34 +2078,136 @@ public class MainActivity extends AppCompatActivity {
 
         List<Integer> qList = new ArrayList<>(lastDetectedAnswers.keySet());
         Collections.sort(qList);
-        // ... build editable rows (unchanged) ...
-
-        for (int q : qList) {
-            LinearLayout row = new LinearLayout(this);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setPadding(0, dp(6), 0, dp(6));
-
+        
+        // Feature #7: Check if at least one answer is filled
+        boolean hasAnyAnswer = false;
+        for (Integer q : qList) {
+            String val = lastDetectedAnswers.get(q);
+            if (val != null && !val.trim().isEmpty()) {
+                hasAnyAnswer = true;
+                break;
+            }
+        }
+        
+        // Disable Confirm & Score button if no answers
+        if (confirmParsedButton != null) {
+            confirmParsedButton.setEnabled(hasAnyAnswer);
+            confirmParsedButton.setAlpha(hasAnyAnswer ? 1.0f : 0.5f);
+        }
+        
+        // Feature #1.1: Two-Column Grid Layout
+        // Create a container with 2-column layout using nested LinearLayouts
+        LinearLayout gridContainer = new LinearLayout(this);
+        gridContainer.setOrientation(LinearLayout.VERTICAL);
+        gridContainer.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 
+            ViewGroup.LayoutParams.WRAP_CONTENT));
+        
+        LinearLayout currentRow = null;
+        int columnCount = 0;
+        
+        for (int i = 0; i < qList.size(); i++) {
+            int q = qList.get(i);
+            
+            // Create new row every 2 items
+            if (columnCount == 0) {
+                currentRow = new LinearLayout(this);
+                currentRow.setOrientation(LinearLayout.HORIZONTAL);
+                currentRow.setLayoutParams(new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, 
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+                currentRow.setPadding(0, 0, 0, dp(8)); // 8dp spacing between rows
+                gridContainer.addView(currentRow);
+            }
+            
+            // Create card for each cell
+            MaterialCardView cell = new MaterialCardView(this);
+            LinearLayout.LayoutParams cellParams = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            cellParams.setMargins(columnCount == 0 ? 0 : dp(8), 0, 0, 0); // 8dp spacing between columns
+            cell.setLayoutParams(cellParams);
+            cell.setCardElevation(dp(2));
+            cell.setRadius(dp(8));
+            cell.setContentPadding(dp(8), dp(6), dp(8), dp(6));
+            
+            // Inner layout for Q# and EditText
+            LinearLayout cellContent = new LinearLayout(this);
+            cellContent.setOrientation(LinearLayout.HORIZONTAL);
+            cellContent.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+            
             TextView tv = new TextView(this);
-            tv.setText(String.format(Locale.US, "#%d", q));
-            tv.setTextSize(16);
+            tv.setText(String.format(Locale.US, "#%d:", q));
+            tv.setTextSize(14);
             tv.setTextColor(Color.BLACK);
             tv.setTypeface(tv.getTypeface(), Typeface.BOLD);
-            tv.setPadding(dp(8), dp(8), dp(16), dp(8));
-            row.addView(tv);
+            tv.setPadding(0, 0, dp(6), 0);
+            cellContent.addView(tv);
 
             // Universal input - always use EditText for both letters and words
             EditText et = new EditText(this);
             et.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
             et.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS);
+            et.setTextSize(14);
+            et.setPadding(dp(4), 0, dp(4), 0);
+            et.setMinHeight(dp(36));
             String val = lastDetectedAnswers.get(q);
             et.setText(val != null ? val : "");
             et.setTextColor(Color.BLACK);
             et.setTypeface(et.getTypeface(), Typeface.BOLD);
-            row.addView(et);
+            
+            // Feature #7: Add text watcher to enable Confirm button when user edits
+            et.addTextChangedListener(new android.text.TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    // Check if any answer is filled
+                    boolean hasAny = false;
+                    for (View v : parsedEditors.values()) {
+                        if (v instanceof EditText) {
+                            String text = ((EditText) v).getText().toString().trim();
+                            if (!text.isEmpty()) {
+                                hasAny = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (confirmParsedButton != null) {
+                        confirmParsedButton.setEnabled(hasAny);
+                        confirmParsedButton.setAlpha(hasAny ? 1.0f : 0.5f);
+                    }
+                }
+                
+                @Override
+                public void afterTextChanged(android.text.Editable s) {}
+            });
+            
+            cellContent.addView(et);
             parsedEditors.put(q, et);
-
-            parsedAnswersContainer.addView(row);
+            
+            cell.addView(cellContent);
+            currentRow.addView(cell);
+            
+            columnCount++;
+            if (columnCount >= 2) {
+                columnCount = 0;
+            }
         }
+        
+        // If last row has only 1 item, add spacer for balance
+        if (columnCount == 1 && currentRow != null) {
+            View spacer = new View(this);
+            LinearLayout.LayoutParams spacerParams = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            spacerParams.setMargins(dp(8), 0, 0, 0);
+            spacer.setLayoutParams(spacerParams);
+            currentRow.addView(spacer);
+        }
+        
+        parsedAnswersContainer.addView(gridContainer);
     }
 
     private void gatherEditedAnswers() {
@@ -1991,13 +2249,33 @@ public class MainActivity extends AppCompatActivity {
         int correct = 0;
         int answered = 0;
 
+        // Feature #7: Highlight correct/incorrect answers
         for (HashMap.Entry<Integer, String> e : currentAnswerKey.entrySet()) {
             int q = e.getKey();
             String expected = e.getValue();
             String got = lastDetectedAnswers.get(q);
-            if (got != null) {
-                answered++;
-                if (expected.equalsIgnoreCase(got)) correct++;
+            
+            // Find the EditText for this question and highlight it
+            View editorView = parsedEditors.get(q);
+            if (editorView instanceof EditText) {
+                EditText et = (EditText) editorView;
+                if (got != null && !got.isEmpty()) {
+                    answered++;
+                    if (expected.equalsIgnoreCase(got)) {
+                        correct++;
+                        // Highlight correct with light green background
+                        et.setBackgroundColor(0xFFD4EDDA); // Light green
+                        et.setTextColor(0xFF155724); // Dark green text
+                    } else {
+                        // Highlight incorrect with light red background
+                        et.setBackgroundColor(0xFFF8D7DA); // Light red
+                        et.setTextColor(0xFF721C24); // Dark red text
+                    }
+                } else {
+                    // No answer - neutral/warning yellow
+                    et.setBackgroundColor(0xFFFFF3CD); // Light yellow
+                    et.setTextColor(0xFF856404); // Dark yellow text
+                }
             }
         }
 
@@ -2075,6 +2353,369 @@ public class MainActivity extends AppCompatActivity {
             Log.e(TAG, "Saving record failed", e);
             Toast.makeText(this, "Failed to save record.", Toast.LENGTH_LONG).show();
         }
+    }
+    
+    // ---------------------------
+    // Multi-image import and crop handlers (Feature #2 & #2.1)
+    // ---------------------------
+    
+    /**
+     * Handle multiple images imported from gallery.
+     * Process each image sequentially, parse answers, and merge results.
+     * Deterministic merge: first non-blank value wins.
+     */
+    private void onPhotosImported(java.util.List<android.net.Uri> uris) {
+        if (uris == null || uris.isEmpty()) {
+            return;
+        }
+        
+        Log.d(TAG, "Importing " + uris.size() + " photo(s)");
+        
+        // Show progress dialog
+        android.app.ProgressDialog progressDialog = new android.app.ProgressDialog(this);
+        progressDialog.setTitle("Processing Images");
+        progressDialog.setMessage(String.format(Locale.US, "Processing %d image(s)…", uris.size()));
+        progressDialog.setCancelable(false);
+        progressDialog.show();
+        
+        // Process images on background thread
+        new Thread(() -> {
+            HashMap<Integer, String> mergedAnswers = new HashMap<>();
+            int processedCount = 0;
+            
+            for (android.net.Uri uri : uris) {
+                try {
+                    // Load bitmap from URI
+                    java.io.InputStream inputStream = getContentResolver().openInputStream(uri);
+                    Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+                    if (inputStream != null) inputStream.close();
+                    
+                    if (bitmap == null) {
+                        Log.e(TAG, "Failed to decode image from URI: " + uri);
+                        continue;
+                    }
+                    
+                    // Feature #3: Enhance for OCR
+                    Bitmap enhanced = ImageUtil.enhanceForOcr(bitmap);
+                    bitmap.recycle();
+                    
+                    if (enhanced == null) {
+                        Log.e(TAG, "Failed to enhance image from URI: " + uri);
+                        continue;
+                    }
+                    
+                    // Resize and compress
+                    byte[] processedJpeg = ImageUtil.resizeAndCompress(enhanced, 1600);
+                    enhanced.recycle();
+                    
+                    // OCR with fallback
+                    String recognizedText = callVisionApiAndRecognize(processedJpeg);
+                    
+                    // Feature #3: Fallback to OCR.Space if Vision returns empty
+                    if ((recognizedText == null || recognizedText.trim().isEmpty()) && hasOcrSpaceKey()) {
+                        Log.d(TAG, "Vision OCR returned empty, trying OCR.Space fallback for image " + (processedCount + 1));
+                        recognizedText = callOcrSpaceAndRecognize(processedJpeg);
+                    }
+                    
+                    if (recognizedText == null) recognizedText = "";
+                    
+                    // Parse answers
+                    HashMap<Integer, String> parsed = parseAnswersFromText(recognizedText);
+                    
+                    // Merge: first non-blank value wins
+                    for (Map.Entry<Integer, String> entry : parsed.entrySet()) {
+                        if (!mergedAnswers.containsKey(entry.getKey()) || 
+                            mergedAnswers.get(entry.getKey()).isEmpty()) {
+                            mergedAnswers.put(entry.getKey(), entry.getValue());
+                        }
+                    }
+                    
+                    processedCount++;
+                    
+                } catch (Exception e) {
+                    Log.e(TAG, "Error processing image: " + uri, e);
+                }
+            }
+            
+            final int finalProcessed = processedCount;
+            final HashMap<Integer, String> finalMerged = mergedAnswers;
+            
+            // Update UI on main thread
+            runOnUiThread(() -> {
+                progressDialog.dismiss();
+                
+                lastDetectedAnswers = finalMerged;
+                populateParsedAnswersEditable();
+                
+                // Show status
+                int filled = 0;
+                int total = currentAnswerKey.size();
+                for (Integer q : currentAnswerKey.keySet()) {
+                    if (finalMerged.containsKey(q) && !finalMerged.get(q).isEmpty()) {
+                        filled++;
+                    }
+                }
+                
+                String statusMsg = String.format(Locale.US, 
+                    "Processed %d image(s) • Filled %d / %d answers", 
+                    finalProcessed, filled, total);
+                parsedLabel.setText(statusMsg);
+                
+                sessionScoreTextView.setText(getString(R.string.live_score_placeholder));
+                
+                Toast.makeText(this, statusMsg, Toast.LENGTH_LONG).show();
+            });
+            
+        }).start();
+    }
+    
+    /**
+     * Handle crop result from uCrop.
+     */
+    private void onCropResult(androidx.activity.result.ActivityResult result) {
+        if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+            android.net.Uri croppedUri = com.yalantis.ucrop.UCrop.getOutput(result.getData());
+            if (croppedUri != null) {
+                // Process cropped image
+                processCroppedImage(croppedUri);
+            }
+        } else if (result.getResultCode() == com.yalantis.ucrop.UCrop.RESULT_ERROR) {
+            Throwable cropError = com.yalantis.ucrop.UCrop.getError(result.getData());
+            Log.e(TAG, "Crop error", cropError);
+            Toast.makeText(this, "Crop failed", Toast.LENGTH_SHORT).show();
+        }
+        // User canceled crop: do nothing, return to camera
+    }
+    
+    /**
+     * Process the cropped image - run OCR and parse answers.
+     */
+    private void processCroppedImage(android.net.Uri croppedUri) {
+        new Thread(() -> {
+            try {
+                java.io.InputStream inputStream = getContentResolver().openInputStream(croppedUri);
+                Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+                if (inputStream != null) inputStream.close();
+                
+                if (bitmap == null) {
+                    runOnUiThread(() -> Toast.makeText(this, "Failed to load cropped image", Toast.LENGTH_SHORT).show());
+                    return;
+                }
+                
+                // Feature #3: Enhance for OCR (grayscale + contrast)
+                Bitmap enhanced = ImageUtil.enhanceForOcr(bitmap);
+                bitmap.recycle();
+                
+                if (enhanced == null) {
+                    runOnUiThread(() -> Toast.makeText(this, "Failed to enhance image", Toast.LENGTH_SHORT).show());
+                    return;
+                }
+                
+                // Resize and compress
+                byte[] processedJpeg = ImageUtil.resizeAndCompress(enhanced, 1600);
+                enhanced.recycle();
+                
+                // OCR with fallback
+                String recognizedText = callVisionApiAndRecognize(processedJpeg);
+                
+                // Feature #3: Fallback to OCR.Space if Vision returns empty
+                if ((recognizedText == null || recognizedText.trim().isEmpty()) && hasOcrSpaceKey()) {
+                    Log.d(TAG, "Vision OCR returned empty, trying OCR.Space fallback");
+                    recognizedText = callOcrSpaceAndRecognize(processedJpeg);
+                }
+                
+                if (recognizedText == null) recognizedText = "";
+                
+                // Parse answers
+                HashMap<Integer, String> parsed = parseAnswersFromText(recognizedText);
+                lastDetectedAnswers = parsed;
+                
+                // Update UI
+                runOnUiThread(() -> {
+                    populateParsedAnswersEditable();
+                    sessionScoreTextView.setText(getString(R.string.live_score_placeholder));
+                });
+                
+            } catch (Exception e) {
+                Log.e(TAG, "Error processing cropped image", e);
+                runOnUiThread(() -> Toast.makeText(this, "Failed to process image", Toast.LENGTH_SHORT).show());
+            }
+        }).start();
+    }
+    
+    /**
+     * Start crop activity for the captured image.
+     */
+    private void startCropActivity(android.net.Uri sourceUri) {
+        try {
+            // Create destination URI for cropped image
+            String destFileName = "cropped_" + System.currentTimeMillis() + ".jpg";
+            android.net.Uri destUri = android.net.Uri.fromFile(new java.io.File(getCacheDir(), destFileName));
+            
+            // Configure uCrop
+            com.yalantis.ucrop.UCrop.Options options = new com.yalantis.ucrop.UCrop.Options();
+            options.setFreeStyleCropEnabled(true);
+            options.setShowCropGrid(true);
+            options.setShowCropFrame(true);
+            
+            android.content.Intent cropIntent = com.yalantis.ucrop.UCrop.of(sourceUri, destUri)
+                    .withOptions(options)
+                    .getIntent(this);
+            
+            cropLauncher.launch(cropIntent);
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error starting crop activity", e);
+            Toast.makeText(this, "Crop not available", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    // ---------------------------
+    // Masterlist (Feature #5)
+    // ---------------------------
+    
+    /**
+     * Display per-question statistics in the masterlist view.
+     */
+    private void displayMasterlist() {
+        if (masterlistContent == null) return;
+        
+        masterlistContent.removeAllViews();
+        
+        // Check if answer key is set
+        if (currentAnswerKey == null || currentAnswerKey.isEmpty()) {
+            TextView noKeyMsg = new TextView(this);
+            noKeyMsg.setText("No answer key set. Please set up an answer key first.");
+            noKeyMsg.setPadding(dp(16), dp(16), dp(16), dp(16));
+            noKeyMsg.setTextSize(16);
+            masterlistContent.addView(noKeyMsg);
+            if (masterlistInfoTextView != null) {
+                masterlistInfoTextView.setText("No data available");
+            }
+            return;
+        }
+        
+        // Get history
+        JSONArray historyArray = getHistoryArray();
+        if (historyArray.length() == 0) {
+            TextView noDataMsg = new TextView(this);
+            noDataMsg.setText("No history records found. Scan some answer sheets first!");
+            noDataMsg.setPadding(dp(16), dp(16), dp(16), dp(16));
+            noDataMsg.setTextSize(16);
+            masterlistContent.addView(noDataMsg);
+            if (masterlistInfoTextView != null) {
+                masterlistInfoTextView.setText("No data available");
+            }
+            return;
+        }
+        
+        // Compute stats (no filters for now - process all records)
+        Map<Integer, QuestionStats.QuestionStat> stats = 
+            QuestionStats.computeQuestionStats(historyArray, currentAnswerKey, null, null);
+        
+        // Update info text
+        if (masterlistInfoTextView != null) {
+            masterlistInfoTextView.setText(String.format(Locale.US, 
+                "Analyzed %d record(s) across all exams and sections", 
+                historyArray.length()));
+        }
+        
+        // Create header row
+        LinearLayout headerRow = new LinearLayout(this);
+        headerRow.setOrientation(LinearLayout.HORIZONTAL);
+        headerRow.setPadding(dp(8), dp(8), dp(8), dp(8));
+        headerRow.setBackgroundColor(0xFFE0E0E0);
+        
+        addTableCell(headerRow, "Q#", 0.15f, true);
+        addTableCell(headerRow, "Correct", 0.20f, true);
+        addTableCell(headerRow, "Incorrect", 0.20f, true);
+        addTableCell(headerRow, "% Correct", 0.20f, true);
+        addTableCell(headerRow, "Common Miss", 0.25f, true);
+        
+        masterlistContent.addView(headerRow);
+        
+        // Add a divider
+        View divider = new View(this);
+        divider.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(2)));
+        divider.setBackgroundColor(0xFF757575);
+        masterlistContent.addView(divider);
+        
+        // Get sorted questions
+        List<Integer> sortedQuestions = QuestionStats.getSortedQuestions(stats);
+        
+        // Create data rows
+        for (Integer q : sortedQuestions) {
+            QuestionStats.QuestionStat stat = stats.get(q);
+            if (stat == null) continue;
+            
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setPadding(dp(8), dp(8), dp(8), dp(8));
+            
+            // Alternate row colors
+            if (sortedQuestions.indexOf(q) % 2 == 0) {
+                row.setBackgroundColor(0xFFF5F5F5);
+            } else {
+                row.setBackgroundColor(0xFFFFFFFF);
+            }
+            
+            addTableCell(row, String.valueOf(q), 0.15f, false);
+            addTableCell(row, String.valueOf(stat.correctCount), 0.20f, false);
+            addTableCell(row, String.valueOf(stat.incorrectCount), 0.20f, false);
+            addTableCell(row, String.format(Locale.US, "%.1f%%", stat.percentCorrect), 0.20f, false);
+            
+            String missInfo = stat.mostCommonWrongCount > 0 
+                ? stat.mostCommonWrong + " (" + stat.mostCommonWrongCount + ")"
+                : "-";
+            addTableCell(row, missInfo, 0.25f, false);
+            
+            masterlistContent.addView(row);
+        }
+        
+        // Add summary at bottom
+        TextView summaryText = new TextView(this);
+        summaryText.setPadding(dp(16), dp(16), dp(16), dp(16));
+        summaryText.setTextSize(14);
+        summaryText.setTextColor(0xFF424242);
+        
+        int totalQuestions = sortedQuestions.size();
+        int totalAttempts = 0;
+        int totalCorrect = 0;
+        for (Integer q : sortedQuestions) {
+            QuestionStats.QuestionStat stat = stats.get(q);
+            if (stat != null) {
+                totalAttempts += stat.attemptCount;
+                totalCorrect += stat.correctCount;
+            }
+        }
+        double overallPercent = totalAttempts > 0 ? (100.0 * totalCorrect / totalAttempts) : 0.0;
+        
+        summaryText.setText(String.format(Locale.US,
+            "Summary: %d questions • %d total attempts • %.1f%% overall correct",
+            totalQuestions, totalAttempts, overallPercent));
+        
+        masterlistContent.addView(summaryText);
+    }
+    
+    /**
+     * Helper method to add a table cell to a row.
+     */
+    private void addTableCell(LinearLayout row, String text, float weight, boolean bold) {
+        TextView tv = new TextView(this);
+        tv.setText(text);
+        tv.setTextSize(13);
+        tv.setTextColor(Color.BLACK);
+        if (bold) {
+            tv.setTypeface(tv.getTypeface(), Typeface.BOLD);
+        }
+        tv.setPadding(dp(4), dp(4), dp(4), dp(4));
+        
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            0, ViewGroup.LayoutParams.WRAP_CONTENT, weight);
+        tv.setLayoutParams(params);
+        
+        row.addView(tv);
     }
 }
 
