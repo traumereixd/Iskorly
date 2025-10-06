@@ -16,13 +16,14 @@ Iskorly uses OCR (Google Vision + fallback) to extract student answers from phot
 ## Core Features (v1.3)
 - Smart answer key filtering (only key questions displayed)
 - Batch scanning (multi-image import)
-- Crop-before-OCR workflow (uCrop or fallback)
+- Crop-before-OCR workflow (CanHub Android Image Cropper with rotation & free-style crop)
 - Two-column editable grid
 - Color-coded correctness feedback
 - Handwriting enhancement + fallback engine
 - Masterlist (per-question stats)
 - CSV export
 - Multiple answer key slots
+- Simplified UX 2.0 main menu (Start, Tutorial, Credits)
 
 ## Rebranding Notes
 - Package name unchanged for backward compatibility.
@@ -155,7 +156,7 @@ The Item Score Analysis (ISA) App uses Google Vision API and OCR technology to a
 - AndroidX Core & AppCompat
 - Material Design Components 3
 - OkHttp for API calls
-- uCrop for image cropping
+- CanHub Android Image Cropper (Maven Central)
 
 ## API Requirements
 

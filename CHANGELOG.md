@@ -28,11 +28,12 @@
    - Enhanced image preprocessing applied to all imported images
 
 4. **In-App Camera Crop**
-   - Integrated uCrop library (v2.2.8) for image cropping
+   - Integrated CanHub Android Image Cropper library (v4.5.0) for image cropping
    - After camera capture, user can crop image before OCR
-   - Freeform aspect ratio with grid guidelines
-   - Fallback to direct OCR if crop fails or is canceled
+   - Freeform aspect ratio with grid guidelines, rotation, and flip support
+   - Fallback to automatic crop if crop fails or is canceled
    - Improves accuracy by allowing tight cropping around answer area
+   - Migrated from uCrop due to JitPack reliability issues
 
 5. **Improved Handwriting Sensitivity**
    - Image preprocessing with grayscale conversion and contrast enhancement
@@ -67,6 +68,13 @@
    - Improved status messages throughout the app
    - Smooth fade transitions between views
 
+10. **UX 2.0 Updates (Latest)**
+   - Simplified main menu to show only Start, Tutorial, and Credits (removed History, Masterlist, Setup cards)
+   - Tutorial and Credits converted to white cards matching Start card style for consistency
+   - Unified all button colors to indigo primary (Setup, History, Import Photos, Scan Again, Cancel)
+   - Start button launches MainActivity normally without special intents
+   - History, Masterlist, and Setup remain accessible through MainActivity as before
+
 ### Improvements
 
 - Updated version to 1.3 in build.gradle.kts and credits
@@ -77,7 +85,7 @@
 
 ### Technical Changes
 
-- Added uCrop dependency (2.2.8) via jitpack
+- Added CanHub Android Image Cropper dependency (4.5.0) via Maven Central (migrated from uCrop/JitPack)
 - New ActivityResultLaunchers for multi-image import and crop
 - Refactored JPEG processing to support crop workflow
 - Added ImageUtil for consistent image processing across features

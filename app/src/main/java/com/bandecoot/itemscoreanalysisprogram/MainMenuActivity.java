@@ -20,8 +20,7 @@ public class MainMenuActivity extends AppCompatActivity {
     private static final String TAG = "ISA_MENU";
     private static final String UX2_CHECK = "UX2_CHECK";
     
-    private MaterialCardView cardStartScan, cardHistory, cardMasterlist, cardAnswerKey;
-    private Button tutorialBtn, creditsBtn;
+    private MaterialCardView cardStartScan, cardTutorial, cardCredits;
     private long backPressedTime = 0;
 
     @Override
@@ -34,52 +33,24 @@ public class MainMenuActivity extends AppCompatActivity {
         
         // Initialize views
         cardStartScan = findViewById(R.id.card_start_scan);
-        cardHistory = findViewById(R.id.card_history);
-        cardMasterlist = findViewById(R.id.card_masterlist);
-        cardAnswerKey = findViewById(R.id.card_answer_key);
-        tutorialBtn = findViewById(R.id.button_main_tutorial);
-        creditsBtn = findViewById(R.id.button_main_credits);
+        cardTutorial = findViewById(R.id.card_tutorial);
+        cardCredits = findViewById(R.id.card_credits);
         
-        // Start Scan
+        // Start Scan - launches MainActivity normally without extras
         cardStartScan.setOnClickListener(v -> {
             v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
             Intent intent = new Intent(this, MainActivity.class);
-            intent.putExtra("direct_scan", true);
             startActivity(intent);
         });
         
-        // History
-        cardHistory.setOnClickListener(v -> {
-            v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-            Intent intent = new Intent(this, MainActivity.class);
-            intent.putExtra("open_history", true);
-            startActivity(intent);
-        });
-        
-        // Masterlist
-        cardMasterlist.setOnClickListener(v -> {
-            v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-            Intent intent = new Intent(this, MainActivity.class);
-            intent.putExtra("open_masterlist", true);
-            startActivity(intent);
-        });
-        
-        // Answer Key Setup
-        cardAnswerKey.setOnClickListener(v -> {
-            v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-            Intent intent = new Intent(this, MainActivity.class);
-            intent.putExtra("open_answer_key", true);
-            startActivity(intent);
-        });
-
         // Tutorial
-        tutorialBtn.setOnClickListener(v -> {
+        cardTutorial.setOnClickListener(v -> {
             v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
             showTutorial();
         });
 
         // Credits
-        creditsBtn.setOnClickListener(v -> {
+        cardCredits.setOnClickListener(v -> {
             v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
             showCredits();
         });
@@ -98,7 +69,7 @@ public class MainMenuActivity extends AppCompatActivity {
         features.append("- Main Menu: Redesigned\n");
         features.append("- Color Palette: Indigo + Emerald\n");
         features.append("- Typography: Inter font\n");
-        features.append("- uCrop: ").append(UiConfig.ENABLE_UCROP ? "Enabled" : "Disabled").append("\n");
+        features.append("- Crop Library: CanHub Android Image Cropper\n");
         
         // Check if file_paths.xml is accessible
         try {

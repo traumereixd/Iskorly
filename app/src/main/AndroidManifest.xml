@@ -13,7 +13,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Iskorly">
 
-        <!-- NEW: FileProvider for uCrop and captured images -->
+        <!-- FileProvider for image cropping and captured images -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
