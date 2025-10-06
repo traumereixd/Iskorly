@@ -199,9 +199,14 @@ Educational use - DEPED Philippines
 ## Credits
 
 **Research Team**
-- Bande, John Hezekiah R.
-- Magculang, Maria Jerelle G.
-- Roque, Marlou Adelaide V.
+Researchers:
+Españo, Elijah Ria D.
+Lolos, Kneel Charles B.
+Mahusay, Queen Rheyceljoy F.
+Medel, Myra J.
+Reyes, John Jharen R.
+Sahagun, Jayson G.
+Tagle, Steve Aldrei D.
 
 **Developer**
 - Sahagun, Jayson G.
