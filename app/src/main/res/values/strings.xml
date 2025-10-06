@@ -98,4 +98,11 @@ Tips:\n
 • Good lighting, flat sheet, steady frame.\n
 • For handwriting: dark pen, avoid shadows, crop tightly.\n
 • Review parsed answers before confirming.\n</string>
+    
+    <!-- Crop Activity Strings -->
+    <string name="crop_rotate_left">Rotate 90 degrees left</string>
+    <string name="crop_rotate_right">Rotate 90 degrees right</string>
+    <string name="crop_flip_horizontal">Flip horizontal</string>
+    <string name="crop_confirm">Confirm crop</string>
+    <string name="crop_cancel">Cancel crop</string>
 </resources>

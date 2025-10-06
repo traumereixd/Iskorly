@@ -46,5 +46,11 @@
             android:name=".MainActivity"
             android:exported="false"
             android:theme="@style/Theme.Iskorly" />
+        
+        <!-- Simple Crop Activity with custom UI -->
+        <activity
+            android:name=".SimpleCropActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Iskorly.Cropper" />
     </application>
 </manifest>
