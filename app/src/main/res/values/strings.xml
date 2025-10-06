@@ -43,7 +43,14 @@
     <string name="btn_try_again">Take Photo</string>
     <string name="btn_cancel">Cancel</string>
 
-    <string name="credits_text">Iskorly\nPreviously: Item Score Analysis\nResearchers: Bande, John Hezekiah R.\nMagculang Maria Jerelle G.\nRoque, Marlou Adelaide V.\nProgram Made By: Sahagun, Jayson G.\nv1.3\nAI-powered answer sheet scoring</string>
+    <string name="credits_text">Researchers:\n
+\nEspaño, Elijah Ria D.
+\nLolos, Kneel Charles B.
+\nMahusay, Queen Rheyceljoy F.
+\nMedel, Myra J.
+\nReyes, John Jharen R.
+\nSahagun, Jayson G.
+\nTagle, Steve Aldrei D.\n\nProgrammed By: Sahagun, Jayson G.\n\nIskorly v1.3\nGoogle Cloud Vision Powered</string>
 
     <!-- Menu -->
     <string name="menu_setup">Setup</string>
