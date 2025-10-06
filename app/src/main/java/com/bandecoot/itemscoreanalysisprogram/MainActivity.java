@@ -85,17 +85,17 @@ public class MainActivity extends AppCompatActivity {
 
     // UI components
     private MaterialToolbar topAppBar;
-    private LinearLayout mainLayout, answerKeyLayout, testHistoryLayout, scanSessionLayout;
+    private LinearLayout mainLayout, answerKeyLayout, testHistoryLayout, scanSessionLayout, masterlistLayout;
     private EditText studentNameInput, sectionNameInput, examNameInput;
     private EditText questionNumberInput, removeQuestionInput;
     private MaterialAutoCompleteTextView answerDropdown;
     private Button startScanButton, setupButton, viewHistoryButton;
     private Button saveAnswerButton, removeAnswerButton, clearButton, backButton;
     private Button historyBackButton, tryAgainButton, captureResultButton, cancelScanButton;
-    private Button confirmParsedButton, importPhotosButton;
-    private TextView currentKeyTextView, sessionScoreTextView, parsedLabel;
+    private Button confirmParsedButton, importPhotosButton, masterlistButton, masterlistBackButton;
+    private TextView currentKeyTextView, sessionScoreTextView, parsedLabel, masterlistInfoTextView;
     private MaterialCardView resultsCard;
-    private LinearLayout testHistoryList, parsedAnswersContainer;
+    private LinearLayout testHistoryList, parsedAnswersContainer, masterlistContent;
     private TextureView cameraPreviewTextureView;
     private View shutterView;
     
@@ -714,6 +714,28 @@ public class MainActivity extends AppCompatActivity {
             v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
             toggleView("main");
         });
+        
+        // Masterlist button in history
+        masterlistButton = findViewById(R.id.button_masterlist);
+        if (masterlistButton != null) {
+            masterlistButton.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                toggleView("masterlist");
+                displayMasterlist();
+            });
+        }
+        
+        // Masterlist overlay
+        masterlistLayout = findViewById(R.id.masterlist_layout);
+        masterlistContent = findViewById(R.id.masterlist_content);
+        masterlistInfoTextView = findViewById(R.id.textView_masterlist_info);
+        masterlistBackButton = findViewById(R.id.button_masterlist_back);
+        if (masterlistBackButton != null) {
+            masterlistBackButton.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                toggleView("history");
+            });
+        }
 
         // Scan session  
         scanSessionLayout = findViewById(R.id.scan_session_layout);
@@ -1959,6 +1981,7 @@ public class MainActivity extends AppCompatActivity {
         fadeOut(answerKeyLayout);
         fadeOut(testHistoryLayout);
         fadeOut(scanSessionLayout);
+        fadeOut(masterlistLayout);
         
         // Then fade in the target view after a short delay
         new Handler().postDelayed(() -> {
@@ -1974,6 +1997,9 @@ public class MainActivity extends AppCompatActivity {
                     break;
                 case "scan":
                     fadeIn(scanSessionLayout);
+                    break;
+                case "masterlist":
+                    fadeIn(masterlistLayout);
                     break;
             }
         }, 150); // 150ms delay for smoother transition
@@ -2533,6 +2559,154 @@ public class MainActivity extends AppCompatActivity {
             Log.e(TAG, "Error starting crop activity", e);
             Toast.makeText(this, "Crop not available", Toast.LENGTH_SHORT).show();
         }
+    }
+    
+    // ---------------------------
+    // Masterlist (Feature #5)
+    // ---------------------------
+    
+    /**
+     * Display per-question statistics in the masterlist view.
+     */
+    private void displayMasterlist() {
+        if (masterlistContent == null) return;
+        
+        masterlistContent.removeAllViews();
+        
+        // Check if answer key is set
+        if (currentAnswerKey == null || currentAnswerKey.isEmpty()) {
+            TextView noKeyMsg = new TextView(this);
+            noKeyMsg.setText("No answer key set. Please set up an answer key first.");
+            noKeyMsg.setPadding(dp(16), dp(16), dp(16), dp(16));
+            noKeyMsg.setTextSize(16);
+            masterlistContent.addView(noKeyMsg);
+            if (masterlistInfoTextView != null) {
+                masterlistInfoTextView.setText("No data available");
+            }
+            return;
+        }
+        
+        // Get history
+        JSONArray historyArray = getHistoryArray();
+        if (historyArray.length() == 0) {
+            TextView noDataMsg = new TextView(this);
+            noDataMsg.setText("No history records found. Scan some answer sheets first!");
+            noDataMsg.setPadding(dp(16), dp(16), dp(16), dp(16));
+            noDataMsg.setTextSize(16);
+            masterlistContent.addView(noDataMsg);
+            if (masterlistInfoTextView != null) {
+                masterlistInfoTextView.setText("No data available");
+            }
+            return;
+        }
+        
+        // Compute stats (no filters for now - process all records)
+        Map<Integer, QuestionStats.QuestionStat> stats = 
+            QuestionStats.computeQuestionStats(historyArray, currentAnswerKey, null, null);
+        
+        // Update info text
+        if (masterlistInfoTextView != null) {
+            masterlistInfoTextView.setText(String.format(Locale.US, 
+                "Analyzed %d record(s) across all exams and sections", 
+                historyArray.length()));
+        }
+        
+        // Create header row
+        LinearLayout headerRow = new LinearLayout(this);
+        headerRow.setOrientation(LinearLayout.HORIZONTAL);
+        headerRow.setPadding(dp(8), dp(8), dp(8), dp(8));
+        headerRow.setBackgroundColor(0xFFE0E0E0);
+        
+        addTableCell(headerRow, "Q#", 0.15f, true);
+        addTableCell(headerRow, "Correct", 0.20f, true);
+        addTableCell(headerRow, "Incorrect", 0.20f, true);
+        addTableCell(headerRow, "% Correct", 0.20f, true);
+        addTableCell(headerRow, "Common Miss", 0.25f, true);
+        
+        masterlistContent.addView(headerRow);
+        
+        // Add a divider
+        View divider = new View(this);
+        divider.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, dp(2)));
+        divider.setBackgroundColor(0xFF757575);
+        masterlistContent.addView(divider);
+        
+        // Get sorted questions
+        List<Integer> sortedQuestions = QuestionStats.getSortedQuestions(stats);
+        
+        // Create data rows
+        for (Integer q : sortedQuestions) {
+            QuestionStats.QuestionStat stat = stats.get(q);
+            if (stat == null) continue;
+            
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setPadding(dp(8), dp(8), dp(8), dp(8));
+            
+            // Alternate row colors
+            if (sortedQuestions.indexOf(q) % 2 == 0) {
+                row.setBackgroundColor(0xFFF5F5F5);
+            } else {
+                row.setBackgroundColor(0xFFFFFFFF);
+            }
+            
+            addTableCell(row, String.valueOf(q), 0.15f, false);
+            addTableCell(row, String.valueOf(stat.correctCount), 0.20f, false);
+            addTableCell(row, String.valueOf(stat.incorrectCount), 0.20f, false);
+            addTableCell(row, String.format(Locale.US, "%.1f%%", stat.percentCorrect), 0.20f, false);
+            
+            String missInfo = stat.mostCommonWrongCount > 0 
+                ? stat.mostCommonWrong + " (" + stat.mostCommonWrongCount + ")"
+                : "-";
+            addTableCell(row, missInfo, 0.25f, false);
+            
+            masterlistContent.addView(row);
+        }
+        
+        // Add summary at bottom
+        TextView summaryText = new TextView(this);
+        summaryText.setPadding(dp(16), dp(16), dp(16), dp(16));
+        summaryText.setTextSize(14);
+        summaryText.setTextColor(0xFF424242);
+        
+        int totalQuestions = sortedQuestions.size();
+        int totalAttempts = 0;
+        int totalCorrect = 0;
+        for (Integer q : sortedQuestions) {
+            QuestionStats.QuestionStat stat = stats.get(q);
+            if (stat != null) {
+                totalAttempts += stat.attemptCount;
+                totalCorrect += stat.correctCount;
+            }
+        }
+        double overallPercent = totalAttempts > 0 ? (100.0 * totalCorrect / totalAttempts) : 0.0;
+        
+        summaryText.setText(String.format(Locale.US,
+            "Summary: %d questions • %d total attempts • %.1f%% overall correct",
+            totalQuestions, totalAttempts, overallPercent));
+        
+        masterlistContent.addView(summaryText);
+    }
+    
+    /**
+     * Helper method to add a table cell to a row.
+     */
+    private void addTableCell(LinearLayout row, String text, float weight, boolean bold) {
+        TextView tv = new TextView(this);
+        tv.setText(text);
+        tv.setTextSize(13);
+        tv.setTextColor(Color.BLACK);
+        if (bold) {
+            tv.setTypeface(tv.getTypeface(), Typeface.BOLD);
+        }
+        tv.setPadding(dp(4), dp(4), dp(4), dp(4));
+        
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+            0, ViewGroup.LayoutParams.WRAP_CONTENT, weight);
+        tv.setLayoutParams(params);
+        
+        row.addView(tv);
     }
 }
 
