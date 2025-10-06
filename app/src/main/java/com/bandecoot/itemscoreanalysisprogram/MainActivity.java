@@ -2520,7 +2520,12 @@ public class MainActivity extends AppCompatActivity {
         } else if (result.getResultCode() == com.yalantis.ucrop.UCrop.RESULT_ERROR) {
             Throwable cropError = com.yalantis.ucrop.UCrop.getError(result.getData());
             Log.e(TAG, "Crop error", cropError);
-            Toast.makeText(this, "Crop failed", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Crop failed, processing original image", Toast.LENGTH_SHORT).show();
+            
+            // Fallback: process original captured image
+            if (lastCapturedImageUri != null) {
+                processCroppedImage(lastCapturedImageUri);
+            }
         }
         // User canceled crop: do nothing, return to camera
     }
