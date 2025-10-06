@@ -92,7 +92,7 @@ public class MainActivity extends AppCompatActivity {
     private Button startScanButton, setupButton, viewHistoryButton;
     private Button saveAnswerButton, removeAnswerButton, clearButton, backButton;
     private Button historyBackButton, tryAgainButton, captureResultButton, cancelScanButton;
-    private Button confirmParsedButton;
+    private Button confirmParsedButton, importPhotosButton;
     private TextView currentKeyTextView, sessionScoreTextView, parsedLabel;
     private MaterialCardView resultsCard;
     private LinearLayout testHistoryList, parsedAnswersContainer;
@@ -147,6 +147,13 @@ public class MainActivity extends AppCompatActivity {
     // Document picker launchers
     private ActivityResultLauncher<String[]> importSlotLauncher;
     private ActivityResultLauncher<String> exportSlotLauncher;
+    
+    // Multi-image import launcher (Feature #2)
+    private ActivityResultLauncher<String> importPhotosLauncher;
+    
+    // Crop launcher (Feature #2.1)
+    private ActivityResultLauncher<android.content.Intent> cropLauncher;
+    private android.net.Uri lastCapturedImageUri;
 
     // General settings
     private static final int CAMERA_WIDTH = 1280;
@@ -715,6 +722,7 @@ public class MainActivity extends AppCompatActivity {
         resultsCard = findViewById(R.id.results_card);
         tryAgainButton = findViewById(R.id.button_try_again);
         captureResultButton = findViewById(R.id.button_capture_result);
+        importPhotosButton = findViewById(R.id.button_import_photos);
         cancelScanButton = findViewById(R.id.button_cancel_scan);
         shutterView = findViewById(R.id.shutterView);
 
@@ -734,6 +742,18 @@ public class MainActivity extends AppCompatActivity {
         createCsvLauncher = registerForActivityResult(
                 new ActivityResultContracts.CreateDocument("text/csv"),
                 this::onCsvDocumentCreated
+        );
+        
+        // Multi-image import launcher (Feature #2)
+        importPhotosLauncher = registerForActivityResult(
+                new ActivityResultContracts.GetMultipleContents(),
+                this::onPhotosImported
+        );
+        
+        // Crop launcher (Feature #2.1)
+        cropLauncher = registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                this::onCropResult
         );
 
         // Toolbar menu
@@ -818,6 +838,14 @@ public class MainActivity extends AppCompatActivity {
             v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
             triggerStillCapture();
         });
+        
+        // Import photos button (Feature #2)
+        if (importPhotosButton != null) {
+            importPhotosButton.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                importPhotosLauncher.launch("image/*");
+            });
+        }
 
         cancelScanButton.setOnClickListener(v -> {
             v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
@@ -1078,36 +1106,62 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            // Pure-Java resize/compress to max 1600px
-            byte[] processedJpeg = resizeAndCompress(bmp, 1600);
-            bmp.recycle();
-
-            // runOnUiThread(() -> sessionOcrTextView.setText("Analyzing (cloud)…"));
-            // Send to cloud on background handler
-            backgroundHandler.post(() -> {
-                try {
-                    String recognizedText = callVisionApiAndRecognize(processedJpeg);
-                    if (recognizedText == null) recognizedText = "";
-                    HashMap<Integer, String> parsed = parseAnswersFromText(recognizedText);
-                    lastDetectedAnswers = (parsed != null) ? parsed : new HashMap<>();
-
-                    runOnUiThread(() -> {
-                        populateParsedAnswersEditable();
-                        sessionScoreTextView.setText(getString(R.string.live_score_placeholder));
-                        // Show results popup and hide the bottom Scan button are handled in populateParsedAnswersEditable()
-                    });
-                } finally {
-                    try { img.close(); } catch (Throwable ignored) {}
-                    waitingForJpeg.set(false);
-                }
-            });
+            // Feature #2.1: Save to file and launch crop
+            try {
+                // Save bitmap to temporary file
+                String fileName = "capture_" + System.currentTimeMillis() + ".jpg";
+                java.io.File tempFile = new java.io.File(getCacheDir(), fileName);
+                java.io.FileOutputStream fos = new java.io.FileOutputStream(tempFile);
+                bmp.compress(Bitmap.CompressFormat.JPEG, 90, fos);
+                fos.close();
+                
+                lastCapturedImageUri = android.net.Uri.fromFile(tempFile);
+                
+                // Launch crop activity on UI thread
+                runOnUiThread(() -> {
+                    startCropActivity(lastCapturedImageUri);
+                });
+                
+                bmp.recycle();
+                
+            } catch (Exception e) {
+                Log.e(TAG, "Error saving capture for crop", e);
+                // Fallback: process without crop
+                byte[] processedJpeg = resizeAndCompress(bmp, 1600);
+                bmp.recycle();
+                processImageWithOcr(processedJpeg);
+            }
+            
         } catch (Throwable t) {
             Log.e(TAG, "onJpegAvailableListener error", t);
             runOnUiThread(() -> Toast.makeText(this, "Analyze failed", Toast.LENGTH_SHORT).show());
+        } finally {
             try { img.close(); } catch (Throwable ignored) {}
             waitingForJpeg.set(false);
         }
     };
+    
+    /**
+     * Process image with OCR (extracted from previous inline code).
+     */
+    private void processImageWithOcr(byte[] processedJpeg) {
+        backgroundHandler.post(() -> {
+            try {
+                String recognizedText = callVisionApiAndRecognize(processedJpeg);
+                if (recognizedText == null) recognizedText = "";
+                HashMap<Integer, String> parsed = parseAnswersFromText(recognizedText);
+                lastDetectedAnswers = (parsed != null) ? parsed : new HashMap<>();
+
+                runOnUiThread(() -> {
+                    populateParsedAnswersEditable();
+                    sessionScoreTextView.setText(getString(R.string.live_score_placeholder));
+                });
+            } catch (Exception e) {
+                Log.e(TAG, "OCR processing error", e);
+                runOnUiThread(() -> Toast.makeText(this, "OCR failed", Toast.LENGTH_SHORT).show());
+            }
+        });
+    }
 
     // Pure-Java resize and compress to JPEG, max dimension
     private byte[] resizeAndCompress(Bitmap src, int maxDim) {
@@ -2134,6 +2188,189 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) {
             Log.e(TAG, "Saving record failed", e);
             Toast.makeText(this, "Failed to save record.", Toast.LENGTH_LONG).show();
+        }
+    }
+    
+    // ---------------------------
+    // Multi-image import and crop handlers (Feature #2 & #2.1)
+    // ---------------------------
+    
+    /**
+     * Handle multiple images imported from gallery.
+     * Process each image sequentially, parse answers, and merge results.
+     * Deterministic merge: first non-blank value wins.
+     */
+    private void onPhotosImported(java.util.List<android.net.Uri> uris) {
+        if (uris == null || uris.isEmpty()) {
+            return;
+        }
+        
+        Log.d(TAG, "Importing " + uris.size() + " photo(s)");
+        
+        // Show progress dialog
+        android.app.ProgressDialog progressDialog = new android.app.ProgressDialog(this);
+        progressDialog.setTitle("Processing Images");
+        progressDialog.setMessage(String.format(Locale.US, "Processing %d image(s)…", uris.size()));
+        progressDialog.setCancelable(false);
+        progressDialog.show();
+        
+        // Process images on background thread
+        new Thread(() -> {
+            HashMap<Integer, String> mergedAnswers = new HashMap<>();
+            int processedCount = 0;
+            
+            for (android.net.Uri uri : uris) {
+                try {
+                    // Load bitmap from URI
+                    java.io.InputStream inputStream = getContentResolver().openInputStream(uri);
+                    Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+                    if (inputStream != null) inputStream.close();
+                    
+                    if (bitmap == null) {
+                        Log.e(TAG, "Failed to decode image from URI: " + uri);
+                        continue;
+                    }
+                    
+                    // Resize and compress
+                    byte[] processedJpeg = ImageUtil.resizeAndCompress(bitmap, 1600);
+                    bitmap.recycle();
+                    
+                    // OCR
+                    String recognizedText = callVisionApiAndRecognize(processedJpeg);
+                    if (recognizedText == null) recognizedText = "";
+                    
+                    // Parse answers
+                    HashMap<Integer, String> parsed = parseAnswersFromText(recognizedText);
+                    
+                    // Merge: first non-blank value wins
+                    for (Map.Entry<Integer, String> entry : parsed.entrySet()) {
+                        if (!mergedAnswers.containsKey(entry.getKey()) || 
+                            mergedAnswers.get(entry.getKey()).isEmpty()) {
+                            mergedAnswers.put(entry.getKey(), entry.getValue());
+                        }
+                    }
+                    
+                    processedCount++;
+                    
+                } catch (Exception e) {
+                    Log.e(TAG, "Error processing image: " + uri, e);
+                }
+            }
+            
+            final int finalProcessed = processedCount;
+            final HashMap<Integer, String> finalMerged = mergedAnswers;
+            
+            // Update UI on main thread
+            runOnUiThread(() -> {
+                progressDialog.dismiss();
+                
+                lastDetectedAnswers = finalMerged;
+                populateParsedAnswersEditable();
+                
+                // Show status
+                int filled = 0;
+                int total = currentAnswerKey.size();
+                for (Integer q : currentAnswerKey.keySet()) {
+                    if (finalMerged.containsKey(q) && !finalMerged.get(q).isEmpty()) {
+                        filled++;
+                    }
+                }
+                
+                String statusMsg = String.format(Locale.US, 
+                    "Processed %d image(s) • Filled %d / %d answers", 
+                    finalProcessed, filled, total);
+                parsedLabel.setText(statusMsg);
+                
+                sessionScoreTextView.setText(getString(R.string.live_score_placeholder));
+                
+                Toast.makeText(this, statusMsg, Toast.LENGTH_LONG).show();
+            });
+            
+        }).start();
+    }
+    
+    /**
+     * Handle crop result from uCrop.
+     */
+    private void onCropResult(androidx.activity.result.ActivityResult result) {
+        if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+            android.net.Uri croppedUri = com.yalantis.ucrop.UCrop.getOutput(result.getData());
+            if (croppedUri != null) {
+                // Process cropped image
+                processCroppedImage(croppedUri);
+            }
+        } else if (result.getResultCode() == com.yalantis.ucrop.UCrop.RESULT_ERROR) {
+            Throwable cropError = com.yalantis.ucrop.UCrop.getError(result.getData());
+            Log.e(TAG, "Crop error", cropError);
+            Toast.makeText(this, "Crop failed", Toast.LENGTH_SHORT).show();
+        }
+        // User canceled crop: do nothing, return to camera
+    }
+    
+    /**
+     * Process the cropped image - run OCR and parse answers.
+     */
+    private void processCroppedImage(android.net.Uri croppedUri) {
+        new Thread(() -> {
+            try {
+                java.io.InputStream inputStream = getContentResolver().openInputStream(croppedUri);
+                Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+                if (inputStream != null) inputStream.close();
+                
+                if (bitmap == null) {
+                    runOnUiThread(() -> Toast.makeText(this, "Failed to load cropped image", Toast.LENGTH_SHORT).show());
+                    return;
+                }
+                
+                // Resize and compress
+                byte[] processedJpeg = ImageUtil.resizeAndCompress(bitmap, 1600);
+                bitmap.recycle();
+                
+                // OCR
+                String recognizedText = callVisionApiAndRecognize(processedJpeg);
+                if (recognizedText == null) recognizedText = "";
+                
+                // Parse answers
+                HashMap<Integer, String> parsed = parseAnswersFromText(recognizedText);
+                lastDetectedAnswers = parsed;
+                
+                // Update UI
+                runOnUiThread(() -> {
+                    populateParsedAnswersEditable();
+                    sessionScoreTextView.setText(getString(R.string.live_score_placeholder));
+                });
+                
+            } catch (Exception e) {
+                Log.e(TAG, "Error processing cropped image", e);
+                runOnUiThread(() -> Toast.makeText(this, "Failed to process image", Toast.LENGTH_SHORT).show());
+            }
+        }).start();
+    }
+    
+    /**
+     * Start crop activity for the captured image.
+     */
+    private void startCropActivity(android.net.Uri sourceUri) {
+        try {
+            // Create destination URI for cropped image
+            String destFileName = "cropped_" + System.currentTimeMillis() + ".jpg";
+            android.net.Uri destUri = android.net.Uri.fromFile(new java.io.File(getCacheDir(), destFileName));
+            
+            // Configure uCrop
+            com.yalantis.ucrop.UCrop.Options options = new com.yalantis.ucrop.UCrop.Options();
+            options.setFreeStyleCropEnabled(true);
+            options.setShowCropGrid(true);
+            options.setShowCropFrame(true);
+            
+            android.content.Intent cropIntent = com.yalantis.ucrop.UCrop.of(sourceUri, destUri)
+                    .withOptions(options)
+                    .getIntent(this);
+            
+            cropLauncher.launch(cropIntent);
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error starting crop activity", e);
+            Toast.makeText(this, "Crop not available", Toast.LENGTH_SHORT).show();
         }
     }
 }
