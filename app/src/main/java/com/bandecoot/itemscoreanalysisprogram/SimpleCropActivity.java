@@ -48,6 +48,7 @@ public class SimpleCropActivity extends AppCompatActivity {
     private int currentRotation = 0;
     private boolean isFlipped = false;
     private Bitmap sourceBitmap;
+    private boolean appliedAutoFix = false;
 
     /**
      * Create intent to launch SimpleCropActivity.
@@ -133,15 +134,30 @@ public class SimpleCropActivity extends AppCompatActivity {
             cropImageView.setGuidelines(CropImageView.Guidelines.ON);
             cropImageView.setAutoZoomEnabled(true);
 
-            // Auto-upright: compensate JPEG orientation so user sees it correctly
-            int adjust = (360 - (jpegOrientation % 360)) % 360;
-            if (adjust != 0) {
-                cropImageView.post(() -> {
-                    Log.d(TAG, "Auto rotating display by " + adjust + "° (JPEG orientation " + jpegOrientation + ")");
-                    cropImageView.rotateImage(adjust);
-                    currentRotation = (currentRotation + adjust) % 360;
+            // Auto-upright: Apply one-time corrective rotation based on JPEG orientation hint
+            if (!appliedAutoFix) {
+                int rotate = 0;
+                if (jpegOrientation == 270) {
+                    rotate = 90;          // 270° -> +90° => upright
+                } else if (jpegOrientation == 180) {
+                    rotate = 180;         // upside down -> rotate 180°
+                } else if (jpegOrientation == 90) {
+                    rotate = 0;           // treat as already upright for this device
+                }
+                
+                if (rotate != 0) {
+                    final int apply = rotate;
+                    cropImageView.post(() -> {
+                        cropImageView.rotateImage(apply);
+                        currentRotation = (currentRotation + apply) % 360;
+                        updateRotationDisplay();
+                        Log.d(TAG, "Auto orientation fix: hint=" + jpegOrientation + " applied=" + apply);
+                    });
+                } else {
                     updateRotationDisplay();
-                });
+                    Log.d(TAG, "Auto orientation fix skipped (hint=" + jpegOrientation + ")");
+                }
+                appliedAutoFix = true;
             } else {
                 updateRotationDisplay();
             }
