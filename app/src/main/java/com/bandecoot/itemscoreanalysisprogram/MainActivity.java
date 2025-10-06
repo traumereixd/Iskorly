@@ -894,6 +894,30 @@ public class MainActivity extends AppCompatActivity {
 
         // Default
         toggleView("main");
+        
+        // Handle navigation intents from MainMenuActivity
+        handleNavigationIntent();
+    }
+    
+    /**
+     * Handle navigation intents from main menu (UX 2.0)
+     */
+    private void handleNavigationIntent() {
+        Intent intent = getIntent();
+        if (intent == null) return;
+        
+        if (intent.getBooleanExtra("direct_scan", false)) {
+            // Start scan immediately
+            requestAndStartScanSession();
+        } else if (intent.getBooleanExtra("open_history", false)) {
+            toggleView("history");
+            displayTestHistory();
+        } else if (intent.getBooleanExtra("open_masterlist", false)) {
+            toggleView("masterlist");
+            displayMasterlist();
+        } else if (intent.getBooleanExtra("open_answer_key", false)) {
+            toggleView("setup");
+        }
     }
 
     // ---------------------------
@@ -1175,6 +1199,7 @@ public class MainActivity extends AppCompatActivity {
 
     private final ImageReader.OnImageAvailableListener onJpegAvailableListener = reader -> {
         Log.d(CROP_FLOW, "JPEG image available from camera");
+        Log.d(UiConfig.CROP_FIX, "Capture triggered, session active: " + scanSessionActive);
         
         // Defensive check: if not in active scan session, discard
         if (!scanSessionActive) {
@@ -1203,6 +1228,7 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(() -> Toast.makeText(this, "Invalid photo data", Toast.LENGTH_SHORT).show());
                 return;
             }
+            Log.d(UiConfig.CROP_FIX, "Bitmap decoded: " + bmp.getWidth() + "x" + bmp.getHeight());
 
             // Feature #2.1: Save to file and launch crop
             try {
@@ -1211,8 +1237,10 @@ public class MainActivity extends AppCompatActivity {
                 lastCapturedFile = new java.io.File(getCacheDir(), fileName);
                 java.io.FileOutputStream fos = new java.io.FileOutputStream(lastCapturedFile);
                 bmp.compress(Bitmap.CompressFormat.JPEG, 90, fos);
+                fos.flush(); // Ensure data written to disk
                 fos.close();
                 Log.d(CROP_FLOW, "Saved capture to file: " + lastCapturedFile.getAbsolutePath());
+                Log.d(UiConfig.CROP_FIX, "File size after save: " + lastCapturedFile.length() + " bytes");
                 
                 // Use FileProvider to get secure URI
                 lastCapturedImageUri = FileProvider.getUriForFile(
@@ -1221,23 +1249,27 @@ public class MainActivity extends AppCompatActivity {
                     lastCapturedFile
                 );
                 Log.d(CROP_FLOW, "Created FileProvider URI: " + lastCapturedImageUri);
+                Log.d(UiConfig.CROP_FIX, "URI authority: " + lastCapturedImageUri.getAuthority());
+                
+                // Now it's safe to recycle bitmap after file is flushed
+                bmp.recycle();
                 
                 // Launch crop activity on UI thread
                 runOnUiThread(() -> {
                     startCropActivity(lastCapturedImageUri);
                 });
                 
-                bmp.recycle();
-                
             } catch (Exception e) {
                 Log.e(TAG, "Error saving capture for crop", e);
                 Log.e(CROP_FLOW, "Failed to save/crop, falling back to direct OCR", e);
+                Log.e(UiConfig.CROP_FIX, "Save exception", e);
                 // Fallback: process without crop
                 processImageWithOcrFallback(bmp);
             }
             
         } catch (Throwable t) {
             Log.e(TAG, "onJpegAvailableListener error", t);
+            Log.e(UiConfig.CROP_FIX, "Listener exception", t);
             runOnUiThread(() -> Toast.makeText(this, "Analyze failed", Toast.LENGTH_SHORT).show());
         } finally {
             try { img.close(); } catch (Throwable ignored) {}
@@ -2398,17 +2430,17 @@ public class MainActivity extends AppCompatActivity {
                     answered++;
                     if (expected.equalsIgnoreCase(got)) {
                         correct++;
-                        // Highlight correct with light green background
-                        et.setBackgroundColor(0xFFD4EDDA); // Light green
+                        // Highlight correct with semantic color
+                        et.setBackgroundColor(ContextCompat.getColor(this, R.color.answer_correct));
                         et.setTextColor(0xFF155724); // Dark green text
                     } else {
-                        // Highlight incorrect with light red background
-                        et.setBackgroundColor(0xFFF8D7DA); // Light red
+                        // Highlight incorrect with semantic color
+                        et.setBackgroundColor(ContextCompat.getColor(this, R.color.answer_incorrect));
                         et.setTextColor(0xFF721C24); // Dark red text
                     }
                 } else {
-                    // No answer - neutral/warning yellow
-                    et.setBackgroundColor(0xFFFFF3CD); // Light yellow
+                    // No answer - semantic blank color
+                    et.setBackgroundColor(ContextCompat.getColor(this, R.color.answer_blank));
                     et.setTextColor(0xFF856404); // Dark yellow text
                 }
             }
@@ -2697,39 +2729,30 @@ public class MainActivity extends AppCompatActivity {
      * Start crop activity for the captured image.
      */
     private void startCropActivity(android.net.Uri sourceUri) {
-        if (!ENABLE_UCROP) {
-            Log.d(CROP_FLOW, "uCrop disabled, using automatic crop fallback");
-            // Directly load and auto-crop
-            try {
-                InputStream is = getContentResolver().openInputStream(sourceUri);
-                Bitmap original = BitmapFactory.decodeStream(is);
-                if (is != null) is.close();
-                if (original == null) {
-                    Toast.makeText(this, "Failed to load image", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                Bitmap cropped = simpleAutoCrop(original);
-                if (cropped != original) original.recycle();
-                // Simulate normal post-crop pipeline
-                runOnUiThread(() -> {
-                    HashMap<Integer,String> parsed = ocrProcessor != null
-                            ? ocrProcessor.processImage(cropped)
-                            : new HashMap<>();
-                    cropped.recycle();
-                    lastDetectedAnswers = parsed != null ? parsed : new HashMap<>();
-                    populateParsedAnswersEditable();
-                    sessionScoreTextView.setText(getString(R.string.live_score_placeholder));
-                });
-                return;
-            } catch (Exception e) {
-                Log.e(CROP_FLOW, "Auto fallback crop failed", e);
-                Toast.makeText(this, "Crop failed", Toast.LENGTH_SHORT).show();
+        // Check file_paths.xml resource availability
+        try {
+            int resId = getResources().getIdentifier("file_paths", "xml", getPackageName());
+            if (resId == 0) {
+                Log.e(UiConfig.CROP_FIX, "file_paths.xml not found! Skipping uCrop");
+                Toast.makeText(this, "Crop configuration missing", Toast.LENGTH_SHORT).show();
+                // Force fallback
+                processFallbackAutoCrop(sourceUri);
                 return;
             }
+            Log.d(UiConfig.CROP_FIX, "file_paths.xml resource verified: " + resId);
+        } catch (Exception e) {
+            Log.e(UiConfig.CROP_FIX, "Error checking file_paths.xml", e);
+        }
+        
+        if (!UiConfig.ENABLE_UCROP) {
+            Log.d(CROP_FLOW, "uCrop disabled via UiConfig, using automatic crop fallback");
+            processFallbackAutoCrop(sourceUri);
+            return;
         }
 
         try {
             Log.d(CROP_FLOW, "Starting uCrop with source: " + sourceUri);
+            Log.d(UiConfig.CROP_FIX, "Source file exists: " + (lastCapturedFile != null && lastCapturedFile.exists()));
 
             // Ensure destination file exists up front
             String destFileName = "cropped_" + System.currentTimeMillis() + ".jpg";
@@ -2737,6 +2760,7 @@ public class MainActivity extends AppCompatActivity {
             if (!destFile.exists()) {
                 boolean created = destFile.createNewFile();
                 Log.d(CROP_FLOW, "Destination file created: " + created + " path=" + destFile.getAbsolutePath());
+                Log.d(UiConfig.CROP_FIX, "Dest file size: " + destFile.length());
             }
 
             android.net.Uri destUri = FileProvider.getUriForFile(
@@ -2744,6 +2768,7 @@ public class MainActivity extends AppCompatActivity {
                     getApplicationContext().getPackageName() + ".fileprovider",
                     destFile
             );
+            Log.d(UiConfig.CROP_FIX, "Created destUri: " + destUri);
 
             com.yalantis.ucrop.UCrop.Options options = new com.yalantis.ucrop.UCrop.Options();
             options.setFreeStyleCropEnabled(true);
@@ -2754,63 +2779,56 @@ public class MainActivity extends AppCompatActivity {
                     .withOptions(options)
                     .getIntent(this);
 
-            // Add flags
+            // Add flags (uCrop runs in same process, permissions should be inherited)
             cropIntent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION |
                     android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
 
-            // Dynamically grant permissions to all activities that can handle this intent
-            java.util.List<android.content.pm.ResolveInfo> resInfoList = getPackageManager()
-                    .queryIntentActivities(cropIntent, PackageManager.MATCH_DEFAULT_ONLY);
-            for (android.content.pm.ResolveInfo resolveInfo : resInfoList) {
-                String packageName = resolveInfo.activityInfo.packageName;
-                try {
-                    grantUriPermission(packageName, sourceUri,
-                            android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                    grantUriPermission(packageName, destUri,
-                            android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION |
-                                    android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-                } catch (Exception e) {
-                    Log.w(CROP_FLOW, "grantUriPermission failed for " + packageName + ": " + e.getMessage());
-                }
-            }
-
             Log.d(CROP_FLOW, "Launching uCrop activity");
+            Log.d(UiConfig.CROP_FIX, "Intent flags: " + cropIntent.getFlags());
             cropLauncher.launch(cropIntent);
 
         } catch (Exception e) {
             Log.e(CROP_FLOW, "uCrop launch failed, using simple fallback", e);
+            Log.e(UiConfig.CROP_FIX, "Launch exception details", e);
             Toast.makeText(this, "Crop not available (fallback)", Toast.LENGTH_SHORT).show();
-
-            // Fallback path: load original, perform simpleAutoCrop, then OCR
-            try {
-                InputStream is = getContentResolver().openInputStream(sourceUri);
-                Bitmap original = BitmapFactory.decodeStream(is);
-                if (is != null) is.close();
-                if (original == null) {
-                    Toast.makeText(this, "Failed to load capture", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                Bitmap cropped = simpleAutoCrop(original);
-                if (cropped != original) original.recycle();
-
-                backgroundHandler.post(() -> {
-                    if (ocrProcessor != null) {
-                        HashMap<Integer,String> parsed = ocrProcessor.processImage(cropped);
-                        cropped.recycle();
-                        lastDetectedAnswers = parsed != null ? parsed : new HashMap<>();
-                        runOnUiThread(() -> {
-                            populateParsedAnswersEditable();
-                            sessionScoreTextView.setText(getString(R.string.live_score_placeholder));
-                        });
-                    } else {
-                        cropped.recycle();
-                        runOnUiThread(() -> Toast.makeText(this, "OCR not initialized", Toast.LENGTH_SHORT).show());
-                    }
-                });
-            } catch (Exception ex) {
-                Log.e(CROP_FLOW, "Fallback auto crop failed", ex);
-                Toast.makeText(this, "Processing failed", Toast.LENGTH_SHORT).show();
+            processFallbackAutoCrop(sourceUri);
+        }
+    }
+    
+    /**
+     * Fallback auto-crop when uCrop is unavailable or disabled.
+     */
+    private void processFallbackAutoCrop(android.net.Uri sourceUri) {
+        Log.d(UiConfig.CROP_FIX, "Entering fallback auto-crop");
+        try {
+            InputStream is = getContentResolver().openInputStream(sourceUri);
+            Bitmap original = BitmapFactory.decodeStream(is);
+            if (is != null) is.close();
+            if (original == null) {
+                Toast.makeText(this, "Failed to load capture", Toast.LENGTH_SHORT).show();
+                return;
             }
+            Bitmap cropped = simpleAutoCrop(original);
+            if (cropped != original) original.recycle();
+
+            backgroundHandler.post(() -> {
+                if (ocrProcessor != null) {
+                    HashMap<Integer,String> parsed = ocrProcessor.processImage(cropped);
+                    cropped.recycle();
+                    lastDetectedAnswers = parsed != null ? parsed : new HashMap<>();
+                    runOnUiThread(() -> {
+                        populateParsedAnswersEditable();
+                        sessionScoreTextView.setText(getString(R.string.live_score_placeholder));
+                    });
+                } else {
+                    cropped.recycle();
+                    runOnUiThread(() -> Toast.makeText(this, "OCR not initialized", Toast.LENGTH_SHORT).show());
+                }
+            });
+        } catch (Exception ex) {
+            Log.e(CROP_FLOW, "Fallback auto crop failed", ex);
+            Log.e(UiConfig.CROP_FIX, "Fallback exception", ex);
+            Toast.makeText(this, "Processing failed", Toast.LENGTH_SHORT).show();
         }
     }
     

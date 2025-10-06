@@ -3,6 +3,7 @@
 AI-powered answer sheet scanning, scoring, and item analysis for classrooms.
 
 > Rebranded from “Item Score Analysis” to “Iskorly” for a shorter, more memorable identity.
+> **UX 2.0** visual refresh brings modern interface, new color system, and enhanced crop reliability.
 
 ## Tagline
 Faster Scoring. Smarter Teaching

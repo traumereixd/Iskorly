@@ -1,58 +1,234 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:orientation="vertical"
-    android:gravity="center"
-    android:padding="32dp"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/main_bg">
+    android:background="@drawable/bg_main_menu_gradient"
+    android:fillViewport="true">
 
-    <TextView
-        android:id="@+id/title_app"
-        android:layout_width="wrap_content"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/main_menu_title"
-        android:textSize="28sp"
-        android:textStyle="bold"
-        android:textColor="@color/md3_beige_onSurface"
-        android:paddingBottom="8dp"/>
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="24dp">
 
-    <TextView
-        android:id="@+id/tagline_app"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/main_menu_tagline"
-        android:textSize="14sp"
-        android:textColor="@color/md3_beige_onSurfaceVariant"
-        android:paddingBottom="40dp"/>
+        <!-- Logo Mark -->
+        <ImageView
+            android:layout_width="96dp"
+            android:layout_height="96dp"
+            android:src="@drawable/ic_iskorly_mark"
+            android:layout_marginTop="32dp"
+            android:contentDescription="Iskorly logo" />
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/button_main_start"
-        style="@style/Widget.Material3.Button"
-        android:layout_width="220dp"
-        android:layout_height="wrap_content"
-        android:text="@string/btn_main_start"
-        android:layout_marginBottom="16dp"/>
+        <!-- App Name -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Iskorly"
+            android:textSize="36sp"
+            android:textStyle="bold"
+            android:textColor="@color/on_primary"
+            android:layout_marginTop="16dp"/>
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/button_main_tutorial"
-        style="@style/Widget.Material3.Button.OutlinedButton"
-        android:layout_width="220dp"
-        android:layout_height="wrap_content"
-        android:text="@string/btn_main_tutorial"
-        android:layout_marginBottom="12dp"
-        app:backgroundTint="@color/md3_beige_primary"
-        android:textColor="@color/md3_beige_onPrimary" />
-        />
+        <!-- Tagline -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/main_menu_tagline"
+            android:textSize="16sp"
+            android:textColor="@color/primary_variant"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="48dp"/>
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/button_main_credits"
-        style="@style/Widget.Material3.Button.OutlinedButton"
-        android:layout_width="220dp"
-        android:layout_height="wrap_content"
-        android:text="@string/btn_main_credits"
-        app:backgroundTint="@color/md3_beige_primary"
-        android:textColor="@color/md3_beige_onPrimary" />
-    />
-</LinearLayout>
+        <!-- Action Buttons Container -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:paddingHorizontal="16dp">
+
+            <!-- Start Scan - Primary Action -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_start_scan"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardElevation="4dp"
+                app:cardCornerRadius="12dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardBackgroundColor="@color/surface">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="16dp"
+                    android:gravity="center_vertical">
+
+                    <ImageView
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:src="@android:drawable/ic_menu_camera"
+                        android:tint="@color/primary_indigo"
+                        android:contentDescription="Scan icon" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:layout_marginStart="16dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/btn_main_start"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:textColor="@color/on_surface" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Scan answer sheets"
+                            android:textSize="14sp"
+                            android:textColor="@color/on_surface_variant" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- History -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_history"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardElevation="2dp"
+                app:cardCornerRadius="12dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardBackgroundColor="@color/surface">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="16dp"
+                    android:gravity="center_vertical">
+
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@android:drawable/ic_menu_recent_history"
+                        android:tint="@color/secondary_emerald"
+                        android:contentDescription="History icon" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/menu_history"
+                        android:textSize="16sp"
+                        android:textColor="@color/on_surface"
+                        android:layout_marginStart="16dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Masterlist -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_masterlist"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardElevation="2dp"
+                app:cardCornerRadius="12dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardBackgroundColor="@color/surface">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="16dp"
+                    android:gravity="center_vertical">
+
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@android:drawable/ic_menu_sort_by_size"
+                        android:tint="@color/secondary_emerald"
+                        android:contentDescription="Masterlist icon" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/btn_masterlist"
+                        android:textSize="16sp"
+                        android:textColor="@color/on_surface"
+                        android:layout_marginStart="16dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Answer Key Setup -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_answer_key"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                app:cardElevation="2dp"
+                app:cardCornerRadius="12dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardBackgroundColor="@color/surface">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="16dp"
+                    android:gravity="center_vertical">
+
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@android:drawable/ic_menu_edit"
+                        android:tint="@color/secondary_emerald"
+                        android:contentDescription="Setup icon" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/menu_setup"
+                        android:textSize="16sp"
+                        android:textColor="@color/on_surface"
+                        android:layout_marginStart="16dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Tutorial -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_main_tutorial"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/btn_main_tutorial"
+                android:textColor="@color/on_primary"
+                app:strokeColor="@color/primary_variant"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="8dp"/>
+
+            <!-- Credits -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_main_credits"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/btn_main_credits"
+                android:textColor="@color/primary_variant"
+                android:layout_marginBottom="24dp"/>
+        </LinearLayout>
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

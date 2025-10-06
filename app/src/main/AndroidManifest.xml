@@ -11,7 +11,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.ItemScoreAnalysis">
+        android:theme="@style/Theme.Iskorly">
 
         <!-- NEW: FileProvider for uCrop and captured images -->
         <provider
@@ -24,20 +24,27 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- NEW: Main Menu (launcher) -->
+        <!-- Splash Screen (LAUNCHER) - UX 2.0 -->
         <activity
-            android:name=".MainMenuActivity"
+            android:name=".SplashActivity"
             android:exported="true"
-            android:theme="@style/Theme.ItemScoreAnalysis">
+            android:theme="@style/Theme.Iskorly.Splash">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
 
+        <!-- Main Menu -->
+        <activity
+            android:name=".MainMenuActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Iskorly" />
+
         <!-- Main scanning / logic activity -->
         <activity
             android:name=".MainActivity"
-            android:exported="true" />
+            android:exported="false"
+            android:theme="@style/Theme.Iskorly" />
     </application>
 </manifest>
