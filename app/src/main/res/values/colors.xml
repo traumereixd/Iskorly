@@ -1,18 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Beige palette -->
-    <color name="md3_beige_primary">#BDAE8A</color>
-    <color name="md3_beige_onPrimary">#000000</color>
-
-    <color name="md3_beige_secondary">#000000</color>
-    <color name="md3_beige_onSecondary">#201A14</color>
-
-    <color name="md3_beige_surface">#FFFFFF</color>
-    <color name="md3_beige_onSurface">#201A14</color>
-    <color name="md3_beige_surfaceVariant">#FFFFFF</color>
-    <color name="md3_beige_onSurfaceVariant">#53443B</color>
-    <color name="md3_beige_outline">#B7A99A</color>
-
-    <color name="md3_beige_error">#FFFFFF</color>
-    <color name="md3_beige_onError">#FFFFFF</color>
+    <!-- Iskorly UX 2.0 Color Palette -->
+    <color name="primary_indigo">#4452A6</color>
+    <color name="primary_variant">#E3E7F9</color>
+    <color name="on_primary">#FFFFFF</color>
+    
+    <color name="secondary_emerald">#21A179</color>
+    <color name="secondary_variant">#1A8461</color>
+    <color name="on_secondary">#FFFFFF</color>
+    
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_elevated">#F8F9FB</color>
+    <color name="on_surface">#1C1B1F</color>
+    <color name="on_surface_variant">#49454F</color>
+    
+    <color name="outline">#79747E</color>
+    <color name="background">#FDFCFF</color>
+    <color name="on_background">#1C1B1F</color>
+    
+    <!-- Semantic answer highlight colors -->
+    <color name="answer_correct">#C8E6C9</color>      <!-- Light green -->
+    <color name="answer_incorrect">#FFCDD2</color>    <!-- Light red -->
+    <color name="answer_blank">#FFF9C4</color>        <!-- Light yellow -->
+    <color name="answer_neutral">#E0E0E0</color>      <!-- Gray -->
+    
+    <!-- Legacy beige palette (deprecated - kept for backward compatibility) -->
+    <color name="md3_beige_primary">#BDAE8A</color>  /* legacy */
+    <color name="md3_beige_onPrimary">#000000</color>  /* legacy */
+    <color name="md3_beige_secondary">#000000</color>  /* legacy */
+    <color name="md3_beige_onSecondary">#201A14</color>  /* legacy */
+    <color name="md3_beige_surface">#FFFFFF</color>  /* legacy */
+    <color name="md3_beige_onSurface">#201A14</color>  /* legacy */
+    <color name="md3_beige_surfaceVariant">#FFFFFF</color>  /* legacy */
+    <color name="md3_beige_onSurfaceVariant">#53443B</color>  /* legacy */
+    <color name="md3_beige_outline">#B7A99A</color>  /* legacy */
+    <color name="md3_beige_error">#FFFFFF</color>  /* legacy */
+    <color name="md3_beige_onError">#FFFFFF</color>  /* legacy */
 </resources>

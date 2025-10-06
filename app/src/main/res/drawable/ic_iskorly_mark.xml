@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Simple "I" monogram for Iskorly -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M44,30 L64,30 L64,35 L57,35 L57,73 L64,73 L64,78 L44,78 L44,73 L51,73 L51,35 L44,35 Z"/>
+    
+    <!-- Decorative underline accent -->
+    <path
+        android:fillColor="#21A179"
+        android:pathData="M42,80 L66,80 L66,82 L42,82 Z"/>
+</vector>
