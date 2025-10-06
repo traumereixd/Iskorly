@@ -9,3 +9,6 @@
 -dontwarn com.google.mlkit.**
 -dontwarn com.google.android.odml.**
 -dontwarn com.google.android.gms.internal.mlkit_vision_**
+
+# Keep uCrop (only if you turn on minify later)
+-keep class com.yalantis.ucrop.** { *; }

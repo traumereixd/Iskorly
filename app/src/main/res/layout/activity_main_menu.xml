@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     android:gravity="center"
     android:padding="32dp"
@@ -40,12 +41,18 @@
         android:layout_width="220dp"
         android:layout_height="wrap_content"
         android:text="@string/btn_main_tutorial"
-        android:layout_marginBottom="12dp"/>
+        android:layout_marginBottom="12dp"
+        app:backgroundTint="@color/md3_beige_primary"
+        android:textColor="@color/md3_beige_onPrimary" />
+        />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/button_main_credits"
         style="@style/Widget.Material3.Button.OutlinedButton"
         android:layout_width="220dp"
         android:layout_height="wrap_content"
-        android:text="@string/btn_main_credits"/>
+        android:text="@string/btn_main_credits"
+        app:backgroundTint="@color/md3_beige_primary"
+        android:textColor="@color/md3_beige_onPrimary" />
+    />
 </LinearLayout>

@@ -1,6 +1,34 @@
-# Item Score Analysis App v1.3
+## Iskorly (formerly Item Score Analysis App) v1.3
 
-AI-powered answer sheet scoring application for DEPED and educational institutions.
+AI-powered answer sheet scanning, scoring, and item analysis for classrooms.
+
+> Rebranded from “Item Score Analysis” to “Iskorly” for a shorter, more memorable identity.
+
+## Tagline
+Faster Scoring. Smarter Teaching
+
+## Overview
+Iskorly uses OCR (Google Vision + fallback) to extract student answers from photos or batch-imported images, compares them to a configurable answer key, and produces per-question analytics.
+
+(Existing sections below remain the same—only name replaced.)
+
+## Core Features (v1.3)
+- Smart answer key filtering (only key questions displayed)
+- Batch scanning (multi-image import)
+- Crop-before-OCR workflow (uCrop or fallback)
+- Two-column editable grid
+- Color-coded correctness feedback
+- Handwriting enhancement + fallback engine
+- Masterlist (per-question stats)
+- CSV export
+- Multiple answer key slots
+
+## Rebranding Notes
+- Package name unchanged for backward compatibility.
+- Historical references: See CHANGELOG.md for prior naming.
+- Credits updated to reflect “Iskorly” branding.
+
+(Keep rest of previous README content here unchanged unless you want me to regenerate it all with new name everywhere.)
 
 ## Overview
 

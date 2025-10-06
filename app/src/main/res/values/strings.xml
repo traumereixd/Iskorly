@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Item Score Analysis</string>
+    <string name="app_name">Iskorly</string>
     <string name="intro_text">Enter student and exam details, then scan answer sheets for automatic scoring.</string>
 
     <string name="hint_student">Student Name</string>
@@ -43,13 +43,7 @@
     <string name="btn_try_again">Take Photo</string>
     <string name="btn_cancel">Cancel</string>
 
-    <string name="credits_text">ItemScoreAnalysis Program
-Researchers: Bande, John Hezekiah R.
-Magculang Maria Jerelle G.
-Roque, Marlou Adelaide V.
-Program Made By: Sahagun, Jayson G.
-v1.3
-AI-powered answer sheet scoring</string>
+    <string name="credits_text">Iskorly\nPreviously: Item Score Analysis\nResearchers: Bande, John Hezekiah R.\nMagculang Maria Jerelle G.\nRoque, Marlou Adelaide V.\nProgram Made By: Sahagun, Jayson G.\nv1.3\nAI-powered answer sheet scoring</string>
 
     <!-- Menu -->
     <string name="menu_setup">Setup</string>
@@ -57,7 +51,7 @@ AI-powered answer sheet scoring</string>
     <string name="menu_export_csv">Export CSV</string>
     <string name="menu_credits">Credits</string>
     <string name="menu_tutorial">Tutorial</string>
-    
+
     <!-- New Feature Strings v1.3 -->
     <string name="btn_import_photos">Import Photos</string>
     <string name="btn_masterlist">Masterlist</string>
@@ -65,14 +59,17 @@ AI-powered answer sheet scoring</string>
     <string name="btn_main_start">Start</string>
     <string name="btn_main_tutorial">Tutorial</string>
     <string name="btn_main_credits">Credits</string>
-    <string name="main_menu_title">Item Score Analysis</string>
-    <string name="main_menu_tagline">AI-powered answer sheet scoring</string>
+    <string name="main_menu_title">Iskorly</string>
+    <string name="main_menu_tagline">Faster Scoring. Smarter Teaching</string>
     <string name="processing_images">Processing %d image(s)…</string>
     <string name="filled_answers_status">Processed %d image(s) • Filled %d / %d answers</string>
 
+    <!-- Optional extra tagline resource if you want to use dynamically -->
+    <string name="brand_tagline_alt">Faster Scores. Smarter Teaching.</string>
+
     <!-- Tutorial -->
     <string name="tutorial_title">How to Use</string>
-    <string name="tutorial_text">For Students Information:\n
+    <string name="tutorial_text">Welcome to Iskorly \n
 • Fill in Student, Subgroup 1 (Section), and Subgroup 2 (Subject/Quiz).\n
 • Tap Start Scan or Import Photos to scan answer sheets.\n
 • Camera: Align the answer sheet and tap Scan. After capture, crop the image to focus on answers, then confirm.\n
@@ -82,19 +79,16 @@ AI-powered answer sheet scoring</string>
 • Tap Scan Again to close the popup and return to the camera.\n
 \n
 Setup Answer Key:\n
-• Menu → Setup Answer Key.\n
-• Use slots to manage multiple quizzes (New/Rename/Delete/Import/Export).\n
+• Setup Answer Key to manage multiple quizzes (Slots: New/Rename/Delete/Import/Export).\n
 • Add answers: enter Question # and Answer (A–Z or short text up to 40 chars) → Save.\n
-• The current key is shown at the bottom; use Clear All to reset if needed.\n
 \n
-History &amp; Export:\n
-• Menu → History: Expand by Quiz and Section to view results. You can rename or delete groups.\n
-• Menu → Export CSV: Exports results for spreadsheets.\n
-• Masterlist: View aggregated per-question statistics across all saved records.\n
+History &amp; Analysis:\n
+• History: Expand by Quiz and Section to view results.\n
+• Export CSV for sharing.\n
+• Masterlist: See per-question performance and common wrong answers.\n
 \n
 Tips:\n
-• Use good lighting and keep the sheet flat; align edges within the frame.\n
-• For handwritten sheets: use dark pen, avoid shadows, crop tightly.\n
-• If nothing is recognized, tap Scan Again and try a steadier shot or adjust brightness.\n
-• Always review the parsed answers before confirming the score.</string>
+• Good lighting, flat sheet, steady frame.\n
+• For handwriting: dark pen, avoid shadows, crop tightly.\n
+• Review parsed answers before confirming.\n</string>
 </resources>

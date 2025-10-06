@@ -1,6 +1,7 @@
-# Changelog - Item Score Analysis App
+# Changelog - Iskorly (formerly Item Score Analysis)
 
 ## Version 1.3 (2025)
+(Rebranding note: App name changed to Iskorly for memorability.)
 
 ### New Features
 

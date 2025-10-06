@@ -1,5 +1,6 @@
-# Item Score Analysis App v1.3 - DEPED Presentation Summary
+# Iskorly v1.3 
 
+(Formerly: Item Score Analysis App)
 ## Executive Overview
 
 The Item Score Analysis (ISA) App v1.3 is a production-ready Android application designed specifically for DEPED's needs in automated answer sheet scoring and statistical analysis. This version represents a significant leap forward with 10 major feature enhancements focused on accuracy, usability, and analytical capabilities.
