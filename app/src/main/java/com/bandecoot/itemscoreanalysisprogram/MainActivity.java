@@ -3,6 +3,7 @@ package com.bandecoot.itemscoreanalysisprogram;
 import android.Manifest;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -82,11 +83,11 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "ISA_VISION";
     private static final String CAMERA_FLOW = "CAMERA_FLOW";
     private static final String CROP_FLOW = "CROP_FLOW";
+    private static final String CROP_FIX = "CROP_FIX";
     private static final String OCR_FLOW = "OCR_FLOW";
     private static final int CAMERA_PERMISSION_REQUEST_CODE = 200;
     private static final int CAMERA_WIDTH = 1280;
     private static final int CAMERA_HEIGHT = 720;
-    private static final boolean ENABLE_UCROP = true;
     private static final float SIMPLE_CROP_MARGIN_RATIO = 0.07f; // 7% trim each edge for fallback
 
     // UI components
@@ -162,8 +163,8 @@ public class MainActivity extends AppCompatActivity {
     // Multi-image import launcher (Feature #2)
     private ActivityResultLauncher<String> importPhotosLauncher;
     
-    // Crop launcher (Feature #2.1)
-    private ActivityResultLauncher<android.content.Intent> cropLauncher;
+    // Crop launcher (Feature #2.1) - CanHub Android Image Cropper
+    private ActivityResultLauncher<com.canhub.cropper.CropImageContractOptions> cropLauncher;
     private android.net.Uri lastCapturedImageUri;
     private java.io.File lastCapturedFile; // Store file reference for URI permissions
 
@@ -786,9 +787,9 @@ public class MainActivity extends AppCompatActivity {
                 this::onPhotosImported
         );
         
-        // Crop launcher (Feature #2.1)
+        // Crop launcher (Feature #2.1) - CanHub Android Image Cropper
         cropLauncher = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
+                new com.canhub.cropper.CropImageContract(),
                 this::onCropResult
         );
 
@@ -1199,7 +1200,7 @@ public class MainActivity extends AppCompatActivity {
 
     private final ImageReader.OnImageAvailableListener onJpegAvailableListener = reader -> {
         Log.d(CROP_FLOW, "JPEG image available from camera");
-        Log.d(UiConfig.CROP_FIX, "Capture triggered, session active: " + scanSessionActive);
+        Log.d(CROP_FIX, "Capture triggered, session active: " + scanSessionActive);
         
         // Defensive check: if not in active scan session, discard
         if (!scanSessionActive) {
@@ -1228,7 +1229,7 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(() -> Toast.makeText(this, "Invalid photo data", Toast.LENGTH_SHORT).show());
                 return;
             }
-            Log.d(UiConfig.CROP_FIX, "Bitmap decoded: " + bmp.getWidth() + "x" + bmp.getHeight());
+            Log.d(CROP_FIX, "Bitmap decoded: " + bmp.getWidth() + "x" + bmp.getHeight());
 
             // Feature #2.1: Save to file and launch crop
             try {
@@ -1240,7 +1241,7 @@ public class MainActivity extends AppCompatActivity {
                 fos.flush(); // Ensure data written to disk
                 fos.close();
                 Log.d(CROP_FLOW, "Saved capture to file: " + lastCapturedFile.getAbsolutePath());
-                Log.d(UiConfig.CROP_FIX, "File size after save: " + lastCapturedFile.length() + " bytes");
+                Log.d(CROP_FIX, "File size after save: " + lastCapturedFile.length() + " bytes");
                 
                 // Use FileProvider to get secure URI
                 lastCapturedImageUri = FileProvider.getUriForFile(
@@ -1249,7 +1250,7 @@ public class MainActivity extends AppCompatActivity {
                     lastCapturedFile
                 );
                 Log.d(CROP_FLOW, "Created FileProvider URI: " + lastCapturedImageUri);
-                Log.d(UiConfig.CROP_FIX, "URI authority: " + lastCapturedImageUri.getAuthority());
+                Log.d(CROP_FIX, "URI authority: " + lastCapturedImageUri.getAuthority());
                 
                 // Now it's safe to recycle bitmap after file is flushed
                 bmp.recycle();
@@ -1262,14 +1263,14 @@ public class MainActivity extends AppCompatActivity {
             } catch (Exception e) {
                 Log.e(TAG, "Error saving capture for crop", e);
                 Log.e(CROP_FLOW, "Failed to save/crop, falling back to direct OCR", e);
-                Log.e(UiConfig.CROP_FIX, "Save exception", e);
+                Log.e(CROP_FIX, "Save exception", e);
                 // Fallback: process without crop
                 processImageWithOcrFallback(bmp);
             }
             
         } catch (Throwable t) {
             Log.e(TAG, "onJpegAvailableListener error", t);
-            Log.e(UiConfig.CROP_FIX, "Listener exception", t);
+            Log.e(CROP_FIX, "Listener exception", t);
             runOnUiThread(() -> Toast.makeText(this, "Analyze failed", Toast.LENGTH_SHORT).show());
         } finally {
             try { img.close(); } catch (Throwable ignored) {}
@@ -2628,29 +2629,28 @@ public class MainActivity extends AppCompatActivity {
     }
     
     /**
-     * Handle crop result from uCrop.
+     * Handle crop result from CanHub Android Image Cropper.
      */
-    private void onCropResult(androidx.activity.result.ActivityResult result) {
-        if (result.getResultCode() == RESULT_OK && result.getData() != null) {
-            android.net.Uri croppedUri = com.yalantis.ucrop.UCrop.getOutput(result.getData());
+    private void onCropResult(com.canhub.cropper.CropImageView.CropResult result) {
+        if (result.isSuccessful()) {
+            android.net.Uri croppedUri = result.getUriContent();
             if (croppedUri != null) {
                 Log.d(CROP_FLOW, "Crop successful, processing cropped image: " + croppedUri);
-                // Process cropped image
                 processCroppedImage(croppedUri);
             } else {
                 Log.e(CROP_FLOW, "Crop result OK but URI is null");
                 Toast.makeText(this, "Crop failed, try again", Toast.LENGTH_SHORT).show();
             }
-        } else if (result.getResultCode() == com.yalantis.ucrop.UCrop.RESULT_ERROR) {
-            Throwable cropError = com.yalantis.ucrop.UCrop.getError(result.getData());
+        } else if (result.getError() != null) {
+            Throwable cropError = result.getError();
             Log.e(TAG, "Crop error", cropError);
             Log.e(CROP_FLOW, "Crop error occurred", cropError);
             Toast.makeText(this, "Crop failed, processing original image", Toast.LENGTH_SHORT).show();
             
-            // Fallback: process original captured image (only once)
+            // Fallback: use simple auto-crop on original image
             if (lastCapturedImageUri != null) {
-                Log.d(CROP_FLOW, "Falling back to original captured image");
-                processCroppedImage(lastCapturedImageUri);
+                Log.d(CROP_FLOW, "Falling back to simple auto-crop");
+                processFallbackAutoCrop(lastCapturedImageUri);
             }
         } else {
             // User canceled crop
@@ -2726,80 +2726,41 @@ public class MainActivity extends AppCompatActivity {
         }
     }
     /**
-     * Start crop activity for the captured image.
+     * Start crop activity for the captured image using CanHub Android Image Cropper.
      */
     private void startCropActivity(android.net.Uri sourceUri) {
-        // Check file_paths.xml resource availability
         try {
-            int resId = getResources().getIdentifier("file_paths", "xml", getPackageName());
-            if (resId == 0) {
-                Log.e(UiConfig.CROP_FIX, "file_paths.xml not found! Skipping uCrop");
-                Toast.makeText(this, "Crop configuration missing", Toast.LENGTH_SHORT).show();
-                // Force fallback
-                processFallbackAutoCrop(sourceUri);
-                return;
-            }
-            Log.d(UiConfig.CROP_FIX, "file_paths.xml resource verified: " + resId);
-        } catch (Exception e) {
-            Log.e(UiConfig.CROP_FIX, "Error checking file_paths.xml", e);
-        }
-        
-        if (!UiConfig.ENABLE_UCROP) {
-            Log.d(CROP_FLOW, "uCrop disabled via UiConfig, using automatic crop fallback");
-            processFallbackAutoCrop(sourceUri);
-            return;
-        }
+            Log.d(CROP_FLOW, "Starting CanHub crop with source: " + sourceUri);
+            Log.d(CROP_FIX, "Source file exists: " + (lastCapturedFile != null && lastCapturedFile.exists()));
 
-        try {
-            Log.d(CROP_FLOW, "Starting uCrop with source: " + sourceUri);
-            Log.d(UiConfig.CROP_FIX, "Source file exists: " + (lastCapturedFile != null && lastCapturedFile.exists()));
+            // Configure CanHub crop options
+            com.canhub.cropper.CropImageOptions cropOptions = new com.canhub.cropper.CropImageOptions();
+            cropOptions.guidelines = com.canhub.cropper.CropImageView.Guidelines.ON;
+            cropOptions.allowRotation = true;
+            cropOptions.allowFlipping = true;
+            cropOptions.fixAspectRatio = false; // Free-style crop enabled
+            cropOptions.autoZoomEnabled = true;
+            
+            // Create crop contract options
+            com.canhub.cropper.CropImageContractOptions contractOptions = 
+                new com.canhub.cropper.CropImageContractOptions(sourceUri, cropOptions);
 
-            // Ensure destination file exists up front
-            String destFileName = "cropped_" + System.currentTimeMillis() + ".jpg";
-            java.io.File destFile = new java.io.File(getCacheDir(), destFileName);
-            if (!destFile.exists()) {
-                boolean created = destFile.createNewFile();
-                Log.d(CROP_FLOW, "Destination file created: " + created + " path=" + destFile.getAbsolutePath());
-                Log.d(UiConfig.CROP_FIX, "Dest file size: " + destFile.length());
-            }
-
-            android.net.Uri destUri = FileProvider.getUriForFile(
-                    this,
-                    getApplicationContext().getPackageName() + ".fileprovider",
-                    destFile
-            );
-            Log.d(UiConfig.CROP_FIX, "Created destUri: " + destUri);
-
-            com.yalantis.ucrop.UCrop.Options options = new com.yalantis.ucrop.UCrop.Options();
-            options.setFreeStyleCropEnabled(true);
-            options.setShowCropFrame(true);
-            options.setShowCropGrid(true);
-
-            android.content.Intent cropIntent = com.yalantis.ucrop.UCrop.of(sourceUri, destUri)
-                    .withOptions(options)
-                    .getIntent(this);
-
-            // Add flags (uCrop runs in same process, permissions should be inherited)
-            cropIntent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION |
-                    android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-
-            Log.d(CROP_FLOW, "Launching uCrop activity");
-            Log.d(UiConfig.CROP_FIX, "Intent flags: " + cropIntent.getFlags());
-            cropLauncher.launch(cropIntent);
+            Log.d(CROP_FLOW, "Launching CanHub crop activity");
+            cropLauncher.launch(contractOptions);
 
         } catch (Exception e) {
-            Log.e(CROP_FLOW, "uCrop launch failed, using simple fallback", e);
-            Log.e(UiConfig.CROP_FIX, "Launch exception details", e);
+            Log.e(CROP_FLOW, "CanHub crop launch failed, using simple fallback", e);
+            Log.e(CROP_FIX, "Launch exception details", e);
             Toast.makeText(this, "Crop not available (fallback)", Toast.LENGTH_SHORT).show();
             processFallbackAutoCrop(sourceUri);
         }
     }
     
     /**
-     * Fallback auto-crop when uCrop is unavailable or disabled.
+     * Fallback auto-crop when crop is unavailable or disabled.
      */
     private void processFallbackAutoCrop(android.net.Uri sourceUri) {
-        Log.d(UiConfig.CROP_FIX, "Entering fallback auto-crop");
+        Log.d(CROP_FIX, "Entering fallback auto-crop");
         try {
             InputStream is = getContentResolver().openInputStream(sourceUri);
             Bitmap original = BitmapFactory.decodeStream(is);
@@ -2827,7 +2788,7 @@ public class MainActivity extends AppCompatActivity {
             });
         } catch (Exception ex) {
             Log.e(CROP_FLOW, "Fallback auto crop failed", ex);
-            Log.e(UiConfig.CROP_FIX, "Fallback exception", ex);
+            Log.e(CROP_FIX, "Fallback exception", ex);
             Toast.makeText(this, "Processing failed", Toast.LENGTH_SHORT).show();
         }
     }

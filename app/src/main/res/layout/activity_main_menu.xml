@@ -100,135 +100,77 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- History -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/card_history"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                app:cardElevation="2dp"
-                app:cardCornerRadius="12dp"
-                android:clickable="true"
-                android:focusable="true"
-                app:cardBackgroundColor="@color/surface">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:padding="16dp"
-                    android:gravity="center_vertical">
-
-                    <ImageView
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:src="@android:drawable/ic_menu_recent_history"
-                        android:tint="@color/secondary_emerald"
-                        android:contentDescription="History icon" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/menu_history"
-                        android:textSize="16sp"
-                        android:textColor="@color/on_surface"
-                        android:layout_marginStart="16dp" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- Masterlist -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/card_masterlist"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                app:cardElevation="2dp"
-                app:cardCornerRadius="12dp"
-                android:clickable="true"
-                android:focusable="true"
-                app:cardBackgroundColor="@color/surface">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:padding="16dp"
-                    android:gravity="center_vertical">
-
-                    <ImageView
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:src="@android:drawable/ic_menu_sort_by_size"
-                        android:tint="@color/secondary_emerald"
-                        android:contentDescription="Masterlist icon" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/btn_masterlist"
-                        android:textSize="16sp"
-                        android:textColor="@color/on_surface"
-                        android:layout_marginStart="16dp" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- Answer Key Setup -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/card_answer_key"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                app:cardElevation="2dp"
-                app:cardCornerRadius="12dp"
-                android:clickable="true"
-                android:focusable="true"
-                app:cardBackgroundColor="@color/surface">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:padding="16dp"
-                    android:gravity="center_vertical">
-
-                    <ImageView
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:src="@android:drawable/ic_menu_edit"
-                        android:tint="@color/secondary_emerald"
-                        android:contentDescription="Setup icon" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/menu_setup"
-                        android:textSize="16sp"
-                        android:textColor="@color/on_surface"
-                        android:layout_marginStart="16dp" />
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
             <!-- Tutorial -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/button_main_tutorial"
-                style="@style/Widget.Material3.Button.OutlinedButton"
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_tutorial"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/btn_main_tutorial"
-                android:textColor="@color/on_primary"
-                app:strokeColor="@color/primary_variant"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="8dp"/>
+                android:layout_marginBottom="12dp"
+                app:cardElevation="2dp"
+                app:cardCornerRadius="12dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardBackgroundColor="@color/surface">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="16dp"
+                    android:gravity="center_vertical">
+
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@android:drawable/ic_menu_help"
+                        android:tint="@color/secondary_emerald"
+                        android:contentDescription="Tutorial icon" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/btn_main_tutorial"
+                        android:textSize="16sp"
+                        android:textColor="@color/on_surface"
+                        android:layout_marginStart="16dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
 
             <!-- Credits -->
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/button_main_credits"
-                style="@style/Widget.Material3.Button.TextButton"
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/card_credits"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/btn_main_credits"
-                android:textColor="@color/primary_variant"
-                android:layout_marginBottom="24dp"/>
+                android:layout_marginBottom="24dp"
+                app:cardElevation="2dp"
+                app:cardCornerRadius="12dp"
+                android:clickable="true"
+                android:focusable="true"
+                app:cardBackgroundColor="@color/surface">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="16dp"
+                    android:gravity="center_vertical">
+
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@android:drawable/ic_menu_info_details"
+                        android:tint="@color/secondary_emerald"
+                        android:contentDescription="Credits icon" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/btn_main_credits"
+                        android:textSize="16sp"
+                        android:textColor="@color/on_surface"
+                        android:layout_marginStart="16dp" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
         </LinearLayout>
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>
