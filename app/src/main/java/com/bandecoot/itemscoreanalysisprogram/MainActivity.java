@@ -90,13 +90,14 @@ public class MainActivity extends AppCompatActivity {
     private static final int CAMERA_WIDTH = 1280;
     private static final int CAMERA_HEIGHT = 720;
     private static final float SIMPLE_CROP_MARGIN_RATIO = 0.07f; // 7% trim each edge for fallback
-    private static final android.util.SparseIntArray ORIENTATIONS = new android.util.SparseIntArray();
+    private static final android.util.SparseIntArray DEVICE_ROTATION_DEGREES = new android.util.SparseIntArray();
     static {
-        ORIENTATIONS.put(Surface.ROTATION_0, 90);
-        ORIENTATIONS.put(Surface.ROTATION_90, 0);
-        ORIENTATIONS.put(Surface.ROTATION_180, 270);
-        ORIENTATIONS.put(Surface.ROTATION_270, 180);
+        DEVICE_ROTATION_DEGREES.put(Surface.ROTATION_0,   0);
+        DEVICE_ROTATION_DEGREES.put(Surface.ROTATION_90,  90);
+        DEVICE_ROTATION_DEGREES.put(Surface.ROTATION_180, 180);
+        DEVICE_ROTATION_DEGREES.put(Surface.ROTATION_270, 270);
     }
+
     // UI components
     private Button backToMenuButton;
     private LinearLayout mainLayout, answerKeyLayout, testHistoryLayout, scanSessionLayout, masterlistLayout;
@@ -1166,26 +1167,52 @@ public class MainActivity extends AppCompatActivity {
         shutterFlash();
 
         try {
-            final CaptureRequest.Builder stillBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
+            final CaptureRequest.Builder stillBuilder =
+                    cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
             stillBuilder.addTarget(jpegReader.getSurface());
-            try { stillBuilder.set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE); } catch (Throwable ignored) {}
-            try { stillBuilder.set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH); } catch (Throwable ignored) {}
 
-            // Compute correct orientation
+            try { stillBuilder.set(CaptureRequest.CONTROL_AF_MODE,
+                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE); } catch (Throwable ignored) {}
+            try { stillBuilder.set(CaptureRequest.CONTROL_AE_MODE,
+                    CaptureRequest.CONTROL_AE_MODE_ON); } catch (Throwable ignored) {}
+
+            // Correct orientation calculation
             CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
-            CameraCharacteristics chars = manager.getCameraCharacteristics(manager.getCameraIdList()[0]);
-            int sensorOrientation = chars.get(CameraCharacteristics.SENSOR_ORIENTATION);
+            CameraCharacteristics chars =
+                    manager.getCameraCharacteristics(manager.getCameraIdList()[0]);
+
+            Integer sensorOrientationObj = chars.get(CameraCharacteristics.SENSOR_ORIENTATION);
+            int sensorOrientation = sensorOrientationObj != null ? sensorOrientationObj : 90;
+
+            Integer lensFacing = chars.get(CameraCharacteristics.LENS_FACING);
+            boolean front = (lensFacing != null
+                    && lensFacing == CameraCharacteristics.LENS_FACING_FRONT);
+
             int deviceRotation = getWindowManager().getDefaultDisplay().getRotation();
-            int baseRotation = ORIENTATIONS.get(deviceRotation);
-            // Standard formula
-            int jpegOrientation = (baseRotation + sensorOrientation + 270) % 360;
+            int deviceRotationDegrees = DEVICE_ROTATION_DEGREES.get(deviceRotation);
+
+            int jpegOrientation;
+            if (front) {
+                // Front camera
+                jpegOrientation = (sensorOrientation + deviceRotationDegrees) % 360;
+            } else {
+                // Back camera
+                jpegOrientation = (sensorOrientation - deviceRotationDegrees + 360) % 360;
+            }
+
             lastCapturedJpegOrientation = jpegOrientation;
             stillBuilder.set(CaptureRequest.JPEG_ORIENTATION, jpegOrientation);
-            Log.d(CAMERA_FLOW, "JPEG orientation set: " + jpegOrientation);
+
+            Log.d(CAMERA_FLOW, "Computed JPEG orientation: " + jpegOrientation +
+                    " (sensor=" + sensorOrientation +
+                    ", deviceRotDeg=" + deviceRotationDegrees +
+                    ", front=" + front + ")");
 
             cameraCaptureSession.stopRepeating();
-            cameraCaptureSession.capture(stillBuilder.build(), new CameraCaptureSession.CaptureCallback() {}, backgroundHandler);
+            cameraCaptureSession.capture(stillBuilder.build(),
+                    new CameraCaptureSession.CaptureCallback() {}, backgroundHandler);
             cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, backgroundHandler);
+
         } catch (Throwable e) {
             waitingForJpeg.set(false);
             Log.e(CAMERA_FLOW, "triggerStillCapture failed", e);
