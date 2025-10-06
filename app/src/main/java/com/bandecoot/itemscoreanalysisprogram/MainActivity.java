@@ -92,7 +92,7 @@ public class MainActivity extends AppCompatActivity {
     private Button startScanButton, setupButton, viewHistoryButton;
     private Button saveAnswerButton, removeAnswerButton, clearButton, backButton;
     private Button historyBackButton, tryAgainButton, captureResultButton, cancelScanButton;
-    private Button confirmParsedButton, importPhotosButton, masterlistButton, masterlistBackButton;
+    private Button confirmParsedButton, importPhotosButton, masterlistButton, masterlistBackButton, exportCsvButton;
     private TextView currentKeyTextView, sessionScoreTextView, parsedLabel, masterlistInfoTextView;
     private MaterialCardView resultsCard;
     private LinearLayout testHistoryList, parsedAnswersContainer, masterlistContent;
@@ -722,6 +722,15 @@ public class MainActivity extends AppCompatActivity {
                 v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
                 toggleView("masterlist");
                 displayMasterlist();
+            });
+        }
+        
+        // Export CSV button in history (Feature #4)
+        exportCsvButton = findViewById(R.id.button_export_csv);
+        if (exportCsvButton != null) {
+            exportCsvButton.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                exportHistoryCsv();
             });
         }
         

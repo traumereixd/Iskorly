@@ -50,14 +50,15 @@
    - Filters by current answer key slot
    - Future-proof design for exam/section filters
 
-7. **Code Quality & Structure**
+8. **Code Quality & Structure**
    - Created OcrProcessor helper class to encapsulate OCR logic
    - Extracted image processing, API calls, and parsing into reusable component
    - QuestionStats class for statistical computations
    - Improved code organization and maintainability
    - Better separation of concerns
+   - Export CSV button added to History screen (Feature #4 partial implementation)
 
-8. **UX Polishing**
+9. **UX Polishing**
    - Visual feedback: green (correct), red (incorrect), yellow (unanswered) highlighting
    - Smart button states: Confirm & Score disabled until at least one answer filled
    - TextWatcher dynamically enables/disables buttons based on content
@@ -90,3 +91,25 @@
 - Initial release with basic OCR and scoring functionality
 - Answer key management with slots
 - History tracking and CSV export
+
+---
+
+## Future Enhancements (Not In Scope for v1.3)
+
+The following features are documented for future releases:
+
+- **Main Menu Redesign** (deferred to v1.4): Dedicated main menu screen with Start/Tutorial/Credits buttons, remove MaterialToolbar
+  - Would require refactoring MainActivity into separate activities or fragment-based navigation
+  - Significant architectural change best suited for a major version update
+  - Current menu-based navigation is functional and familiar to users
+  
+- **Answer Key Auto-Detection**: Automatically detect and populate answer key from scanned key sheets
+
+- **Offline On-Device OCR**: Integrate ML Kit for offline OCR to reduce latency and eliminate API dependencies
+
+- **Analytics Graphs**: Add difficulty discrimination index and other advanced statistical visualizations
+
+- **Masterlist CSV Export**: Export per-question statistics table to CSV format
+
+- **Advanced Filters**: Exam/Section filters for Masterlist view to analyze specific subsets of data
+
