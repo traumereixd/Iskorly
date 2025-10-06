@@ -48,7 +48,7 @@ Researchers: Bande, John Hezekiah R.
 Magculang Maria Jerelle G.
 Roque, Marlou Adelaide V.
 Program Made By: Sahagun, Jayson G.
-v1.1
+v1.3
 AI-powered answer sheet scoring</string>
 
     <!-- Menu -->
@@ -57,15 +57,29 @@ AI-powered answer sheet scoring</string>
     <string name="menu_export_csv">Export CSV</string>
     <string name="menu_credits">Credits</string>
     <string name="menu_tutorial">Tutorial</string>
+    
+    <!-- New Feature Strings v1.3 -->
+    <string name="btn_import_photos">Import Photos</string>
+    <string name="btn_masterlist">Masterlist</string>
+    <string name="btn_export_item_stats">Export Item Stats</string>
+    <string name="btn_main_start">Start</string>
+    <string name="btn_main_tutorial">Tutorial</string>
+    <string name="btn_main_credits">Credits</string>
+    <string name="main_menu_title">Item Score Analysis</string>
+    <string name="main_menu_tagline">AI-powered answer sheet scoring</string>
+    <string name="processing_images">Processing %d image(s)…</string>
+    <string name="filled_answers_status">Processed %d image(s) • Filled %d / %d answers</string>
 
     <!-- Tutorial -->
     <string name="tutorial_title">How to Use</string>
     <string name="tutorial_text">For Students Information:\n
 • Fill in Student, Subgroup 1 (Section), and Subgroup 2 (Subject/Quiz).\n
-• Tap Start Scan. Align the answer sheet in the camera and tap Scan.\n
-• A popup will show the parsed answers. Tap any value to edit if needed.\n
+• Tap Start Scan or Import Photos to scan answer sheets.\n
+• Camera: Align the answer sheet and tap Scan. After capture, crop the image to focus on answers, then confirm.\n
+• Import Photos: Select one or multiple images from gallery for batch processing.\n
+• A popup will show the parsed answers filtered to your answer key. Tap any value to edit if needed.\n
 • Tap Confirm &amp; Score to see your score, then tap Save to store it in History.\n
-• Tap Scan Again to close the popup and return to the full-screen camera.\n
+• Tap Scan Again to close the popup and return to the camera.\n
 \n
 Setup Answer Key:\n
 • Menu → Setup Answer Key.\n
@@ -76,9 +90,11 @@ Setup Answer Key:\n
 History &amp; Export:\n
 • Menu → History: Expand by Quiz and Section to view results. You can rename or delete groups.\n
 • Menu → Export CSV: Exports results for spreadsheets.\n
+• Masterlist: View aggregated per-question statistics across all saved records.\n
 \n
 Tips:\n
 • Use good lighting and keep the sheet flat; align edges within the frame.\n
-• If nothing is recognized, tap Scan Again and try a steadier shot.\n
+• For handwritten sheets: use dark pen, avoid shadows, crop tightly.\n
+• If nothing is recognized, tap Scan Again and try a steadier shot or adjust brightness.\n
 • Always review the parsed answers before confirming the score.</string>
 </resources>
