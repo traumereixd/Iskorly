@@ -2044,6 +2044,22 @@ public class MainActivity extends AppCompatActivity {
         List<Integer> qList = new ArrayList<>(lastDetectedAnswers.keySet());
         Collections.sort(qList);
         
+        // Feature #7: Check if at least one answer is filled
+        boolean hasAnyAnswer = false;
+        for (Integer q : qList) {
+            String val = lastDetectedAnswers.get(q);
+            if (val != null && !val.trim().isEmpty()) {
+                hasAnyAnswer = true;
+                break;
+            }
+        }
+        
+        // Disable Confirm & Score button if no answers
+        if (confirmParsedButton != null) {
+            confirmParsedButton.setEnabled(hasAnyAnswer);
+            confirmParsedButton.setAlpha(hasAnyAnswer ? 1.0f : 0.5f);
+        }
+        
         // Feature #1.1: Two-Column Grid Layout
         // Create a container with 2-column layout using nested LinearLayouts
         LinearLayout gridContainer = new LinearLayout(this);
@@ -2105,6 +2121,35 @@ public class MainActivity extends AppCompatActivity {
             et.setText(val != null ? val : "");
             et.setTextColor(Color.BLACK);
             et.setTypeface(et.getTypeface(), Typeface.BOLD);
+            
+            // Feature #7: Add text watcher to enable Confirm button when user edits
+            et.addTextChangedListener(new android.text.TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {
+                    // Check if any answer is filled
+                    boolean hasAny = false;
+                    for (View v : parsedEditors.values()) {
+                        if (v instanceof EditText) {
+                            String text = ((EditText) v).getText().toString().trim();
+                            if (!text.isEmpty()) {
+                                hasAny = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (confirmParsedButton != null) {
+                        confirmParsedButton.setEnabled(hasAny);
+                        confirmParsedButton.setAlpha(hasAny ? 1.0f : 0.5f);
+                    }
+                }
+                
+                @Override
+                public void afterTextChanged(android.text.Editable s) {}
+            });
+            
             cellContent.addView(et);
             parsedEditors.put(q, et);
             
@@ -2169,13 +2214,33 @@ public class MainActivity extends AppCompatActivity {
         int correct = 0;
         int answered = 0;
 
+        // Feature #7: Highlight correct/incorrect answers
         for (HashMap.Entry<Integer, String> e : currentAnswerKey.entrySet()) {
             int q = e.getKey();
             String expected = e.getValue();
             String got = lastDetectedAnswers.get(q);
-            if (got != null) {
-                answered++;
-                if (expected.equalsIgnoreCase(got)) correct++;
+            
+            // Find the EditText for this question and highlight it
+            View editorView = parsedEditors.get(q);
+            if (editorView instanceof EditText) {
+                EditText et = (EditText) editorView;
+                if (got != null && !got.isEmpty()) {
+                    answered++;
+                    if (expected.equalsIgnoreCase(got)) {
+                        correct++;
+                        // Highlight correct with light green background
+                        et.setBackgroundColor(0xFFD4EDDA); // Light green
+                        et.setTextColor(0xFF155724); // Dark green text
+                    } else {
+                        // Highlight incorrect with light red background
+                        et.setBackgroundColor(0xFFF8D7DA); // Light red
+                        et.setTextColor(0xFF721C24); // Dark red text
+                    }
+                } else {
+                    // No answer - neutral/warning yellow
+                    et.setBackgroundColor(0xFFFFF3CD); // Light yellow
+                    et.setTextColor(0xFF856404); // Dark yellow text
+                }
             }
         }
 
