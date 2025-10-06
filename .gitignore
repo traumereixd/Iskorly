@@ -1,0 +1,15 @@
+# Android/Gradle
+.local
+.gradle/
+.build/
+**/build/
+captures/
+.idea/
+*.iml
+
+# Keystores
+*.keystore
+*.jks
+
+# Local config with secrets (DO NOT COMMIT)
+local.properties

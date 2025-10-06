@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Beige palette -->
+    <color name="md3_beige_primary">#BDAE8A</color>
+    <color name="md3_beige_onPrimary">#000000</color>
+
+    <color name="md3_beige_secondary">#000000</color>
+    <color name="md3_beige_onSecondary">#201A14</color>
+
+    <color name="md3_beige_surface">#FFFFFF</color>
+    <color name="md3_beige_onSurface">#201A14</color>
+    <color name="md3_beige_surfaceVariant">#FFFFFF</color>
+    <color name="md3_beige_onSurfaceVariant">#53443B</color>
+    <color name="md3_beige_outline">#B7A99A</color>
+
+    <color name="md3_beige_error">#FFFFFF</color>
+    <color name="md3_beige_onError">#FFFFFF</color>
+</resources>

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.ItemScoreAnalysis" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Beige scheme -->
+        <item name="colorPrimary">@color/md3_beige_primary</item>
+        <item name="colorOnPrimary">@color/md3_beige_onPrimary</item>
+
+        <item name="colorSecondary">@color/md3_beige_secondary</item>
+        <item name="colorOnSecondary">@color/md3_beige_onSecondary</item>
+
+        <item name="colorSurface">@color/md3_beige_surface</item>
+        <item name="colorOnSurface">@color/md3_beige_onSurface</item>
+        <item name="colorSurfaceVariant">@color/md3_beige_surfaceVariant</item>
+        <item name="colorOnSurfaceVariant">@color/md3_beige_onSurfaceVariant</item>
+        <item name="colorOutline">@color/md3_beige_outline</item>
+
+        <item name="colorError">@color/md3_beige_error</item>
+        <item name="colorOnError">@color/md3_beige_onError</item>
+    </style>
+</resources>

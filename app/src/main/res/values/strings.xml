@@ -1,0 +1,84 @@
+<resources>
+    <string name="app_name">Item Score Analysis</string>
+    <string name="intro_text">Enter student and exam details, then scan answer sheets for automatic scoring.</string>
+
+    <string name="hint_student">Student Name</string>
+    <string name="hint_section">Subgroup 1 e.g: Name of Section</string>
+    <string name="hint_exam">Subgroup 2 e.g: Name of subject and quiz</string>
+
+    <string name="btn_setup_key">Setup Answer Key</string>
+    <string name="btn_history">View History</string>
+    <string name="btn_capture">Start Scan</string>
+
+    <string name="set_key_title">Setup Answer Key</string>
+    <string name="hint_qnum">Question #</string>
+    <string name="hint_answer">Answer (A-Z letter or text)</string>
+    <string name="btn_save">Save</string>
+    <string name="hint_qnum_remove">Question # to Remove</string>
+    <string name="btn_remove">Remove</string>
+    <string name="current_key_prefix">Current Answer Key:</string>
+    <string name="btn_clear_all">Clear All</string>
+    <string name="btn_back">Back</string>
+
+    <!-- Slot System -->
+    <string name="slot_default_name">Default</string>
+    <string name="btn_slot_new">New</string>
+    <string name="btn_slot_rename">Rename</string>
+    <string name="btn_slot_delete">Delete</string>
+    <string name="btn_slot_import">Import</string>
+    <string name="btn_slot_export">Export</string>
+    <string name="slot_name_dialog_title">Slot Name</string>
+    <string name="slot_name_hint">Enter slot name</string>
+    <string name="slot_delete_confirm">Delete this slot? This cannot be undone.</string>
+    <string name="slot_delete_last_error">Cannot delete the last remaining slot.</string>
+    <string name="slot_export_success">Slot exported successfully</string>
+    <string name="slot_import_success">Slot imported successfully</string>
+    <string name="slot_import_error">Error importing slot: %s</string>
+    <string name="mps_format">MPS: %.1f%% (n=%d)</string>
+
+    <string name="history_title">Test History</string>
+    <string name="live_score_placeholder">Score will appear here</string>
+    <string name="ocr_placeholder">OCR text will appear here</string>
+
+    <string name="btn_try_again">Take Photo</string>
+    <string name="btn_cancel">Cancel</string>
+
+    <string name="credits_text">ItemScoreAnalysis Program
+Researchers: Bande, John Hezekiah R.
+Magculang Maria Jerelle G.
+Roque, Marlou Adelaide V.
+Program Made By: Sahagun, Jayson G.
+v1.1
+AI-powered answer sheet scoring</string>
+
+    <!-- Menu -->
+    <string name="menu_setup">Setup</string>
+    <string name="menu_history">History</string>
+    <string name="menu_export_csv">Export CSV</string>
+    <string name="menu_credits">Credits</string>
+    <string name="menu_tutorial">Tutorial</string>
+
+    <!-- Tutorial -->
+    <string name="tutorial_title">How to Use</string>
+    <string name="tutorial_text">For Students Information:\n
+• Fill in Student, Subgroup 1 (Section), and Subgroup 2 (Subject/Quiz).\n
+• Tap Start Scan. Align the answer sheet in the camera and tap Scan.\n
+• A popup will show the parsed answers. Tap any value to edit if needed.\n
+• Tap Confirm &amp; Score to see your score, then tap Save to store it in History.\n
+• Tap Scan Again to close the popup and return to the full-screen camera.\n
+\n
+Setup Answer Key:\n
+• Menu → Setup Answer Key.\n
+• Use slots to manage multiple quizzes (New/Rename/Delete/Import/Export).\n
+• Add answers: enter Question # and Answer (A–Z or short text up to 40 chars) → Save.\n
+• The current key is shown at the bottom; use Clear All to reset if needed.\n
+\n
+History &amp; Export:\n
+• Menu → History: Expand by Quiz and Section to view results. You can rename or delete groups.\n
+• Menu → Export CSV: Exports results for spreadsheets.\n
+\n
+Tips:\n
+• Use good lighting and keep the sheet flat; align edges within the frame.\n
+• If nothing is recognized, tap Scan Again and try a steadier shot.\n
+• Always review the parsed answers before confirming the score.</string>
+</resources>
