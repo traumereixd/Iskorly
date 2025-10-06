@@ -79,12 +79,17 @@ import android.content.res.ColorStateList;
 
 
 public class MainActivity extends AppCompatActivity {
+    // Constants
     private static final String TAG = "ISA_VISION";
     private static final String CAMERA_FLOW = "CAMERA_FLOW";
+    private static final String CROP_FLOW = "CROP_FLOW";
+    private static final String OCR_FLOW = "OCR_FLOW";
     private static final int CAMERA_PERMISSION_REQUEST_CODE = 200;
+    private static final int CAMERA_WIDTH = 1280;
+    private static final int CAMERA_HEIGHT = 720;
 
     // UI components
-    private MaterialToolbar topAppBar;
+    private Button backToMenuButton;
     private LinearLayout mainLayout, answerKeyLayout, testHistoryLayout, scanSessionLayout, masterlistLayout;
     private EditText studentNameInput, sectionNameInput, examNameInput;
     private EditText questionNumberInput, removeQuestionInput;
@@ -135,6 +140,10 @@ public class MainActivity extends AppCompatActivity {
     // State
     private boolean scanSessionActive = false;
     private volatile boolean cameraSessionReady = false; // Camera session readiness flag
+    private boolean inScanSession = false; // Track if we're in an active scan session for back navigation
+    
+    // OCR Processor
+    private OcrProcessor ocrProcessor;
 
     // Data
     private SharedPreferences answerKeyPreferences, historyPreferences, appPreferences;
@@ -155,10 +164,7 @@ public class MainActivity extends AppCompatActivity {
     // Crop launcher (Feature #2.1)
     private ActivityResultLauncher<android.content.Intent> cropLauncher;
     private android.net.Uri lastCapturedImageUri;
-
-    // General settings
-    private static final int CAMERA_WIDTH = 1280;
-    private static final int CAMERA_HEIGHT = 720;
+    private java.io.File lastCapturedFile; // Store file reference for URI permissions
 
     // CSV Export
     private ActivityResultLauncher<String> createCsvLauncher;
@@ -672,7 +678,6 @@ public class MainActivity extends AppCompatActivity {
         initializeDocumentLaunchers();
 
         // Bind UI
-        topAppBar = findViewById(R.id.topAppBar);
         mainLayout = findViewById(R.id.main_layout);
         studentNameInput = findViewById(R.id.editText_student_name);
         sectionNameInput = findViewById(R.id.editText_section_name);
@@ -680,6 +685,7 @@ public class MainActivity extends AppCompatActivity {
         startScanButton = findViewById(R.id.button_scan);
         setupButton = findViewById(R.id.button_setup_answers);
         viewHistoryButton = findViewById(R.id.button_view_history);
+        backToMenuButton = findViewById(R.id.button_back_to_menu);
 
         // Answer key
         answerKeyLayout = findViewById(R.id.answer_key_layout);
@@ -788,32 +794,6 @@ public class MainActivity extends AppCompatActivity {
                 this::onCropResult
         );
 
-        // Toolbar menu
-        if (topAppBar != null) {
-            topAppBar.setOnMenuItemClickListener(item -> {
-                int id = item.getItemId();
-                if (id == R.id.menu_setup) {
-                    toggleView("setup");
-                    return true;
-                } else if (id == R.id.menu_history) {
-                    toggleView("history");
-                    displayTestHistory();
-                    return true;
-                } else if (id == R.id.menu_export_csv) {
-                    exportHistoryCsv();
-                    return true;
-                } else if (id == R.id.menu_tutorial) {
-                    showTutorialDialog();
-                    return true;
-                } else if (id == R.id.menu_credits) {
-                    showCreditsDialog();
-                    return true;
-                }
-                return false;
-            });
-        }
-
-
         // Buttons (main)
         startScanButton.setOnClickListener(v -> {
             v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
@@ -828,6 +808,14 @@ public class MainActivity extends AppCompatActivity {
             toggleView("history");
             displayTestHistory();
         });
+        
+        // Back to menu button
+        if (backToMenuButton != null) {
+            backToMenuButton.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                finish(); // Return to MainMenuActivity
+            });
+        }
 
         // Answer key buttons
         saveAnswerButton.setOnClickListener(v -> {
@@ -929,16 +917,24 @@ public class MainActivity extends AppCompatActivity {
 
     private void startScanSession() {
         scanSessionActive = true;
+        inScanSession = true; // Set flag for back navigation
         cameraSessionReady = false; // Reset readiness flag
         toggleView("scan");
         sessionScoreTextView.setText(getString(R.string.live_score_placeholder));
         if (resultsCard != null) resultsCard.setVisibility(View.GONE);
         if (captureResultButton != null) {
             captureResultButton.setVisibility(View.VISIBLE);
-            captureResultButton.setText("Scan");
+            captureResultButton.setText("Opening...");
             captureResultButton.setEnabled(false); // Disable until session is ready
         }
         Log.d(CAMERA_FLOW, "Starting scan session, button disabled until camera ready");
+        
+        // Initialize OcrProcessor with current answer key
+        String visionKey = BuildConfig.GCLOUD_VISION_API_KEY;
+        String ocrSpaceKey = BuildConfig.OCR_SPACE_API_KEY;
+        ocrProcessor = new OcrProcessor(visionKey, ocrSpaceKey, new HashMap<>(currentAnswerKey));
+        Log.d(OCR_FLOW, "OcrProcessor initialized with " + currentAnswerKey.size() + " answer key entries");
+        
         startBackgroundThread();
         // ... rest unchanged
 
@@ -954,11 +950,20 @@ public class MainActivity extends AppCompatActivity {
 
     private void stopScanSession() {
         scanSessionActive = false;
+        inScanSession = false; // Reset flag
         cameraSessionReady = false; // Reset readiness flag
+        waitingForJpeg.set(false); // Reset capture flag
         Log.d(CAMERA_FLOW, "Stopping scan session");
         closeCamera();
         stopBackgroundThread();
         cameraPreviewTextureView.setSurfaceTextureListener(null);
+        
+        // Close OcrProcessor
+        if (ocrProcessor != null) {
+            ocrProcessor.close();
+            ocrProcessor = null;
+            Log.d(OCR_FLOW, "OcrProcessor closed");
+        }
     }
 
     private final TextureView.SurfaceTextureListener textureListener = new TextureView.SurfaceTextureListener() {
@@ -1048,21 +1053,27 @@ public class MainActivity extends AppCompatActivity {
                                 new CameraCaptureSession.StateCallback() {
                                     @Override
                                     public void onConfigured(@NonNull CameraCaptureSession session) {
-                                        if (cameraDevice == null) return;
+                                        if (cameraDevice == null || !scanSessionActive) return;
                                         cameraCaptureSession = session;
-                                        cameraSessionReady = true; // Mark session as ready
-                                        Log.d(CAMERA_FLOW, "Camera session configured and ready");
                                         
-                                        // Enable scan button on UI thread
-                                        runOnUiThread(() -> {
-                                            if (captureResultButton != null) {
-                                                captureResultButton.setEnabled(true);
-                                            }
-                                        });
+                                        Log.d(CAMERA_FLOW, "Camera session configured, starting preview...");
                                         
                                         try {
                                             cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, backgroundHandler);
+                                            
+                                            // Mark session as ready only after successful preview start
+                                            cameraSessionReady = true;
+                                            Log.d(CAMERA_FLOW, "Camera session ready, enabling scan button");
+                                            
+                                            // Enable scan button on UI thread
+                                            runOnUiThread(() -> {
+                                                if (captureResultButton != null && scanSessionActive) {
+                                                    captureResultButton.setText("Scan");
+                                                    captureResultButton.setEnabled(true);
+                                                }
+                                            });
                                         } catch (CameraAccessException e) {
+                                            Log.e(CAMERA_FLOW, "Failed to start camera preview", e);
                                             Log.e(TAG, "setRepeatingRequest", e);
                                         }
                                     }
@@ -1110,19 +1121,30 @@ public class MainActivity extends AppCompatActivity {
 
     // Trigger still capture (user taps Try/Take Photo)
     private void triggerStillCapture() {
+        // Defensive checks
+        if (!scanSessionActive) {
+            Log.d(CAMERA_FLOW, "Ignoring capture - scan session not active");
+            return;
+        }
+        
         // Check camera session readiness
         if (!cameraSessionReady) {
             runOnUiThread(() -> Toast.makeText(this, "Camera not ready, please wait...", Toast.LENGTH_SHORT).show());
+            Log.d(CAMERA_FLOW, "Camera not ready for capture");
             return;
         }
         
         if (cameraDevice == null || cameraCaptureSession == null || jpegReader == null) {
             runOnUiThread(() -> Toast.makeText(this, "Camera not ready", Toast.LENGTH_SHORT).show());
+            Log.e(CAMERA_FLOW, "Camera components not initialized");
             return;
         }
-        if (!waitingForJpeg.compareAndSet(false, true)) return;
+        if (!waitingForJpeg.compareAndSet(false, true)) {
+            Log.d(CAMERA_FLOW, "Already waiting for JPEG, ignoring capture request");
+            return;
+        }
 
-        // runOnUiThread(() -> sessionOcrTextView.setText("Capturing… hold steady"));
+        Log.d(CAMERA_FLOW, "Triggering still capture");
         shutterFlash();
 
         try {
@@ -1154,8 +1176,24 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private final ImageReader.OnImageAvailableListener onJpegAvailableListener = reader -> {
+        Log.d(CROP_FLOW, "JPEG image available from camera");
+        
+        // Defensive check: if not in active scan session, discard
+        if (!scanSessionActive) {
+            Log.d(CROP_FLOW, "Discarding JPEG - scan session not active");
+            Image img = reader.acquireLatestImage();
+            if (img != null) img.close();
+            waitingForJpeg.set(false);
+            return;
+        }
+        
         Image img = reader.acquireLatestImage();
-        if (img == null) return;
+        if (img == null) {
+            Log.d(CROP_FLOW, "JPEG image is null");
+            waitingForJpeg.set(false);
+            return;
+        }
+        
         try {
             Image.Plane plane = img.getPlanes()[0];
             ByteBuffer buffer = plane.getBuffer();
@@ -1172,17 +1210,19 @@ public class MainActivity extends AppCompatActivity {
             try {
                 // Save bitmap to temporary file
                 String fileName = "capture_" + System.currentTimeMillis() + ".jpg";
-                java.io.File tempFile = new java.io.File(getCacheDir(), fileName);
-                java.io.FileOutputStream fos = new java.io.FileOutputStream(tempFile);
+                lastCapturedFile = new java.io.File(getCacheDir(), fileName);
+                java.io.FileOutputStream fos = new java.io.FileOutputStream(lastCapturedFile);
                 bmp.compress(Bitmap.CompressFormat.JPEG, 90, fos);
                 fos.close();
+                Log.d(CROP_FLOW, "Saved capture to file: " + lastCapturedFile.getAbsolutePath());
                 
                 // Use FileProvider to get secure URI
                 lastCapturedImageUri = FileProvider.getUriForFile(
                     this,
                     getApplicationContext().getPackageName() + ".fileprovider",
-                    tempFile
+                    lastCapturedFile
                 );
+                Log.d(CROP_FLOW, "Created FileProvider URI: " + lastCapturedImageUri);
                 
                 // Launch crop activity on UI thread
                 runOnUiThread(() -> {
@@ -1193,10 +1233,9 @@ public class MainActivity extends AppCompatActivity {
                 
             } catch (Exception e) {
                 Log.e(TAG, "Error saving capture for crop", e);
+                Log.e(CROP_FLOW, "Failed to save/crop, falling back to direct OCR", e);
                 // Fallback: process without crop
-                byte[] processedJpeg = resizeAndCompress(bmp, 1600);
-                bmp.recycle();
-                processImageWithOcr(processedJpeg);
+                processImageWithOcrFallback(bmp);
             }
             
         } catch (Throwable t) {
@@ -1209,7 +1248,38 @@ public class MainActivity extends AppCompatActivity {
     };
     
     /**
+     * Fallback OCR processing when crop fails - uses OcrProcessor.
+     */
+    private void processImageWithOcrFallback(Bitmap bmp) {
+        if (bmp == null) return;
+        
+        backgroundHandler.post(() -> {
+            try {
+                if (ocrProcessor == null) {
+                    Log.e(OCR_FLOW, "OcrProcessor is null in fallback");
+                    runOnUiThread(() -> Toast.makeText(this, "OCR not initialized", Toast.LENGTH_SHORT).show());
+                    return;
+                }
+                
+                Log.d(OCR_FLOW, "Processing image with OcrProcessor (fallback)");
+                HashMap<Integer, String> parsed = ocrProcessor.processImage(bmp);
+                bmp.recycle();
+                lastDetectedAnswers = (parsed != null) ? parsed : new HashMap<>();
+                
+                runOnUiThread(() -> {
+                    populateParsedAnswersEditable();
+                    sessionScoreTextView.setText(getString(R.string.live_score_placeholder));
+                });
+            } catch (Exception e) {
+                Log.e(OCR_FLOW, "OCR processing error in fallback", e);
+                runOnUiThread(() -> Toast.makeText(this, "OCR failed", Toast.LENGTH_SHORT).show());
+            }
+        });
+    }
+    
+    /**
      * Process image with OCR (extracted from previous inline code).
+     * DEPRECATED: Use OcrProcessor instead.
      */
     private void processImageWithOcr(byte[] processedJpeg) {
         backgroundHandler.post(() -> {
@@ -1381,6 +1451,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void closeCamera() {
+        Log.d(CAMERA_FLOW, "Closing camera resources");
         if (cameraDevice != null) {
             cameraDevice.close();
             cameraDevice = null;
@@ -1394,6 +1465,8 @@ public class MainActivity extends AppCompatActivity {
             jpegReader = null;
         }
         cameraCaptureSession = null;
+        cameraSessionReady = false;
+        waitingForJpeg.set(false);
     }
 
     private void saveAnswer() {
@@ -2009,6 +2082,34 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
+    public void onBackPressed() {
+        // If in scan session, first back press stops camera and returns to main layout
+        if (inScanSession) {
+            stopScanSession();
+            toggleView("main");
+            inScanSession = false;
+            return;
+        }
+        
+        // If viewing any overlay (setup, history, masterlist), go back to main
+        if (answerKeyLayout.getVisibility() == View.VISIBLE ||
+            testHistoryLayout.getVisibility() == View.VISIBLE ||
+            masterlistLayout.getVisibility() == View.VISIBLE) {
+            toggleView("main");
+            return;
+        }
+        
+        // If on main layout, return to MainMenuActivity
+        if (mainLayout.getVisibility() == View.VISIBLE) {
+            finish(); // Return to MainMenuActivity
+            return;
+        }
+        
+        // Fallback to default behavior
+        super.onBackPressed();
+    }
+
+    @Override
     protected void onPause() {
         if (scanSessionActive) stopScanSession();
         super.onPause();
@@ -2399,6 +2500,7 @@ public class MainActivity extends AppCompatActivity {
      * Handle multiple images imported from gallery.
      * Process each image sequentially, parse answers, and merge results.
      * Deterministic merge: first non-blank value wins.
+     * Now uses OcrProcessor for centralized OCR.
      */
     private void onPhotosImported(java.util.List<android.net.Uri> uris) {
         if (uris == null || uris.isEmpty()) {
@@ -2406,6 +2508,15 @@ public class MainActivity extends AppCompatActivity {
         }
         
         Log.d(TAG, "Importing " + uris.size() + " photo(s)");
+        Log.d(OCR_FLOW, "Multi-image import started with " + uris.size() + " images");
+        
+        // Ensure OcrProcessor is initialized
+        if (ocrProcessor == null) {
+            String visionKey = BuildConfig.GCLOUD_VISION_API_KEY;
+            String ocrSpaceKey = BuildConfig.OCR_SPACE_API_KEY;
+            ocrProcessor = new OcrProcessor(visionKey, ocrSpaceKey, new HashMap<>(currentAnswerKey));
+            Log.d(OCR_FLOW, "OcrProcessor initialized for multi-import");
+        }
         
         // Show progress dialog
         android.app.ProgressDialog progressDialog = new android.app.ProgressDialog(this);
@@ -2428,35 +2539,14 @@ public class MainActivity extends AppCompatActivity {
                     
                     if (bitmap == null) {
                         Log.e(TAG, "Failed to decode image from URI: " + uri);
+                        Log.e(OCR_FLOW, "Failed to decode bitmap from URI");
                         continue;
                     }
                     
-                    // Feature #3: Enhance for OCR
-                    Bitmap enhanced = ImageUtil.enhanceForOcr(bitmap);
+                    // Use OcrProcessor to handle enhancement, OCR, and parsing
+                    Log.d(OCR_FLOW, "Processing image " + (processedCount + 1) + " with OcrProcessor");
+                    HashMap<Integer, String> parsed = ocrProcessor.processImage(bitmap);
                     bitmap.recycle();
-                    
-                    if (enhanced == null) {
-                        Log.e(TAG, "Failed to enhance image from URI: " + uri);
-                        continue;
-                    }
-                    
-                    // Resize and compress
-                    byte[] processedJpeg = ImageUtil.resizeAndCompress(enhanced, 1600);
-                    enhanced.recycle();
-                    
-                    // OCR with fallback
-                    String recognizedText = callVisionApiAndRecognize(processedJpeg);
-                    
-                    // Feature #3: Fallback to OCR.Space if Vision returns empty
-                    if ((recognizedText == null || recognizedText.trim().isEmpty()) && hasOcrSpaceKey()) {
-                        Log.d(TAG, "Vision OCR returned empty, trying OCR.Space fallback for image " + (processedCount + 1));
-                        recognizedText = callOcrSpaceAndRecognize(processedJpeg);
-                    }
-                    
-                    if (recognizedText == null) recognizedText = "";
-                    
-                    // Parse answers
-                    HashMap<Integer, String> parsed = parseAnswersFromText(recognizedText);
                     
                     // Merge: first non-blank value wins
                     for (Map.Entry<Integer, String> entry : parsed.entrySet()) {
@@ -2470,11 +2560,13 @@ public class MainActivity extends AppCompatActivity {
                     
                 } catch (Exception e) {
                     Log.e(TAG, "Error processing image: " + uri, e);
+                    Log.e(OCR_FLOW, "Error in multi-import for image " + (processedCount + 1), e);
                 }
             }
             
             final int finalProcessed = processedCount;
             final HashMap<Integer, String> finalMerged = mergedAnswers;
+            Log.d(OCR_FLOW, "Multi-image import complete: " + finalProcessed + " images, " + finalMerged.size() + " answers");
             
             // Update UI on main thread
             runOnUiThread(() -> {
@@ -2512,26 +2604,38 @@ public class MainActivity extends AppCompatActivity {
         if (result.getResultCode() == RESULT_OK && result.getData() != null) {
             android.net.Uri croppedUri = com.yalantis.ucrop.UCrop.getOutput(result.getData());
             if (croppedUri != null) {
+                Log.d(CROP_FLOW, "Crop successful, processing cropped image: " + croppedUri);
                 // Process cropped image
                 processCroppedImage(croppedUri);
+            } else {
+                Log.e(CROP_FLOW, "Crop result OK but URI is null");
+                Toast.makeText(this, "Crop failed, try again", Toast.LENGTH_SHORT).show();
             }
         } else if (result.getResultCode() == com.yalantis.ucrop.UCrop.RESULT_ERROR) {
             Throwable cropError = com.yalantis.ucrop.UCrop.getError(result.getData());
             Log.e(TAG, "Crop error", cropError);
+            Log.e(CROP_FLOW, "Crop error occurred", cropError);
             Toast.makeText(this, "Crop failed, processing original image", Toast.LENGTH_SHORT).show();
             
-            // Fallback: process original captured image
+            // Fallback: process original captured image (only once)
             if (lastCapturedImageUri != null) {
+                Log.d(CROP_FLOW, "Falling back to original captured image");
                 processCroppedImage(lastCapturedImageUri);
             }
+        } else {
+            // User canceled crop
+            Log.d(CROP_FLOW, "Crop canceled by user");
+            Toast.makeText(this, "Crop canceled", Toast.LENGTH_SHORT).show();
+            // Return to camera preview - do nothing else
         }
-        // User canceled crop: do nothing, return to camera
     }
     
     /**
-     * Process the cropped image - run OCR and parse answers.
+     * Process the cropped image - run OCR and parse answers using OcrProcessor.
      */
     private void processCroppedImage(android.net.Uri croppedUri) {
+        Log.d(OCR_FLOW, "Processing cropped image: " + croppedUri);
+        
         new Thread(() -> {
             try {
                 java.io.InputStream inputStream = getContentResolver().openInputStream(croppedUri);
@@ -2539,37 +2643,25 @@ public class MainActivity extends AppCompatActivity {
                 if (inputStream != null) inputStream.close();
                 
                 if (bitmap == null) {
+                    Log.e(OCR_FLOW, "Failed to load bitmap from URI");
                     runOnUiThread(() -> Toast.makeText(this, "Failed to load cropped image", Toast.LENGTH_SHORT).show());
                     return;
                 }
                 
-                // Feature #3: Enhance for OCR (grayscale + contrast)
-                Bitmap enhanced = ImageUtil.enhanceForOcr(bitmap);
-                bitmap.recycle();
-                
-                if (enhanced == null) {
-                    runOnUiThread(() -> Toast.makeText(this, "Failed to enhance image", Toast.LENGTH_SHORT).show());
+                if (ocrProcessor == null) {
+                    Log.e(OCR_FLOW, "OcrProcessor is null");
+                    bitmap.recycle();
+                    runOnUiThread(() -> Toast.makeText(this, "OCR not initialized", Toast.LENGTH_SHORT).show());
                     return;
                 }
                 
-                // Resize and compress
-                byte[] processedJpeg = ImageUtil.resizeAndCompress(enhanced, 1600);
-                enhanced.recycle();
+                // Use OcrProcessor to handle enhancement, OCR, and parsing
+                Log.d(OCR_FLOW, "Using OcrProcessor to process image");
+                HashMap<Integer, String> parsed = ocrProcessor.processImage(bitmap);
+                bitmap.recycle();
                 
-                // OCR with fallback
-                String recognizedText = callVisionApiAndRecognize(processedJpeg);
-                
-                // Feature #3: Fallback to OCR.Space if Vision returns empty
-                if ((recognizedText == null || recognizedText.trim().isEmpty()) && hasOcrSpaceKey()) {
-                    Log.d(TAG, "Vision OCR returned empty, trying OCR.Space fallback");
-                    recognizedText = callOcrSpaceAndRecognize(processedJpeg);
-                }
-                
-                if (recognizedText == null) recognizedText = "";
-                
-                // Parse answers
-                HashMap<Integer, String> parsed = parseAnswersFromText(recognizedText);
-                lastDetectedAnswers = parsed;
+                lastDetectedAnswers = (parsed != null) ? parsed : new HashMap<>();
+                Log.d(OCR_FLOW, "Parsed " + lastDetectedAnswers.size() + " answers");
                 
                 // Update UI
                 runOnUiThread(() -> {
@@ -2579,6 +2671,7 @@ public class MainActivity extends AppCompatActivity {
                 
             } catch (Exception e) {
                 Log.e(TAG, "Error processing cropped image", e);
+                Log.e(OCR_FLOW, "Failed to process image", e);
                 runOnUiThread(() -> Toast.makeText(this, "Failed to process image", Toast.LENGTH_SHORT).show());
             }
         }).start();
@@ -2589,6 +2682,8 @@ public class MainActivity extends AppCompatActivity {
      */
     private void startCropActivity(android.net.Uri sourceUri) {
         try {
+            Log.d(CROP_FLOW, "Starting crop activity with source URI: " + sourceUri);
+            
             // Create destination file for cropped image
             String destFileName = "cropped_" + System.currentTimeMillis() + ".jpg";
             java.io.File destFile = new java.io.File(getCacheDir(), destFileName);
@@ -2599,6 +2694,7 @@ public class MainActivity extends AppCompatActivity {
                 getApplicationContext().getPackageName() + ".fileprovider",
                 destFile
             );
+            Log.d(CROP_FLOW, "Created destination URI: " + destUri);
             
             // Configure uCrop
             com.yalantis.ucrop.UCrop.Options options = new com.yalantis.ucrop.UCrop.Options();
@@ -2614,11 +2710,32 @@ public class MainActivity extends AppCompatActivity {
             cropIntent.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
             cropIntent.addFlags(android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
             
+            // Grant URI permissions to the uCrop package explicitly
+            String uCropPackage = "com.yalantis.ucrop";
+            try {
+                grantUriPermission(uCropPackage, sourceUri, 
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                grantUriPermission(uCropPackage, destUri, 
+                    android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION | 
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                Log.d(CROP_FLOW, "Granted URI permissions to uCrop package");
+            } catch (Exception e) {
+                Log.w(CROP_FLOW, "Could not explicitly grant URI permissions: " + e.getMessage());
+            }
+            
+            Log.d(CROP_FLOW, "Launching crop activity");
             cropLauncher.launch(cropIntent);
             
         } catch (Exception e) {
             Log.e(TAG, "Error starting crop activity", e);
+            Log.e(CROP_FLOW, "Failed to start crop activity", e);
             Toast.makeText(this, "Crop not available", Toast.LENGTH_SHORT).show();
+            
+            // Fallback: try to process original if we have it
+            if (lastCapturedImageUri != null) {
+                Log.d(CROP_FLOW, "Falling back to processing original captured image");
+                processCroppedImage(lastCapturedImageUri);
+            }
         }
     }
     
