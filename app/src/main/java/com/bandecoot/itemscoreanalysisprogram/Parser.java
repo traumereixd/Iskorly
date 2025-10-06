@@ -139,40 +139,4 @@ public final class Parser {
             return -1; 
         }
     }
-
-    /**
-     * Filter parsed answers to only include questions present in the answer key.
-     * For questions in the key but not in parsed, add them with empty string.
-     * Questions not in the key are ignored.
-     * 
-     * @param parsed The raw parsed answers from OCR
-     * @param answerKey The current answer key (question->answer map)
-     * @return Filtered map containing only answer key questions, sorted by question number
-     */
-    public static LinkedHashMap<Integer, String> filterToAnswerKey(
-            LinkedHashMap<Integer, String> parsed, 
-            java.util.Map<Integer, String> answerKey) {
-        
-        LinkedHashMap<Integer, String> filtered = new LinkedHashMap<>();
-        
-        if (answerKey == null || answerKey.isEmpty()) {
-            // No answer key: return empty (don't show any parsed answers)
-            Log.d(TAG, "No answer key set - returning empty filtered map");
-            return filtered;
-        }
-        
-        // Get sorted list of answer key questions
-        java.util.List<Integer> keyQuestions = new java.util.ArrayList<>(answerKey.keySet());
-        java.util.Collections.sort(keyQuestions);
-        
-        // For each question in answer key, get parsed value or empty string
-        for (Integer q : keyQuestions) {
-            String parsedAnswer = (parsed != null && parsed.containsKey(q)) ? parsed.get(q) : "";
-            filtered.put(q, parsedAnswer != null ? parsedAnswer : "");
-        }
-        
-        Log.d(TAG, "Filtered to " + filtered.size() + " answer key questions (from " + 
-              (parsed != null ? parsed.size() : 0) + " parsed)");
-        return filtered;
-    }
 }
