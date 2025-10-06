@@ -5,11 +5,6 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
 
-
-    <!-- If you want to declare camera as required, uncomment:
-    <uses-feature android:name="android.hardware.camera.any" android:required="true" />
-    -->
-
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -18,16 +13,31 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ItemScoreAnalysis">
 
+        <!-- NEW: FileProvider for uCrop and captured images -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
-        <!-- Main launcher activity -->
+        <!-- NEW: Main Menu (launcher) -->
         <activity
-            android:name=".MainActivity"
-            android:exported="true">
+            android:name=".MainMenuActivity"
+            android:exported="true"
+            android:theme="@style/Theme.ItemScoreAnalysis">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
 
+        <!-- Main scanning / logic activity -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true" />
     </application>
 </manifest>

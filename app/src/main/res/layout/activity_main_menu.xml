@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="32dp"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/main_bg">
+
+    <TextView
+        android:id="@+id/title_app"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/main_menu_title"
+        android:textSize="28sp"
+        android:textStyle="bold"
+        android:textColor="@color/md3_beige_onSurface"
+        android:paddingBottom="8dp"/>
+
+    <TextView
+        android:id="@+id/tagline_app"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/main_menu_tagline"
+        android:textSize="14sp"
+        android:textColor="@color/md3_beige_onSurfaceVariant"
+        android:paddingBottom="40dp"/>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/button_main_start"
+        style="@style/Widget.Material3.Button"
+        android:layout_width="220dp"
+        android:layout_height="wrap_content"
+        android:text="@string/btn_main_start"
+        android:layout_marginBottom="16dp"/>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/button_main_tutorial"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="220dp"
+        android:layout_height="wrap_content"
+        android:text="@string/btn_main_tutorial"
+        android:layout_marginBottom="12dp"/>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/button_main_credits"
+        style="@style/Widget.Material3.Button.OutlinedButton"
+        android:layout_width="220dp"
+        android:layout_height="wrap_content"
+        android:text="@string/btn_main_credits"/>
+</LinearLayout>

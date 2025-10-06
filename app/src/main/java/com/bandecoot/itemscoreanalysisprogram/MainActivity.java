@@ -35,7 +35,6 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-import android.widget.Spinner;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -68,8 +67,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -78,6 +75,7 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 import android.content.res.ColorStateList;
+
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "ISA_VISION";
