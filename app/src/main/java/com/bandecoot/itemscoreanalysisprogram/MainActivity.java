@@ -78,6 +78,7 @@ import okhttp3.Response;
 import android.content.res.ColorStateList;
 
 
+
 public class MainActivity extends AppCompatActivity {
     // Constants
     private static final String TAG = "ISA_VISION";
@@ -111,7 +112,7 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout testHistoryList, parsedAnswersContainer, masterlistContent;
     private TextureView cameraPreviewTextureView;
     private View shutterView;
-    
+
     // Slot management
     private MaterialAutoCompleteTextView slotSelector;
     private Button btnSlotNew, btnSlotRename, btnSlotDelete, btnSlotImport, btnSlotExport;
@@ -1193,10 +1194,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private final ImageReader.OnImageAvailableListener onJpegAvailableListener = reader -> {
-        Log.d(CROP_FLOW, "JPEG image available");
+        Log.d(CROP_FLOW, "onJpegAvailableListener invoked");
         if (!scanSessionActive) {
-            Image drop = reader.acquireLatestImage();
-            if (drop != null) drop.close();
+            Image discard = reader.acquireLatestImage();
+            if (discard != null) discard.close();
             waitingForJpeg.set(false);
             return;
         }
@@ -1211,7 +1212,7 @@ public class MainActivity extends AppCompatActivity {
             byte[] jpegBytes = new byte[buffer.remaining()];
             buffer.get(jpegBytes);
 
-            // Save raw JPEG (keeps EXIF + orientation)
+            // Save raw JPEG (preserves EXIF)
             String fileName = "capture_" + System.currentTimeMillis() + ".jpg";
             lastCapturedFile = new java.io.File(getCacheDir(), fileName);
             try (java.io.FileOutputStream fos = new java.io.FileOutputStream(lastCapturedFile)) {
@@ -1222,14 +1223,16 @@ public class MainActivity extends AppCompatActivity {
                     getApplicationContext().getPackageName() + ".fileprovider",
                     lastCapturedFile
             );
-            Log.d(CROP_FLOW, "Saved JPEG: " + lastCapturedFile.getAbsolutePath() + " size=" + lastCapturedFile.length());
+            Log.d(CROP_FIX, "Saved raw JPEG: " + lastCapturedFile.getAbsolutePath() + " size=" + lastCapturedFile.length());
+            Log.d(CROP_FIX, "lastCapturedImageUri=" + lastCapturedImageUri);
 
-            runOnUiThread(() -> {
-                startCropActivity(lastCapturedImageUri); // will auto-orient in crop activity
-            });
+            runOnUiThread(() -> startCropActivity(lastCapturedImageUri));
         } catch (Exception e) {
-            Log.e(CROP_FLOW, "Save/launch crop failed", e);
-            runOnUiThread(() -> Toast.makeText(this, "Save failed", Toast.LENGTH_SHORT).show());
+            Log.e(CROP_FIX, "Failed saving JPEG / launching crop", e);
+            runOnUiThread(() -> {
+                Toast.makeText(this, "Capture save failed", Toast.LENGTH_SHORT).show();
+                if (lastCapturedImageUri != null) processFallbackAutoCrop(lastCapturedImageUri);
+            });
         } finally {
             try { img.close(); } catch (Throwable ignored) {}
             waitingForJpeg.set(false);
@@ -2674,24 +2677,40 @@ public class MainActivity extends AppCompatActivity {
      */
     private void startCropActivity(android.net.Uri sourceUri) {
         try {
-            cropInProgress = true;
-            Log.d(CROP_FLOW, "Launching SimpleCropActivity with orientation hint: " + lastCapturedJpegOrientation);
-            Intent cropIntent = SimpleCropActivity.createIntent(this, sourceUri, null)
+            if (sourceUri == null) {
+                Log.e(CROP_FIX, "startCropActivity called with null sourceUri");
+                Toast.makeText(this, "Capture error", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (lastCapturedFile == null || !lastCapturedFile.exists()) {
+                Log.w(CROP_FIX, "Captured file missing or deleted before crop");
+            }
+                    cropInProgress = true;
+            // Prepare a distinct output file
+            java.io.File outFile = new java.io.File(getCacheDir(), "cropped_" + System.currentTimeMillis() + ".jpg");
+            android.net.Uri outputUri = android.net.Uri.fromFile(outFile);
+            Log.d(CROP_FLOW, "Launching SimpleCropActivity\n  source=" + sourceUri +
+                    "\n  output=" + outputUri +
+                    "\n  capturedSize=" + (lastCapturedFile != null ? lastCapturedFile.length() : -1) +
+                    "\n  orientationHint=" + lastCapturedJpegOrientation);
+            Intent cropIntent = SimpleCropActivity
+                    .createIntent(this, sourceUri, outputUri)
                     .putExtra("EXTRA_JPEG_ORIENTATION", lastCapturedJpegOrientation);
             cropLauncher.launch(cropIntent);
         } catch (Exception e) {
             cropInProgress = false;
-            Log.e(CROP_FLOW, "Launch crop failed", e);
+            Log.e(CROP_FIX, "startCropActivity exception", e);
             Toast.makeText(this, "Crop not available (fallback)", Toast.LENGTH_SHORT).show();
             processFallbackAutoCrop(sourceUri);
         }
+
     }
 
     /**
      * Fallback auto-crop when crop is unavailable or disabled.
      */
     private void processFallbackAutoCrop(android.net.Uri sourceUri) {
-        Log.d(CROP_FIX, "Entering fallback auto-crop");
+        Log.w(CROP_FIX, "Fallback auto-crop invoked (primary crop not used)");
         try {
             InputStream is = getContentResolver().openInputStream(sourceUri);
             Bitmap original = BitmapFactory.decodeStream(is);
