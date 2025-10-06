@@ -13,8 +13,8 @@ android {
         applicationId = "com.bandecoot.itemscoreanalysisprogram"
         minSdk = 23
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.1"
+        versionCode = 3
+        versionName = "1.3"
 
         // Inject Vision API key from local.properties or Gradle property
         val props = Properties().apply {

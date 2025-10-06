@@ -1181,9 +1181,12 @@ public class MainActivity extends AppCompatActivity {
         // Use the enhanced parser from Parser.java
         LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextToAnswers(text);
         
+        // Filter to only answer key questions (Feature #1: Parsing Must Follow Answer Key Only)
+        LinkedHashMap<Integer, String> filtered = Parser.filterToAnswerKey(parsed, currentAnswerKey);
+        
         // Convert LinkedHashMap to HashMap for compatibility
         HashMap<Integer, String> result = new HashMap<>();
-        result.putAll(parsed);
+        result.putAll(filtered);
         
         return result;
     }
@@ -1922,34 +1925,91 @@ public class MainActivity extends AppCompatActivity {
 
         List<Integer> qList = new ArrayList<>(lastDetectedAnswers.keySet());
         Collections.sort(qList);
-        // ... build editable rows (unchanged) ...
-
-        for (int q : qList) {
-            LinearLayout row = new LinearLayout(this);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setPadding(0, dp(6), 0, dp(6));
-
+        
+        // Feature #1.1: Two-Column Grid Layout
+        // Create a container with 2-column layout using nested LinearLayouts
+        LinearLayout gridContainer = new LinearLayout(this);
+        gridContainer.setOrientation(LinearLayout.VERTICAL);
+        gridContainer.setLayoutParams(new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 
+            ViewGroup.LayoutParams.WRAP_CONTENT));
+        
+        LinearLayout currentRow = null;
+        int columnCount = 0;
+        
+        for (int i = 0; i < qList.size(); i++) {
+            int q = qList.get(i);
+            
+            // Create new row every 2 items
+            if (columnCount == 0) {
+                currentRow = new LinearLayout(this);
+                currentRow.setOrientation(LinearLayout.HORIZONTAL);
+                currentRow.setLayoutParams(new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, 
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+                currentRow.setPadding(0, 0, 0, dp(8)); // 8dp spacing between rows
+                gridContainer.addView(currentRow);
+            }
+            
+            // Create card for each cell
+            MaterialCardView cell = new MaterialCardView(this);
+            LinearLayout.LayoutParams cellParams = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            cellParams.setMargins(columnCount == 0 ? 0 : dp(8), 0, 0, 0); // 8dp spacing between columns
+            cell.setLayoutParams(cellParams);
+            cell.setCardElevation(dp(2));
+            cell.setRadius(dp(8));
+            cell.setContentPadding(dp(8), dp(6), dp(8), dp(6));
+            
+            // Inner layout for Q# and EditText
+            LinearLayout cellContent = new LinearLayout(this);
+            cellContent.setOrientation(LinearLayout.HORIZONTAL);
+            cellContent.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+            
             TextView tv = new TextView(this);
-            tv.setText(String.format(Locale.US, "#%d", q));
-            tv.setTextSize(16);
+            tv.setText(String.format(Locale.US, "#%d:", q));
+            tv.setTextSize(14);
             tv.setTextColor(Color.BLACK);
             tv.setTypeface(tv.getTypeface(), Typeface.BOLD);
-            tv.setPadding(dp(8), dp(8), dp(16), dp(8));
-            row.addView(tv);
+            tv.setPadding(0, 0, dp(6), 0);
+            cellContent.addView(tv);
 
             // Universal input - always use EditText for both letters and words
             EditText et = new EditText(this);
             et.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
             et.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS);
+            et.setTextSize(14);
+            et.setPadding(dp(4), 0, dp(4), 0);
+            et.setMinHeight(dp(36));
             String val = lastDetectedAnswers.get(q);
             et.setText(val != null ? val : "");
             et.setTextColor(Color.BLACK);
             et.setTypeface(et.getTypeface(), Typeface.BOLD);
-            row.addView(et);
+            cellContent.addView(et);
             parsedEditors.put(q, et);
-
-            parsedAnswersContainer.addView(row);
+            
+            cell.addView(cellContent);
+            currentRow.addView(cell);
+            
+            columnCount++;
+            if (columnCount >= 2) {
+                columnCount = 0;
+            }
         }
+        
+        // If last row has only 1 item, add spacer for balance
+        if (columnCount == 1 && currentRow != null) {
+            View spacer = new View(this);
+            LinearLayout.LayoutParams spacerParams = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            spacerParams.setMargins(dp(8), 0, 0, 0);
+            spacer.setLayoutParams(spacerParams);
+            currentRow.addView(spacer);
+        }
+        
+        parsedAnswersContainer.addView(gridContainer);
     }
 
     private void gatherEditedAnswers() {
