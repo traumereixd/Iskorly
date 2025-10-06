@@ -45,7 +45,6 @@ import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 
 
-import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.card.MaterialCardView;
 
@@ -404,9 +403,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // Replace the entire updateAnswerKeyDisplay() with this corrected version:
-    // Replace the whole method with this:
-    // Replace the whole method with this:
     private void updateAnswerKeyDisplay() {
         if (currentKeyTextView == null) return;
 
