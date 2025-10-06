@@ -27,13 +27,20 @@
    - Status footer displays: "Processed X image(s) • Filled Y / N answers"
    - Enhanced image preprocessing applied to all imported images
 
-4. **In-App Camera Crop**
-   - Integrated CanHub Android Image Cropper library (v4.5.0) for image cropping
-   - After camera capture, user can crop image before OCR
-   - Freeform aspect ratio with grid guidelines, rotation, and flip support
+4. **In-App Camera Crop (Enhanced Custom UI)**
+   - Custom SimpleCropActivity with full-featured crop controls
+   - Rotate left/right buttons (90° increments) with cumulative rotation tracking
+   - Flip horizontal button for mirror transformations
+   - Rotation angle display (0°, 90°, 180°, 270°) for user feedback
+   - Aspect ratio presets: Free, 4:3, 1:1 for common use cases
+   - Haptic feedback on all button interactions
+   - Dark theme support with night-mode colors (#121212 background, #1E1E1E surface)
+   - Performance safeguards: bitmap recycling, OutOfMemoryError handling with downscaling
+   - Maximum output size limits to prevent memory issues
+   - Accessibility: content descriptions on all controls, 56dp touch targets
+   - Replaces CanHub's built-in crop UI with custom implementation
    - Fallback to automatic crop if crop fails or is canceled
-   - Improves accuracy by allowing tight cropping around answer area
-   - Migrated from uCrop due to JitPack reliability issues
+   - Based on CanHub CropImageView component with enhanced UX layer
 
 5. **Improved Handwriting Sensitivity**
    - Image preprocessing with grayscale conversion and contrast enhancement

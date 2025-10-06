@@ -4,4 +4,15 @@
         <!-- Customize your dark theme here. -->
         <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
     </style>
+    
+    <!-- Dark variant for cropper activity -->
+    <style name="Theme.Iskorly.Cropper" parent="Theme.Material3.DayNight">
+        <item name="colorPrimary">@color/primary_indigo</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
+        <item name="colorSurface">@color/crop_surface</item>
+        <item name="colorOnSurface">@color/crop_on_surface</item>
+        <item name="android:colorBackground">@color/crop_background</item>
+        <item name="fontFamily">@font/inter</item>
+        <item name="android:fontFamily">@font/inter</item>
+    </style>
 </resources>

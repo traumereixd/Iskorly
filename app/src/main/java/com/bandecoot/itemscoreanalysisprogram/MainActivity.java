@@ -163,8 +163,8 @@ public class MainActivity extends AppCompatActivity {
     // Multi-image import launcher (Feature #2)
     private ActivityResultLauncher<String> importPhotosLauncher;
     
-    // Crop launcher (Feature #2.1) - CanHub Android Image Cropper
-    private ActivityResultLauncher<com.canhub.cropper.CropImageContractOptions> cropLauncher;
+    // Simple crop launcher (Feature #2.1 enhanced)
+    private ActivityResultLauncher<Intent> cropLauncher;
     private android.net.Uri lastCapturedImageUri;
     private java.io.File lastCapturedFile; // Store file reference for URI permissions
 
@@ -787,9 +787,9 @@ public class MainActivity extends AppCompatActivity {
                 this::onPhotosImported
         );
         
-        // Crop launcher (Feature #2.1) - CanHub Android Image Cropper
+        // Simple crop launcher (Feature #2.1 enhanced) - Custom SimpleCropActivity
         cropLauncher = registerForActivityResult(
-                new com.canhub.cropper.CropImageContract(),
+                new ActivityResultContracts.StartActivityForResult(),
                 this::onCropResult
         );
 
@@ -2629,11 +2629,11 @@ public class MainActivity extends AppCompatActivity {
     }
     
     /**
-     * Handle crop result from CanHub Android Image Cropper.
+     * Handle crop result from SimpleCropActivity.
      */
-    private void onCropResult(com.canhub.cropper.CropImageView.CropResult result) {
-        if (result.isSuccessful()) {
-            android.net.Uri croppedUri = result.getUriContent();
+    private void onCropResult(androidx.activity.result.ActivityResult result) {
+        if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+            android.net.Uri croppedUri = result.getData().getData();
             if (croppedUri != null) {
                 Log.d(CROP_FLOW, "Crop successful, processing cropped image: " + croppedUri);
                 processCroppedImage(croppedUri);
@@ -2641,10 +2641,13 @@ public class MainActivity extends AppCompatActivity {
                 Log.e(CROP_FLOW, "Crop result OK but URI is null");
                 Toast.makeText(this, "Crop failed, try again", Toast.LENGTH_SHORT).show();
             }
-        } else if (result.getError() != null) {
-            Throwable cropError = result.getError();
-            Log.e(TAG, "Crop error", cropError);
-            Log.e(CROP_FLOW, "Crop error occurred", cropError);
+        } else if (result.getResultCode() == RESULT_CANCELED) {
+            // User canceled crop
+            Log.d(CROP_FLOW, "Crop canceled by user");
+            Toast.makeText(this, "Crop canceled", Toast.LENGTH_SHORT).show();
+            // Return to camera preview - do nothing else
+        } else {
+            Log.e(CROP_FLOW, "Crop error occurred");
             Toast.makeText(this, "Crop failed, processing original image", Toast.LENGTH_SHORT).show();
             
             // Fallback: use simple auto-crop on original image
@@ -2652,11 +2655,6 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(CROP_FLOW, "Falling back to simple auto-crop");
                 processFallbackAutoCrop(lastCapturedImageUri);
             }
-        } else {
-            // User canceled crop
-            Log.d(CROP_FLOW, "Crop canceled by user");
-            Toast.makeText(this, "Crop canceled", Toast.LENGTH_SHORT).show();
-            // Return to camera preview - do nothing else
         }
     }
     
@@ -2726,34 +2724,24 @@ public class MainActivity extends AppCompatActivity {
         }
     }
     /**
-     * Start crop activity for the captured image using CanHub Android Image Cropper.
+     * Start crop activity for the captured image using SimpleCropActivity.
      */
     private void startCropActivity(android.net.Uri sourceUri) {
         try {
-            Log.d(CROP_FLOW, "Starting CanHub crop with source: " + sourceUri);
+            Log.d(CROP_FLOW, "Starting SimpleCropActivity with source: " + sourceUri);
             Log.d(CROP_FIX, "Source file exists: " + (lastCapturedFile != null && lastCapturedFile.exists()));
 
-            // Configure CanHub crop options
-            com.canhub.cropper.CropImageOptions cropOptions = new com.canhub.cropper.CropImageOptions();
-            cropOptions.guidelines = com.canhub.cropper.CropImageView.Guidelines.ON;
-            cropOptions.allowRotation = true;
-            cropOptions.allowFlipping = true;
-            cropOptions.fixAspectRatio = false; // Free-style crop enabled
-            cropOptions.autoZoomEnabled = true;
-            cropOptions.allowRotation = true;
-            cropOptions.allowFlipping = true;
-            cropOptions.allowCounterRotation = true; // enables both directions
-            cropOptions.hideBottomControls = false;
-            // Create crop contract options
-            com.canhub.cropper.CropImageContractOptions contractOptions = new com.canhub.cropper.CropImageContractOptions(sourceUri, cropOptions);
-
-            Log.d(CROP_FLOW, "Launching CanHub crop activity");
-            cropLauncher.launch(contractOptions);
-            cropOptions.activityTitle = "Crop";
-            cropOptions.toolbarColor = ContextCompat.getColor(this, R.color.primary_indigo);
-// cropOptions.statusBarColor also available
+            // Create output file for cropped image
+            java.io.File croppedFile = new java.io.File(getCacheDir(), "cropped_" + System.currentTimeMillis() + ".jpg");
+            android.net.Uri outputUri = android.net.Uri.fromFile(croppedFile);
+            
+            // Launch SimpleCropActivity
+            Intent cropIntent = SimpleCropActivity.createIntent(this, sourceUri, outputUri);
+            Log.d(CROP_FLOW, "Launching SimpleCropActivity");
+            cropLauncher.launch(cropIntent);
+            
         } catch (Exception e) {
-            Log.e(CROP_FLOW, "CanHub crop launch failed, using simple fallback", e);
+            Log.e(CROP_FLOW, "SimpleCropActivity launch failed, using simple fallback", e);
             Log.e(CROP_FIX, "Launch exception details", e);
             Toast.makeText(this, "Crop not available (fallback)", Toast.LENGTH_SHORT).show();
             processFallbackAutoCrop(sourceUri);

@@ -24,6 +24,12 @@
     <color name="answer_blank">#FFF9C4</color>        <!-- Light yellow -->
     <color name="answer_neutral">#E0E0E0</color>      <!-- Gray -->
     
+    <!-- Light theme crop colors -->
+    <color name="crop_background">#FDFCFF</color>
+    <color name="crop_surface">#FFFFFF</color>
+    <color name="crop_on_surface">#1C1B1F</color>
+    <color name="crop_action_bg">#F5F5F5</color>
+    
     <!-- Legacy beige palette (deprecated - kept for backward compatibility) -->
     <color name="md3_beige_primary">#BDAE8A</color>  /* legacy */
     <color name="md3_beige_onPrimary">#000000</color>  /* legacy */
