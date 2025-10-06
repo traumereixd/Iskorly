@@ -71,8 +71,9 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("com.squareup.okhttp3:okhttp:4.9.3")
     
-    // uCrop for image cropping functionality (Feature 2.1)
-    implementation("com.github.yalantis:ucrop:2.2.8")
+    // CanHub Android Image Cropper for image cropping functionality (Feature 2.1)
+    // Published on Maven Central
+    implementation("com.vanniktech:android-image-cropper:4.5.0")
     
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

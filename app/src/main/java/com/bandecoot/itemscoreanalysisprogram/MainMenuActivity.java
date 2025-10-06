@@ -98,7 +98,7 @@ public class MainMenuActivity extends AppCompatActivity {
         features.append("- Main Menu: Redesigned\n");
         features.append("- Color Palette: Indigo + Emerald\n");
         features.append("- Typography: Inter font\n");
-        features.append("- uCrop: ").append(UiConfig.ENABLE_UCROP ? "Enabled" : "Disabled").append("\n");
+        features.append("- Crop Library: CanHub Android Image Cropper\n");
         
         // Check if file_paths.xml is accessible
         try {
