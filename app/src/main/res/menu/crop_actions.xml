@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Built‑in recognized IDs (library maps behavior by id) -->
+    <item
+        android:id="@+id/crop_image_menu_rotate_left"
+        android:title="Rotate Left"
+        android:icon="@android:drawable/ic_menu_rotate"
+        android:showAsAction="ifRoom"/>
+    <item
+        android:id="@+id/crop_image_menu_rotate_right"
+        android:title="Rotate Right"
+        android:icon="@android:drawable/ic_menu_rotate"
+        android:showAsAction="ifRoom"/>
+    <item
+        android:id="@+id/crop_image_menu_flip"
+        android:title="Flip"
+        android:icon="@android:drawable/ic_menu_always_landscape_portrait"
+        android:showAsAction="ifRoom"/>
+</menu>

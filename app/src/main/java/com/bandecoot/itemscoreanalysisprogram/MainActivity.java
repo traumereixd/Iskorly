@@ -2740,14 +2740,18 @@ public class MainActivity extends AppCompatActivity {
             cropOptions.allowFlipping = true;
             cropOptions.fixAspectRatio = false; // Free-style crop enabled
             cropOptions.autoZoomEnabled = true;
-            
+            cropOptions.allowRotation = true;
+            cropOptions.allowFlipping = true;
+            cropOptions.allowCounterRotation = true; // enables both directions
+            cropOptions.hideBottomControls = false;
             // Create crop contract options
-            com.canhub.cropper.CropImageContractOptions contractOptions = 
-                new com.canhub.cropper.CropImageContractOptions(sourceUri, cropOptions);
+            com.canhub.cropper.CropImageContractOptions contractOptions = new com.canhub.cropper.CropImageContractOptions(sourceUri, cropOptions);
 
             Log.d(CROP_FLOW, "Launching CanHub crop activity");
             cropLauncher.launch(contractOptions);
-
+            cropOptions.activityTitle = "Crop";
+            cropOptions.toolbarColor = ContextCompat.getColor(this, R.color.primary_indigo);
+// cropOptions.statusBarColor also available
         } catch (Exception e) {
             Log.e(CROP_FLOW, "CanHub crop launch failed, using simple fallback", e);
             Log.e(CROP_FIX, "Launch exception details", e);

@@ -6,34 +6,40 @@
         <item name="colorPrimary">@color/primary_indigo</item>
         <item name="colorOnPrimary">@color/on_primary</item>
         <item name="colorPrimaryContainer">@color/primary_variant</item>
-        
+
         <!-- Secondary colors -->
         <item name="colorSecondary">@color/secondary_emerald</item>
         <item name="colorOnSecondary">@color/on_secondary</item>
         <item name="colorSecondaryContainer">@color/secondary_variant</item>
-        
-        <!-- Surface colors -->
+
+        <!-- Surface / background -->
         <item name="colorSurface">@color/surface</item>
         <item name="colorOnSurface">@color/on_surface</item>
         <item name="colorSurfaceVariant">@color/surface_elevated</item>
         <item name="colorOnSurfaceVariant">@color/on_surface_variant</item>
-        
-        <!-- Outline and background -->
         <item name="colorOutline">@color/outline</item>
         <item name="android:colorBackground">@color/background</item>
         <item name="colorOnBackground">@color/on_background</item>
-        
-        <!-- Typography -->
+
+        <!-- Typography (downloadable font) -->
         <item name="fontFamily">@font/inter</item>
         <item name="android:fontFamily">@font/inter</item>
     </style>
-    
-    <!-- Splash theme - simple approach without androidx.core:core-splashscreen -->
+
+    <!-- Splash variant -->
     <style name="Theme.Iskorly.Splash" parent="Theme.Iskorly">
         <item name="android:windowBackground">@color/primary_indigo</item>
         <item name="android:statusBarColor">@color/primary_indigo</item>
     </style>
-    
-    <!-- Legacy alias for backward compatibility -->
+
+    <!-- Optional: Theme for cropper activity WITH action bar (rotation/flip menu) -->
+    <style name="Theme.Iskorly.Cropper" parent="Theme.Material3.DayNight">
+        <item name="colorPrimary">@color/primary_indigo</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
+        <item name="fontFamily">@font/inter</item>
+        <item name="android:fontFamily">@font/inter</item>
+    </style>
+
+    <!-- Legacy alias -->
     <style name="Theme.ItemScoreAnalysis" parent="Theme.Iskorly" />
 </resources>
