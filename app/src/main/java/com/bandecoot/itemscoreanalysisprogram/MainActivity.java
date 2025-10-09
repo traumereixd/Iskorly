@@ -101,13 +101,15 @@ public class MainActivity extends AppCompatActivity {
     // UI components
     private Button backToMenuButton;
     private LinearLayout mainLayout, answerKeyLayout, testHistoryLayout, scanSessionLayout, masterlistLayout;
-    private EditText studentNameInput, sectionNameInput, examNameInput;
+    private MaterialAutoCompleteTextView studentNameInput, sectionNameInput, examNameInput;
     private EditText questionNumberInput, removeQuestionInput;
     private MaterialAutoCompleteTextView answerDropdown;
     private Button startScanButton, setupButton, viewHistoryButton;
     private Button saveAnswerButton, removeAnswerButton, clearButton, backButton;
     private Button historyBackButton, tryAgainButton, captureResultButton, cancelScanButton;
     private Button confirmParsedButton, importPhotosButton, masterlistButton, masterlistBackButton, exportCsvButton;
+    private Button importStudentsButton, exportMasterlistCsvButton;
+    private Button masterlistBySectionButton, masterlistAllButton, btnSlotSaveSet;
     private TextView currentKeyTextView, sessionScoreTextView, parsedLabel, masterlistInfoTextView;
     private MaterialCardView resultsCard;
     private LinearLayout testHistoryList, parsedAnswersContainer, masterlistContent;
@@ -122,6 +124,10 @@ public class MainActivity extends AppCompatActivity {
     private static final String PREF_CURRENT_SLOT = "current_slot";
     private static final String PREF_LAST_SECTION = "last_section";
     private static final String PREF_LAST_EXAM = "last_exam";
+    private static final String PREF_RECENT_STUDENTS = "recent_students";
+    private static final String PREF_RECENT_SECTIONS = "recent_sections";
+    private static final String PREF_RECENT_EXAMS = "recent_exams";
+    private static final int MAX_RECENTS = 50;
     private String currentSlotId = "default";
     private final HashMap<String, SlotData> slots = new HashMap<>();
     
@@ -180,6 +186,14 @@ public class MainActivity extends AppCompatActivity {
 
     // CSV Export
     private ActivityResultLauncher<String> createCsvLauncher;
+    private ActivityResultLauncher<String> exportMasterlistCsvLauncher;
+    private ActivityResultLauncher<String[]> importStudentsLauncher;
+    
+    // Masterlist state
+    private boolean masterlistShowBySection = true; // true = By Section, false = All
+    
+    // Masterlist Repository
+    private MasterlistRepository masterlistRepository;
 
     // HTTP client for Google Vision calls
     private final OkHttpClient httpClient = new OkHttpClient.Builder()
@@ -351,6 +365,22 @@ public class MainActivity extends AppCompatActivity {
                         exportSlotToUri(result);
                     }
                 });
+        
+        importStudentsLauncher = registerForActivityResult(
+                new ActivityResultContracts.OpenDocument(),
+                result -> {
+                    if (result != null) {
+                        importStudentsFromUri(result);
+                    }
+                });
+        
+        exportMasterlistCsvLauncher = registerForActivityResult(
+                new ActivityResultContracts.CreateDocument("text/csv"),
+                result -> {
+                    if (result != null) {
+                        exportMasterlistCsvToUri(result);
+                    }
+                });
     }
 
     private void setupSlotListeners() {
@@ -389,6 +419,13 @@ public class MainActivity extends AppCompatActivity {
                 SlotData currentSlot = slots.get(currentSlotId);
                 String filename = "slot_" + (currentSlot != null ? currentSlot.name : "export") + ".json";
                 exportSlotLauncher.launch(filename);
+            });
+        }
+        
+        if (btnSlotSaveSet != null) {
+            btnSlotSaveSet.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                onSaveSet();
             });
         }
     }
@@ -666,9 +703,10 @@ public class MainActivity extends AppCompatActivity {
         if (answerDropdown == null) return;
         
         // Universal input - no adapter, accepts both letters and text
+        // Allow mixed case input (removed TYPE_TEXT_FLAG_CAP_CHARACTERS)
         answerDropdown.setAdapter(null);
         answerDropdown.setText("");
-        answerDropdown.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS);
+        answerDropdown.setInputType(InputType.TYPE_CLASS_TEXT);
         answerDropdown.setHint(getString(R.string.hint_answer));
     }
 
@@ -679,6 +717,9 @@ public class MainActivity extends AppCompatActivity {
 
         // Initialize prefs EARLY
         historyPreferences = getSharedPreferences("TestHistoryPrefs", MODE_PRIVATE);
+        
+        // Initialize MasterlistRepository
+        masterlistRepository = new MasterlistRepository(this);
         
         // Initialize slot system
         initializeSlots();
@@ -691,10 +732,22 @@ public class MainActivity extends AppCompatActivity {
         studentNameInput = findViewById(R.id.editText_student_name);
         sectionNameInput = findViewById(R.id.editText_section_name);
         examNameInput = findViewById(R.id.editText_exam_name);
+        importStudentsButton = findViewById(R.id.button_import_students);
         startScanButton = findViewById(R.id.button_scan);
         setupButton = findViewById(R.id.button_setup_answers);
         viewHistoryButton = findViewById(R.id.button_view_history);
         backToMenuButton = findViewById(R.id.button_back_to_menu);
+        
+        // Setup autocomplete for inputs
+        setupAutocompleteInputs();
+        
+        // Import students button
+        if (importStudentsButton != null) {
+            importStudentsButton.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                importStudentsLauncher.launch(new String[]{"text/plain", "text/csv"});
+            });
+        }
 
         // Answer key
         answerKeyLayout = findViewById(R.id.answer_key_layout);
@@ -714,6 +767,7 @@ public class MainActivity extends AppCompatActivity {
         btnSlotDelete = findViewById(R.id.btn_slot_delete);
         btnSlotImport = findViewById(R.id.btn_slot_import);
         btnSlotExport = findViewById(R.id.btn_slot_export);
+        btnSlotSaveSet = findViewById(R.id.btn_slot_save_set);
         
         // Initialize slot UI
         updateSlotSelector();
@@ -755,10 +809,41 @@ public class MainActivity extends AppCompatActivity {
         masterlistContent = findViewById(R.id.masterlist_content);
         masterlistInfoTextView = findViewById(R.id.textView_masterlist_info);
         masterlistBackButton = findViewById(R.id.button_masterlist_back);
+        masterlistBySectionButton = findViewById(R.id.button_masterlist_by_section);
+        masterlistAllButton = findViewById(R.id.button_masterlist_all);
+        exportMasterlistCsvButton = findViewById(R.id.button_export_masterlist_csv);
+        
         if (masterlistBackButton != null) {
             masterlistBackButton.setOnClickListener(v -> {
                 v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
                 toggleView("history");
+            });
+        }
+        
+        // Masterlist toggle buttons
+        if (masterlistBySectionButton != null && masterlistAllButton != null) {
+            masterlistBySectionButton.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                masterlistShowBySection = true;
+                updateMasterlistToggleButtons();
+                displayMasterlist();
+            });
+            
+            masterlistAllButton.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                masterlistShowBySection = false;
+                updateMasterlistToggleButtons();
+                displayMasterlist();
+            });
+            
+            updateMasterlistToggleButtons();
+        }
+        
+        // Export masterlist CSV
+        if (exportMasterlistCsvButton != null) {
+            exportMasterlistCsvButton.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                exportMasterlistCsv();
             });
         }
 
@@ -2143,55 +2228,43 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void toggleView(String viewName) {
-        // Fade out all views first
-        fadeOut(mainLayout);
-        fadeOut(answerKeyLayout);
-        fadeOut(testHistoryLayout);
-        fadeOut(scanSessionLayout);
-        fadeOut(masterlistLayout);
+        // Instant view switching - no fade animations
+        if (mainLayout != null) mainLayout.setVisibility(View.GONE);
+        if (answerKeyLayout != null) answerKeyLayout.setVisibility(View.GONE);
+        if (testHistoryLayout != null) testHistoryLayout.setVisibility(View.GONE);
+        if (scanSessionLayout != null) scanSessionLayout.setVisibility(View.GONE);
+        if (masterlistLayout != null) masterlistLayout.setVisibility(View.GONE);
         
-        // Then fade in the target view after a short delay
-        new Handler().postDelayed(() -> {
-            switch (viewName) {
-                case "main":
-                    fadeIn(mainLayout);
-                    break;
-                case "setup":
-                    fadeIn(answerKeyLayout);
-                    break;
-                case "history":
-                    fadeIn(testHistoryLayout);
-                    break;
-                case "scan":
-                    fadeIn(scanSessionLayout);
-                    break;
-                case "masterlist":
-                    fadeIn(masterlistLayout);
-                    break;
-            }
-        }, 150); // 150ms delay for smoother transition
+        switch (viewName) {
+            case "main":
+                if (mainLayout != null) mainLayout.setVisibility(View.VISIBLE);
+                break;
+            case "setup":
+                if (answerKeyLayout != null) answerKeyLayout.setVisibility(View.VISIBLE);
+                break;
+            case "history":
+                if (testHistoryLayout != null) testHistoryLayout.setVisibility(View.VISIBLE);
+                break;
+            case "scan":
+                if (scanSessionLayout != null) scanSessionLayout.setVisibility(View.VISIBLE);
+                break;
+            case "masterlist":
+                if (masterlistLayout != null) masterlistLayout.setVisibility(View.VISIBLE);
+                break;
+        }
     }
 
     private void fadeOut(View v) {
-        if (v != null && v.getVisibility() == View.VISIBLE) {
-            v.animate()
-                .alpha(0f)
-                .setDuration(200)
-                .withEndAction(() -> v.setVisibility(View.GONE))
-                .start();
-        } else if (v != null) {
+        // Deprecated - instant visibility switching now
+        if (v != null) {
             v.setVisibility(View.GONE);
         }
     }
     
     private void fadeIn(View v) {
+        // Deprecated - instant visibility switching now
         if (v != null) {
             v.setVisibility(View.VISIBLE);
-            v.setAlpha(0f);
-            v.animate()
-                .alpha(1f)
-                .setDuration(300)
-                .start();
         }
     }
 
@@ -2304,9 +2377,10 @@ public class MainActivity extends AppCompatActivity {
             cellContent.addView(tv);
 
             // Universal input - always use EditText for both letters and words
+            // Allow mixed case input (removed TYPE_TEXT_FLAG_CAP_CHARACTERS)
             EditText et = new EditText(this);
             et.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-            et.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS);
+            et.setInputType(InputType.TYPE_CLASS_TEXT);
             et.setTextSize(14);
             et.setPadding(dp(4), 0, dp(4), 0);
             et.setMinHeight(dp(36));
@@ -2491,10 +2565,14 @@ public class MainActivity extends AppCompatActivity {
             rec.put("total", total);
             rec.put("percent", percent);
             rec.put("answers", answersObj);
+            rec.put("slotId", currentSlotId); // Tag with current answer key slot
 
             org.json.JSONArray history = getHistoryArray();
             history.put(rec);
             saveHistoryArray(history);
+            
+            // Update recents for autocomplete
+            updateRecents(student, section, exam);
 
             sessionScoreTextView.setText(String.format(java.util.Locale.US, "Saved: %d/%d (%.1f%%)", score, total, percent));
             if (captureResultButton != null) captureResultButton.setText("Take Photo");
@@ -2809,10 +2887,6 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         
-        // Compute stats (no filters for now - process all records)
-        Map<Integer, QuestionStats.QuestionStat> stats = 
-            QuestionStats.computeQuestionStats(historyArray, currentAnswerKey, null, null);
-        
         // Update info text
         if (masterlistInfoTextView != null) {
             masterlistInfoTextView.setText(String.format(Locale.US, 
@@ -2820,82 +2894,337 @@ public class MainActivity extends AppCompatActivity {
                 historyArray.length()));
         }
         
-        // Create header row
-        LinearLayout headerRow = new LinearLayout(this);
-        headerRow.setOrientation(LinearLayout.HORIZONTAL);
-        headerRow.setPadding(dp(8), dp(8), dp(8), dp(8));
-        headerRow.setBackgroundColor(0xFFE0E0E0);
+        Log.d(TAG, "Displaying masterlist: showBySection=" + masterlistShowBySection);
         
-        addTableCell(headerRow, "Q#", 0.15f, true);
-        addTableCell(headerRow, "Correct", 0.20f, true);
-        addTableCell(headerRow, "Incorrect", 0.20f, true);
-        addTableCell(headerRow, "% Correct", 0.20f, true);
-        addTableCell(headerRow, "Common Miss", 0.25f, true);
+        if (masterlistShowBySection) {
+            displayMasterlistBySection(historyArray);
+        } else {
+            displayMasterlistAll(historyArray);
+        }
+    }
+    
+    private void displayMasterlistBySection(JSONArray historyArray) {
+        // Get unique sections
+        List<String> sections = QuestionStats.getUniqueSections(historyArray, null);
+        Log.d(TAG, "Displaying By Section view for " + sections.size() + " sections");
         
-        masterlistContent.addView(headerRow);
+        if (sections.isEmpty()) {
+            TextView noSectionsMsg = new TextView(this);
+            noSectionsMsg.setText("No sections found in history.");
+            noSectionsMsg.setPadding(dp(16), dp(16), dp(16), dp(16));
+            noSectionsMsg.setTextSize(16);
+            masterlistContent.addView(noSectionsMsg);
+            return;
+        }
         
-        // Add a divider
-        View divider = new View(this);
-        divider.setLayoutParams(new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, dp(2)));
-        divider.setBackgroundColor(0xFF757575);
-        masterlistContent.addView(divider);
+        // Create collapsible card for each section
+        for (String section : sections) {
+            MaterialCardView sectionCard = new MaterialCardView(this);
+            sectionCard.setLayoutParams(new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, 
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+            sectionCard.setCardElevation(dp(4));
+            sectionCard.setRadius(dp(8));
+            LinearLayout.LayoutParams cardParams = 
+                    (LinearLayout.LayoutParams) sectionCard.getLayoutParams();
+            cardParams.setMargins(0, 0, 0, dp(12));
+            sectionCard.setLayoutParams(cardParams);
+            
+            LinearLayout cardContent = new LinearLayout(this);
+            cardContent.setOrientation(LinearLayout.VERTICAL);
+            cardContent.setLayoutParams(new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, 
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+            cardContent.setPadding(dp(12), dp(12), dp(12), dp(12));
+            
+            // Section header (collapsible)
+            TextView sectionHeader = new TextView(this);
+            sectionHeader.setText(section + " ▼");
+            sectionHeader.setTextSize(18);
+            sectionHeader.setTypeface(sectionHeader.getTypeface(), Typeface.BOLD);
+            sectionHeader.setTextColor(Color.BLACK);
+            sectionHeader.setPadding(dp(8), dp(8), dp(8), dp(8));
+            
+            // Question table container
+            LinearLayout tableContainer = new LinearLayout(this);
+            tableContainer.setOrientation(LinearLayout.VERTICAL);
+            tableContainer.setVisibility(View.VISIBLE);
+            
+            // Compute stats for this section
+            Map<Integer, QuestionStats.QuestionStat> stats = 
+                    QuestionStats.computeQuestionStats(historyArray, currentAnswerKey, null, section);
+            List<Integer> questions = QuestionStats.getSortedQuestions(stats);
+            
+            // Header row
+            LinearLayout headerRow = new LinearLayout(this);
+            headerRow.setOrientation(LinearLayout.HORIZONTAL);
+            headerRow.setPadding(dp(4), dp(4), dp(4), dp(4));
+            headerRow.setBackgroundColor(0xFFE0E0E0);
+            
+            addTableCell(headerRow, "Q#", 0.15f, true);
+            addTableCell(headerRow, "Correct", 0.20f, true);
+            addTableCell(headerRow, "Incorrect", 0.20f, true);
+            addTableCell(headerRow, "% Correct", 0.20f, true);
+            addTableCell(headerRow, "Common Miss", 0.25f, true);
+            
+            tableContainer.addView(headerRow);
+            
+            // Data rows
+            for (Integer q : questions) {
+                QuestionStats.QuestionStat stat = stats.get(q);
+                if (stat == null) continue;
+                
+                LinearLayout row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setPadding(dp(4), dp(4), dp(4), dp(4));
+                
+                if (questions.indexOf(q) % 2 == 0) {
+                    row.setBackgroundColor(0xFFF5F5F5);
+                } else {
+                    row.setBackgroundColor(0xFFFFFFFF);
+                }
+                
+                addTableCell(row, String.valueOf(q), 0.15f, false);
+                addTableCell(row, String.valueOf(stat.correctCount), 0.20f, false);
+                addTableCell(row, String.valueOf(stat.incorrectCount), 0.20f, false);
+                addTableCell(row, String.format(Locale.US, "%.1f%%", stat.percentCorrect), 0.20f, false);
+                
+                String missInfo = stat.mostCommonWrongCount > 0 
+                        ? stat.mostCommonWrong + " (" + stat.mostCommonWrongCount + ")"
+                        : "-";
+                addTableCell(row, missInfo, 0.25f, false);
+                
+                tableContainer.addView(row);
+            }
+            
+            // Section summary
+            QuestionStats.SectionSummary summary = 
+                    QuestionStats.computeSectionSummary(historyArray, section, null);
+            
+            TextView summaryText = new TextView(this);
+            summaryText.setPadding(dp(8), dp(12), dp(8), dp(8));
+            summaryText.setTextSize(13);
+            summaryText.setTextColor(0xFF424242);
+            summaryText.setText(String.format(Locale.US,
+                    "Overall Score: %d\nMean: %.2f%%\nStd Dev: %.2f\nMPS: %.2f%% (n=%d)",
+                    summary.totalScore, summary.mean, summary.stdDev, summary.mps, summary.recordCount));
+            
+            tableContainer.addView(summaryText);
+            
+            // Toggle collapse on header click
+            sectionHeader.setOnClickListener(v -> {
+                if (tableContainer.getVisibility() == View.VISIBLE) {
+                    tableContainer.setVisibility(View.GONE);
+                    sectionHeader.setText(section + " ▶");
+                } else {
+                    tableContainer.setVisibility(View.VISIBLE);
+                    sectionHeader.setText(section + " ▼");
+                }
+            });
+            
+            cardContent.addView(sectionHeader);
+            cardContent.addView(tableContainer);
+            sectionCard.addView(cardContent);
+            masterlistContent.addView(sectionCard);
+        }
+        
+        Log.d(TAG, "By Section view rendered with " + sections.size() + " section cards");
+    }
+    
+    private void displayMasterlistAll(JSONArray historyArray) {
+        Log.d(TAG, "Displaying All view");
+        
+        // Get unique sections
+        List<String> sections = QuestionStats.getUniqueSections(historyArray, null);
+        if (sections.isEmpty()) {
+            TextView noSectionsMsg = new TextView(this);
+            noSectionsMsg.setText("No sections found in history.");
+            noSectionsMsg.setPadding(dp(16), dp(16), dp(16), dp(16));
+            noSectionsMsg.setTextSize(16);
+            masterlistContent.addView(noSectionsMsg);
+            return;
+        }
+        
+        // Compute per-section stats
+        Map<String, Map<Integer, QuestionStats.QuestionStat>> perSectionStats = 
+                QuestionStats.computePerSectionStats(historyArray, currentAnswerKey, null);
         
         // Get sorted questions
-        List<Integer> sortedQuestions = QuestionStats.getSortedQuestions(stats);
+        List<Integer> allQuestions = new ArrayList<>(currentAnswerKey.keySet());
+        Collections.sort(allQuestions);
         
-        // Create data rows
-        for (Integer q : sortedQuestions) {
-            QuestionStats.QuestionStat stat = stats.get(q);
-            if (stat == null) continue;
+        // Create horizontally scrollable table
+        android.widget.HorizontalScrollView hScrollView = new android.widget.HorizontalScrollView(this);
+        hScrollView.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        
+        LinearLayout tableLayout = new LinearLayout(this);
+        tableLayout.setOrientation(LinearLayout.VERTICAL);
+        
+        // Header row
+        LinearLayout headerRow = new LinearLayout(this);
+        headerRow.setOrientation(LinearLayout.HORIZONTAL);
+        headerRow.setBackgroundColor(0xFFE0E0E0);
+        headerRow.setPadding(dp(4), dp(4), dp(4), dp(4));
+        
+        TextView qHeader = new TextView(this);
+        qHeader.setText("Q#");
+        qHeader.setTextSize(13);
+        qHeader.setTypeface(qHeader.getTypeface(), Typeface.BOLD);
+        qHeader.setTextColor(Color.BLACK);
+        qHeader.setPadding(dp(8), dp(4), dp(8), dp(4));
+        qHeader.setMinWidth(dp(50));
+        headerRow.addView(qHeader);
+        
+        for (String section : sections) {
+            TextView sectionHeader = new TextView(this);
+            sectionHeader.setText(section);
+            sectionHeader.setTextSize(13);
+            sectionHeader.setTypeface(sectionHeader.getTypeface(), Typeface.BOLD);
+            sectionHeader.setTextColor(Color.BLACK);
+            sectionHeader.setPadding(dp(8), dp(4), dp(8), dp(4));
+            sectionHeader.setMinWidth(dp(80));
+            headerRow.addView(sectionHeader);
+        }
+        
+        tableLayout.addView(headerRow);
+        
+        // Question rows (show % correct)
+        for (int i = 0; i < allQuestions.size(); i++) {
+            Integer q = allQuestions.get(i);
             
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setPadding(dp(8), dp(8), dp(8), dp(8));
+            row.setPadding(dp(4), dp(4), dp(4), dp(4));
             
-            // Alternate row colors
-            if (sortedQuestions.indexOf(q) % 2 == 0) {
+            if (i % 2 == 0) {
                 row.setBackgroundColor(0xFFF5F5F5);
             } else {
                 row.setBackgroundColor(0xFFFFFFFF);
             }
             
-            addTableCell(row, String.valueOf(q), 0.15f, false);
-            addTableCell(row, String.valueOf(stat.correctCount), 0.20f, false);
-            addTableCell(row, String.valueOf(stat.incorrectCount), 0.20f, false);
-            addTableCell(row, String.format(Locale.US, "%.1f%%", stat.percentCorrect), 0.20f, false);
+            TextView qNum = new TextView(this);
+            qNum.setText(String.valueOf(q));
+            qNum.setTextSize(12);
+            qNum.setTextColor(Color.BLACK);
+            qNum.setPadding(dp(8), dp(4), dp(8), dp(4));
+            qNum.setMinWidth(dp(50));
+            row.addView(qNum);
             
-            String missInfo = stat.mostCommonWrongCount > 0 
-                ? stat.mostCommonWrong + " (" + stat.mostCommonWrongCount + ")"
-                : "-";
-            addTableCell(row, missInfo, 0.25f, false);
+            for (String section : sections) {
+                TextView cell = new TextView(this);
+                Map<Integer, QuestionStats.QuestionStat> sectionStats = perSectionStats.get(section);
+                if (sectionStats != null) {
+                    QuestionStats.QuestionStat stat = sectionStats.get(q);
+                    if (stat != null && stat.attemptCount > 0) {
+                        cell.setText(String.format(Locale.US, "%.1f%%", stat.percentCorrect));
+                    } else {
+                        cell.setText("-");
+                    }
+                } else {
+                    cell.setText("-");
+                }
+                cell.setTextSize(12);
+                cell.setTextColor(Color.BLACK);
+                cell.setPadding(dp(8), dp(4), dp(8), dp(4));
+                cell.setMinWidth(dp(80));
+                row.addView(cell);
+            }
             
-            masterlistContent.addView(row);
+            tableLayout.addView(row);
         }
         
-        // Add summary at bottom
-        TextView summaryText = new TextView(this);
-        summaryText.setPadding(dp(16), dp(16), dp(16), dp(16));
-        summaryText.setTextSize(14);
-        summaryText.setTextColor(0xFF424242);
+        // Section summary rows
+        addAllViewSummaryRow(tableLayout, "SUMMARY", sections, null, true);
+        addAllViewSummaryRow(tableLayout, "Total Score", sections, perSectionStats, false);
+        addAllViewSummaryRow(tableLayout, "Mean", sections, perSectionStats, false);
+        addAllViewSummaryRow(tableLayout, "Std Dev", sections, perSectionStats, false);
+        addAllViewSummaryRow(tableLayout, "MPS", sections, perSectionStats, false);
         
-        int totalQuestions = sortedQuestions.size();
-        int totalAttempts = 0;
-        int totalCorrect = 0;
-        for (Integer q : sortedQuestions) {
-            QuestionStats.QuestionStat stat = stats.get(q);
-            if (stat != null) {
-                totalAttempts += stat.attemptCount;
-                totalCorrect += stat.correctCount;
+        // Add values to summary rows
+        for (int rowIndex = tableLayout.getChildCount() - 4; 
+             rowIndex < tableLayout.getChildCount(); rowIndex++) {
+            LinearLayout summaryRow = (LinearLayout) tableLayout.getChildAt(rowIndex);
+            String label = ((TextView) summaryRow.getChildAt(0)).getText().toString();
+            
+            for (int i = 0; i < sections.size(); i++) {
+                String section = sections.get(i);
+                QuestionStats.SectionSummary summary = 
+                        QuestionStats.computeSectionSummary(historyArray, section, null);
+                
+                TextView cell = (TextView) summaryRow.getChildAt(i + 1);
+                switch (label) {
+                    case "Total Score":
+                        cell.setText(String.valueOf(summary.totalScore));
+                        break;
+                    case "Mean":
+                        cell.setText(String.format(Locale.US, "%.2f%%", summary.mean));
+                        break;
+                    case "Std Dev":
+                        cell.setText(String.format(Locale.US, "%.2f", summary.stdDev));
+                        break;
+                    case "MPS":
+                        cell.setText(String.format(Locale.US, "%.2f%%", summary.mps));
+                        break;
+                }
             }
         }
-        double overallPercent = totalAttempts > 0 ? (100.0 * totalCorrect / totalAttempts) : 0.0;
         
-        summaryText.setText(String.format(Locale.US,
-            "Summary: %d questions • %d total attempts • %.1f%% overall correct",
-            totalQuestions, totalAttempts, overallPercent));
+        hScrollView.addView(tableLayout);
+        masterlistContent.addView(hScrollView);
         
-        masterlistContent.addView(summaryText);
+        // Overall summary block
+        QuestionStats.SectionSummary overallSummary = 
+                QuestionStats.computeOverallSummary(historyArray, null);
+        
+        TextView overallText = new TextView(this);
+        overallText.setPadding(dp(16), dp(16), dp(16), dp(16));
+        overallText.setTextSize(14);
+        overallText.setTextColor(0xFF424242);
+        overallText.setTypeface(overallText.getTypeface(), Typeface.BOLD);
+        overallText.setText(String.format(Locale.US,
+                "OVERALL SUMMARY\nTotal Score: %d\nMean: %.2f%%\nStd Dev: %.2f\nMPS: %.2f%% (n=%d)",
+                overallSummary.totalScore, overallSummary.mean, overallSummary.stdDev, 
+                overallSummary.mps, overallSummary.recordCount));
+        
+        masterlistContent.addView(overallText);
+        
+        Log.d(TAG, "All view rendered with " + sections.size() + " sections and " + 
+                allQuestions.size() + " questions");
+    }
+    
+    private void addAllViewSummaryRow(LinearLayout tableLayout, String label, 
+            List<String> sections, 
+            Map<String, Map<Integer, QuestionStats.QuestionStat>> perSectionStats,
+            boolean isHeader) {
+        
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding(dp(4), dp(4), dp(4), dp(4));
+        row.setBackgroundColor(isHeader ? 0xFFD0D0D0 : 0xFFE8E8E8);
+        
+        TextView labelCell = new TextView(this);
+        labelCell.setText(label);
+        labelCell.setTextSize(13);
+        labelCell.setTextColor(Color.BLACK);
+        if (isHeader) {
+            labelCell.setTypeface(labelCell.getTypeface(), Typeface.BOLD);
+        }
+        labelCell.setPadding(dp(8), dp(4), dp(8), dp(4));
+        labelCell.setMinWidth(dp(50));
+        row.addView(labelCell);
+        
+        for (String section : sections) {
+            TextView cell = new TextView(this);
+            cell.setTextSize(12);
+            cell.setTextColor(Color.BLACK);
+            cell.setPadding(dp(8), dp(4), dp(8), dp(4));
+            cell.setMinWidth(dp(80));
+            row.addView(cell);
+        }
+        
+        tableLayout.addView(row);
     }
     
     /**
@@ -2916,6 +3245,422 @@ public class MainActivity extends AppCompatActivity {
         tv.setLayoutParams(params);
         
         row.addView(tv);
+    }
+    
+    // ---------------------------
+    // Autocomplete and Recents Management
+    // ---------------------------
+    
+    private void setupAutocompleteInputs() {
+        // Load recents and setup adapters
+        List<String> recentStudents = loadRecents(PREF_RECENT_STUDENTS);
+        List<String> recentSections = loadRecents(PREF_RECENT_SECTIONS);
+        List<String> recentExams = loadRecents(PREF_RECENT_EXAMS);
+        
+        if (studentNameInput != null) {
+            ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                    android.R.layout.simple_dropdown_item_1line, recentStudents);
+            studentNameInput.setAdapter(adapter);
+            studentNameInput.setThreshold(1);
+        }
+        
+        if (sectionNameInput != null) {
+            ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                    android.R.layout.simple_dropdown_item_1line, recentSections);
+            sectionNameInput.setAdapter(adapter);
+            sectionNameInput.setThreshold(1);
+        }
+        
+        if (examNameInput != null) {
+            ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                    android.R.layout.simple_dropdown_item_1line, recentExams);
+            examNameInput.setAdapter(adapter);
+            examNameInput.setThreshold(1);
+        }
+    }
+    
+    private List<String> loadRecents(String prefsKey) {
+        try {
+            String json = appPreferences.getString(prefsKey, "[]");
+            JSONArray arr = new JSONArray(json);
+            List<String> recents = new ArrayList<>();
+            for (int i = 0; i < arr.length(); i++) {
+                recents.add(arr.getString(i));
+            }
+            return recents;
+        } catch (JSONException e) {
+            Log.e(TAG, "Error loading recents for " + prefsKey, e);
+            return new ArrayList<>();
+        }
+    }
+    
+    private void updateRecents(String student, String section, String exam) {
+        if (student != null && !student.trim().isEmpty()) {
+            addToRecents(PREF_RECENT_STUDENTS, student.trim());
+        }
+        if (section != null && !section.trim().isEmpty()) {
+            addToRecents(PREF_RECENT_SECTIONS, section.trim());
+        }
+        if (exam != null && !exam.trim().isEmpty()) {
+            addToRecents(PREF_RECENT_EXAMS, exam.trim());
+        }
+        
+        // Refresh adapters
+        setupAutocompleteInputs();
+    }
+    
+    private void addToRecents(String prefsKey, String value) {
+        try {
+            List<String> recents = loadRecents(prefsKey);
+            
+            // Remove if already exists (to move to front)
+            recents.remove(value);
+            
+            // Add to front
+            recents.add(0, value);
+            
+            // Cap at MAX_RECENTS
+            if (recents.size() > MAX_RECENTS) {
+                recents = recents.subList(0, MAX_RECENTS);
+            }
+            
+            // Save
+            JSONArray arr = new JSONArray(recents);
+            appPreferences.edit().putString(prefsKey, arr.toString()).apply();
+        } catch (Exception e) {
+            Log.e(TAG, "Error updating recents for " + prefsKey, e);
+        }
+    }
+    
+    // ---------------------------
+    // Masterlist Display Methods
+    // ---------------------------
+    
+    private void updateMasterlistToggleButtons() {
+        if (masterlistBySectionButton == null || masterlistAllButton == null) return;
+        
+        if (masterlistShowBySection) {
+            masterlistBySectionButton.setBackgroundTintList(ColorStateList.valueOf(
+                    getResources().getColor(android.R.color.holo_blue_light, getTheme())));
+            masterlistAllButton.setBackgroundTintList(null);
+        } else {
+            masterlistBySectionButton.setBackgroundTintList(null);
+            masterlistAllButton.setBackgroundTintList(ColorStateList.valueOf(
+                    getResources().getColor(android.R.color.holo_blue_light, getTheme())));
+        }
+    }
+    
+    // ---------------------------
+    // Save Set Button Handler
+    // ---------------------------
+    
+    private void onSaveSet() {
+        // Get current slot data
+        SlotData currentSlot = slots.get(currentSlotId);
+        if (currentSlot == null || currentSlot.answers.isEmpty()) {
+            Toast.makeText(this, "No answers to save. Add answers first.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Generate default name
+        int untitledCount = 1;
+        for (SlotData slot : slots.values()) {
+            if (slot.name.startsWith("Untitled ")) {
+                try {
+                    int num = Integer.parseInt(slot.name.substring(9));
+                    if (num >= untitledCount) {
+                        untitledCount = num + 1;
+                    }
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        String defaultName = "Untitled " + untitledCount;
+        
+        // Prompt for name
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Save Answer Key Set");
+        
+        EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_TEXT);
+        input.setText(defaultName);
+        input.selectAll();
+        builder.setView(input);
+        
+        builder.setPositiveButton("Save", (dialog, which) -> {
+            String name = input.getText().toString().trim();
+            if (name.isEmpty()) {
+                name = defaultName;
+            }
+            
+            // Create new slot
+            String newSlotId = "slot_" + System.currentTimeMillis();
+            SlotData newSlot = new SlotData(name);
+            newSlot.answers.putAll(currentSlot.answers);
+            slots.put(newSlotId, newSlot);
+            
+            // Switch to new slot
+            currentSlotId = newSlotId;
+            loadCurrentSlot();
+            
+            // Save slots
+            saveSlots();
+            
+            // Add masterlist snapshot
+            masterlistRepository.addSnapshot(newSlotId, name);
+            
+            // Update UI
+            updateSlotSelector();
+            updateAnswerKeyDisplay();
+            
+            Toast.makeText(this, "Answer key set saved: " + name, Toast.LENGTH_SHORT).show();
+            Log.d(TAG, "Saved answer key set: " + name + " (id: " + newSlotId + ")");
+        });
+        
+        builder.setNegativeButton("Cancel", null);
+        builder.show();
+    }
+    
+    // ---------------------------
+    // Import Students from File
+    // ---------------------------
+    
+    private void importStudentsFromUri(android.net.Uri uri) {
+        try {
+            InputStream is = getContentResolver().openInputStream(uri);
+            if (is == null) {
+                Toast.makeText(this, "Failed to open file", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
+            java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(is));
+            List<String> names = new ArrayList<>();
+            String line;
+            
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (line.isEmpty()) continue;
+                
+                // If CSV, take first column
+                if (line.contains(",")) {
+                    String[] parts = line.split(",");
+                    if (parts.length > 0) {
+                        line = parts[0].trim();
+                    }
+                }
+                
+                if (!line.isEmpty()) {
+                    names.add(line);
+                }
+            }
+            
+            reader.close();
+            
+            // Add to recents
+            for (String name : names) {
+                addToRecents(PREF_RECENT_STUDENTS, name);
+            }
+            
+            // Refresh adapters
+            setupAutocompleteInputs();
+            
+            Toast.makeText(this, "Imported " + names.size() + " student name(s)", 
+                    Toast.LENGTH_SHORT).show();
+            Log.d(TAG, "Imported " + names.size() + " student names from file");
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error importing students", e);
+            Toast.makeText(this, "Error importing students: " + e.getMessage(), 
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+    
+    // ---------------------------
+    // Export Masterlist CSV
+    // ---------------------------
+    
+    private void exportMasterlistCsv() {
+        String filename = "masterlist_" + 
+                new java.text.SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US)
+                        .format(new java.util.Date()) + ".csv";
+        exportMasterlistCsvLauncher.launch(filename);
+    }
+    
+    private void exportMasterlistCsvToUri(android.net.Uri uri) {
+        try {
+            OutputStream os = getContentResolver().openOutputStream(uri);
+            if (os == null) {
+                Toast.makeText(this, "Failed to create file", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
+            java.io.OutputStreamWriter writer = new java.io.OutputStreamWriter(os);
+            
+            // Get history
+            JSONArray historyArray = getHistoryArray();
+            
+            if (masterlistShowBySection) {
+                // Export By Section view
+                exportMasterlistBySectionCsv(writer, historyArray);
+            } else {
+                // Export All view
+                exportMasterlistAllCsv(writer, historyArray);
+            }
+            
+            writer.close();
+            Toast.makeText(this, "Masterlist exported successfully", Toast.LENGTH_SHORT).show();
+            Log.d(TAG, "Masterlist CSV exported to " + uri);
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error exporting masterlist CSV", e);
+            Toast.makeText(this, "Error exporting CSV: " + e.getMessage(), 
+                    Toast.LENGTH_LONG).show();
+        }
+    }
+    
+    private void exportMasterlistBySectionCsv(java.io.OutputStreamWriter writer, 
+            JSONArray historyArray) throws Exception {
+        
+        List<String> sections = QuestionStats.getUniqueSections(historyArray, null);
+        
+        writer.write("Masterlist By Section\n\n");
+        
+        for (String section : sections) {
+            writer.write("Section: " + escapeCsv(section) + "\n");
+            writer.write("Q#,Correct,Incorrect,% Correct,Common Miss\n");
+            
+            Map<Integer, QuestionStats.QuestionStat> stats = 
+                    QuestionStats.computeQuestionStats(historyArray, currentAnswerKey, null, section);
+            List<Integer> questions = QuestionStats.getSortedQuestions(stats);
+            
+            for (Integer q : questions) {
+                QuestionStats.QuestionStat stat = stats.get(q);
+                if (stat == null) continue;
+                
+                String commonMiss = stat.mostCommonWrongCount > 0 
+                        ? stat.mostCommonWrong + " (" + stat.mostCommonWrongCount + ")"
+                        : "-";
+                
+                writer.write(String.format(Locale.US, "%d,%d,%d,%.1f%%,%s\n",
+                        q, stat.correctCount, stat.incorrectCount, 
+                        stat.percentCorrect, escapeCsv(commonMiss)));
+            }
+            
+            // Section summary
+            QuestionStats.SectionSummary summary = 
+                    QuestionStats.computeSectionSummary(historyArray, section, null);
+            writer.write(String.format(Locale.US, 
+                    "\nSummary for %s\n", escapeCsv(section)));
+            writer.write(String.format(Locale.US, 
+                    "Total Score,%d\n", summary.totalScore));
+            writer.write(String.format(Locale.US, 
+                    "Mean,%.2f%%\n", summary.mean));
+            writer.write(String.format(Locale.US, 
+                    "Standard Deviation,%.2f\n", summary.stdDev));
+            writer.write(String.format(Locale.US, 
+                    "MPS,%.2f%%\n", summary.mps));
+            writer.write(String.format(Locale.US, 
+                    "Records,%d\n\n", summary.recordCount));
+        }
+    }
+    
+    private void exportMasterlistAllCsv(java.io.OutputStreamWriter writer, 
+            JSONArray historyArray) throws Exception {
+        
+        List<String> sections = QuestionStats.getUniqueSections(historyArray, null);
+        Map<String, Map<Integer, QuestionStats.QuestionStat>> perSectionStats = 
+                QuestionStats.computePerSectionStats(historyArray, currentAnswerKey, null);
+        
+        // Build question list
+        List<Integer> allQuestions = new ArrayList<>(currentAnswerKey.keySet());
+        Collections.sort(allQuestions);
+        
+        writer.write("Masterlist All Sections\n\n");
+        
+        // Header row
+        writer.write("Q#");
+        for (String section : sections) {
+            writer.write("," + escapeCsv(section));
+        }
+        writer.write("\n");
+        
+        // Question rows (% correct)
+        for (Integer q : allQuestions) {
+            writer.write(String.valueOf(q));
+            for (String section : sections) {
+                Map<Integer, QuestionStats.QuestionStat> sectionStats = perSectionStats.get(section);
+                if (sectionStats != null) {
+                    QuestionStats.QuestionStat stat = sectionStats.get(q);
+                    if (stat != null && stat.attemptCount > 0) {
+                        writer.write(String.format(Locale.US, ",%.1f%%", stat.percentCorrect));
+                    } else {
+                        writer.write(",-");
+                    }
+                } else {
+                    writer.write(",-");
+                }
+            }
+            writer.write("\n");
+        }
+        
+        // Section summary rows
+        writer.write("\n");
+        writer.write("SUMMARY");
+        for (String section : sections) {
+            writer.write("," + escapeCsv(section));
+        }
+        writer.write("\n");
+        
+        writer.write("Total Score");
+        for (String section : sections) {
+            QuestionStats.SectionSummary summary = 
+                    QuestionStats.computeSectionSummary(historyArray, section, null);
+            writer.write("," + summary.totalScore);
+        }
+        writer.write("\n");
+        
+        writer.write("Mean");
+        for (String section : sections) {
+            QuestionStats.SectionSummary summary = 
+                    QuestionStats.computeSectionSummary(historyArray, section, null);
+            writer.write(String.format(Locale.US, ",%.2f%%", summary.mean));
+        }
+        writer.write("\n");
+        
+        writer.write("Std Dev");
+        for (String section : sections) {
+            QuestionStats.SectionSummary summary = 
+                    QuestionStats.computeSectionSummary(historyArray, section, null);
+            writer.write(String.format(Locale.US, ",%.2f", summary.stdDev));
+        }
+        writer.write("\n");
+        
+        writer.write("MPS");
+        for (String section : sections) {
+            QuestionStats.SectionSummary summary = 
+                    QuestionStats.computeSectionSummary(historyArray, section, null);
+            writer.write(String.format(Locale.US, ",%.2f%%", summary.mps));
+        }
+        writer.write("\n");
+        
+        // Overall summary
+        QuestionStats.SectionSummary overallSummary = 
+                QuestionStats.computeOverallSummary(historyArray, null);
+        writer.write("\nOVERALL SUMMARY\n");
+        writer.write(String.format(Locale.US, "Total Score,%d\n", overallSummary.totalScore));
+        writer.write(String.format(Locale.US, "Mean,%.2f%%\n", overallSummary.mean));
+        writer.write(String.format(Locale.US, "Std Dev,%.2f\n", overallSummary.stdDev));
+        writer.write(String.format(Locale.US, "MPS,%.2f%%\n", overallSummary.mps));
+        writer.write(String.format(Locale.US, "Records,%d\n", overallSummary.recordCount));
+    }
+    
+    private String escapeCsv(String value) {
+        if (value == null) return "";
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
     }
 }
 
