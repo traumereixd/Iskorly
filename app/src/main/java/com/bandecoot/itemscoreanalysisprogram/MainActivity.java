@@ -1537,10 +1537,10 @@ public class MainActivity extends AppCompatActivity {
     private HashMap<Integer, String> parseAnswersFromText(String text) {
         if (text == null) return new HashMap<>();
         
-        // Use the enhanced parser from Parser.java
-        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextToAnswers(text);
+        // Use the SMART parser that handles answer-first lines and restricts to answer key
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextToAnswersSmart(text, currentAnswerKey);
         
-        // Filter to only answer key questions (Feature #1: Parsing Must Follow Answer Key Only)
+        // Filter to answer key order (smart parser already validates, but ensure ordering)
         LinkedHashMap<Integer, String> filtered = Parser.filterToAnswerKey(parsed, currentAnswerKey);
         
         // Convert LinkedHashMap to HashMap for compatibility
@@ -2937,13 +2937,39 @@ public class MainActivity extends AppCompatActivity {
                     ViewGroup.LayoutParams.WRAP_CONTENT));
             cardContent.setPadding(dp(12), dp(12), dp(12), dp(12));
             
-            // Section header (collapsible)
+            // Section header with trash button (horizontal layout)
+            LinearLayout headerLayout = new LinearLayout(this);
+            headerLayout.setOrientation(LinearLayout.HORIZONTAL);
+            headerLayout.setLayoutParams(new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+            
             TextView sectionHeader = new TextView(this);
             sectionHeader.setText(section + " ▼");
             sectionHeader.setTextSize(18);
             sectionHeader.setTypeface(sectionHeader.getTypeface(), Typeface.BOLD);
             sectionHeader.setTextColor(Color.BLACK);
             sectionHeader.setPadding(dp(8), dp(8), dp(8), dp(8));
+            sectionHeader.setLayoutParams(new LinearLayout.LayoutParams(
+                    0,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    1.0f)); // Weight 1 to take available space
+            
+            // Delete button for section
+            ImageButton deleteButton = new ImageButton(this);
+            deleteButton.setImageResource(android.R.drawable.ic_menu_delete);
+            deleteButton.setBackgroundColor(Color.TRANSPARENT);
+            deleteButton.setPadding(dp(8), dp(8), dp(8), dp(8));
+            deleteButton.setLayoutParams(new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+            deleteButton.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                confirmDeleteSectionAll(section);
+            });
+            
+            headerLayout.addView(sectionHeader);
+            headerLayout.addView(deleteButton);
             
             // Question table container
             LinearLayout tableContainer = new LinearLayout(this);
@@ -3022,13 +3048,61 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
             
-            cardContent.addView(sectionHeader);
+            cardContent.addView(headerLayout);
             cardContent.addView(tableContainer);
             sectionCard.addView(cardContent);
             masterlistContent.addView(sectionCard);
         }
         
         Log.d(TAG, "By Section view rendered with " + sections.size() + " section cards");
+    }
+    
+    /**
+     * Confirm before deleting all records for a section across all exams.
+     */
+    private void confirmDeleteSectionAll(String section) {
+        new AlertDialog.Builder(this)
+                .setTitle("Delete Section")
+                .setMessage("Delete all records for section \"" + section + "\" across all exams? This cannot be undone.")
+                .setPositiveButton("Delete", (dialog, which) -> {
+                    deleteSectionAll(section);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+    
+    /**
+     * Delete all records for a given section from history.
+     */
+    private void deleteSectionAll(String section) {
+        try {
+            JSONArray historyArray = getHistoryArray();
+            JSONArray newHistory = new JSONArray();
+            
+            // Keep only records that don't match the section
+            for (int i = 0; i < historyArray.length(); i++) {
+                JSONObject record = historyArray.getJSONObject(i);
+                String recordSection = record.optString("section", "");
+                if (!recordSection.equals(section)) {
+                    newHistory.put(record);
+                }
+            }
+            
+            // Save updated history
+            historyPreferences.edit()
+                    .putString("history_json", newHistory.toString())
+                    .apply();
+            
+            Toast.makeText(this, "Deleted all records for section: " + section, Toast.LENGTH_SHORT).show();
+            Log.d(TAG, "Deleted section " + section + " from history");
+            
+            // Refresh Masterlist display
+            displayMasterlist();
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error deleting section", e);
+            Toast.makeText(this, "Error deleting section", Toast.LENGTH_SHORT).show();
+        }
     }
     
     private void displayMasterlistAll(JSONArray historyArray) {
@@ -3118,7 +3192,8 @@ public class MainActivity extends AppCompatActivity {
                 if (sectionStats != null) {
                     QuestionStats.QuestionStat stat = sectionStats.get(q);
                     if (stat != null && stat.attemptCount > 0) {
-                        cell.setText(String.format(Locale.US, "%.1f%%", stat.percentCorrect));
+                        // Show correct count instead of percentage
+                        cell.setText(String.valueOf(stat.correctCount));
                     } else {
                         cell.setText("-");
                     }
@@ -3339,15 +3414,16 @@ public class MainActivity extends AppCompatActivity {
     private void updateMasterlistToggleButtons() {
         if (masterlistBySectionButton == null || masterlistAllButton == null) return;
         
-        if (masterlistShowBySection) {
-            masterlistBySectionButton.setBackgroundTintList(ColorStateList.valueOf(
-                    getResources().getColor(android.R.color.holo_blue_light, getTheme())));
-            masterlistAllButton.setBackgroundTintList(null);
-        } else {
-            masterlistBySectionButton.setBackgroundTintList(null);
-            masterlistAllButton.setBackgroundTintList(ColorStateList.valueOf(
-                    getResources().getColor(android.R.color.holo_blue_light, getTheme())));
-        }
+        // Both buttons use primary purple (indigo) background with white text
+        ColorStateList purpleTint = ColorStateList.valueOf(
+                getResources().getColor(R.color.primary_indigo, getTheme()));
+        ColorStateList whiteText = ColorStateList.valueOf(
+                getResources().getColor(R.color.on_primary, getTheme()));
+        
+        masterlistBySectionButton.setBackgroundTintList(purpleTint);
+        masterlistBySectionButton.setTextColor(whiteText);
+        masterlistAllButton.setBackgroundTintList(purpleTint);
+        masterlistAllButton.setTextColor(whiteText);
     }
     
     // ---------------------------
@@ -3585,7 +3661,7 @@ public class MainActivity extends AppCompatActivity {
         }
         writer.write("\n");
         
-        // Question rows (% correct)
+        // Question rows (correct counts instead of %)
         for (Integer q : allQuestions) {
             writer.write(String.valueOf(q));
             for (String section : sections) {
@@ -3593,7 +3669,7 @@ public class MainActivity extends AppCompatActivity {
                 if (sectionStats != null) {
                     QuestionStats.QuestionStat stat = sectionStats.get(q);
                     if (stat != null && stat.attemptCount > 0) {
-                        writer.write(String.format(Locale.US, ",%.1f%%", stat.percentCorrect));
+                        writer.write("," + stat.correctCount);
                     } else {
                         writer.write(",-");
                     }
