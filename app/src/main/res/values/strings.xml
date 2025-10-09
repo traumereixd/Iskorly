@@ -6,11 +6,11 @@
     <string name="hint_section">Subgroup 1 e.g: Name of Section</string>
     <string name="hint_exam">Subgroup 2 e.g: Name of subject and quiz</string>
 
-    <string name="btn_setup_key">Setup Answer Key</string>
+    <string name="btn_setup_key">Answer Key</string>
     <string name="btn_history">View History</string>
     <string name="btn_capture">Start Scan</string>
 
-    <string name="set_key_title">Setup Answer Key</string>
+    <string name="set_key_title">Answer Key</string>
     <string name="hint_qnum">Question #</string>
     <string name="hint_answer">Answer (A-Z letter or text)</string>
     <string name="btn_save">Save</string>
@@ -34,6 +34,7 @@
     <string name="slot_export_success">Slot exported successfully</string>
     <string name="slot_import_success">Slot imported successfully</string>
     <string name="slot_import_error">Error importing slot: %s</string>
+    <string name="btn_slot_save_set">Save Set</string>
     <string name="mps_format">MPS: %.1f%% (n=%d)</string>
 
     <string name="history_title">Test History</string>
@@ -63,6 +64,10 @@
     <string name="btn_import_photos">Import Photos</string>
     <string name="btn_masterlist">Masterlist</string>
     <string name="btn_export_item_stats">Export Item Stats</string>
+    <string name="btn_export_csv">Export CSV</string>
+    <string name="btn_import_students">Import Students</string>
+    <string name="masterlist_by_section">By Section</string>
+    <string name="masterlist_all">All</string>
     <string name="btn_main_start">Start</string>
     <string name="btn_main_tutorial">Tutorial</string>
     <string name="btn_main_credits">Credits</string>

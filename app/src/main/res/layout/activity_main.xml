@@ -12,77 +12,89 @@
 
         <!-- MAIN SCREEN -->
         <LinearLayout
-            android:id="@+id/main_layout"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:background="@drawable/main_bg"
-            android:padding="24dp">
+        android:id="@+id/main_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:background="@drawable/main_bg"
+        android:padding="24dp">
 
-            <com.google.android.material.card.MaterialCardView
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardElevation="8dp"
+            app:shapeAppearanceOverlay="@style/Shape.Large">
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                app:cardElevation="8dp"
-                app:shapeAppearanceOverlay="@style/Shape.Large">
+                android:orientation="vertical"
+                android:padding="16dp">
 
+                <TextView
+                    android:id="@+id/textView_intro"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingBottom="8dp"
+                    android:text="@string/intro_text"
+                    android:textColor="?attr/colorOnSurfaceVariant"
+                    android:textSize="18sp" />
+
+                <!-- Inputs: Student, Section (Subgroup 1), Exam (Subgroup 2) -->
+
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/hint_student">
+
+                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                        android:id="@+id/editText_student_name"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="textCapWords" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:hint="@string/hint_section">
+
+                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                        android:id="@+id/editText_section_name"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="textCapSentences" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:hint="@string/hint_exam">
+
+                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                        android:id="@+id/editText_exam_name"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="textCapSentences" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <!-- 2x2 button grid -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
+                    android:layout_marginTop="16dp"
+                    android:orientation="vertical">
 
-                    <TextView
-                        android:id="@+id/textView_intro"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="@string/intro_text"
-                        android:textColor="?attr/colorOnSurfaceVariant"
-                        android:textSize="18sp"
-                        android:paddingBottom="8dp" />
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="@string/hint_student"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/editText_student_name"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="textCapWords" />
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:hint="@string/hint_section"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/editText_section_name"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="textCapSentences" />
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:hint="@string/hint_exam"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/editText_exam_name"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="textCapSentences" />
-                    </com.google.android.material.textfield.TextInputLayout>
-
+                    <!-- Row 1: Setup Answer Key | View History -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:gravity="center"
                         android:orientation="horizontal">
 
                         <com.google.android.material.button.MaterialButton
@@ -92,9 +104,9 @@
                             android:layout_height="wrap_content"
                             android:layout_marginEnd="8dp"
                             android:layout_weight="1"
-                            app:backgroundTint="?attr/colorPrimary"
+                            android:text="@string/btn_setup_key"
                             android:textColor="@color/on_primary"
-                            android:text="@string/btn_setup_key" />
+                            app:backgroundTint="?attr/colorPrimary" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/button_view_history"
@@ -103,32 +115,53 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="@string/btn_history"
-                            app:backgroundTint="?attr/colorPrimary"
-                            android:textColor="@color/on_primary" />
+                            android:textColor="@color/on_primary"
+                            app:backgroundTint="?attr/colorPrimary" />
                     </LinearLayout>
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/button_scan"
-                        style="@style/Widget.Material3.Button"
+                    <!-- Row 2: Import Students | Back to Main Menu -->
+                    <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:text="@string/btn_capture" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/button_back_to_menu"
-                        style="@style/Widget.Material3.Button"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center_horizontal"
                         android:layout_marginTop="8dp"
-                        android:text="Back to Main Menu"
-                        android:textSize="12sp"
-                        app:backgroundTint="?attr/colorPrimary"
-                        android:textColor="@color/on_primary" />
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/button_import_students"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="8dp"
+                            android:layout_weight="1"
+                            android:text="@string/btn_import_students"
+                            android:textColor="@color/on_primary"
+                            android:textSize="12sp"
+                            app:backgroundTint="?attr/colorPrimary" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/button_back_to_menu"
+                            style="@style/Widget.Material3.Button"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Back to Main Menu"
+                            android:textColor="@color/on_primary"
+                            android:textSize="12sp"
+                            app:backgroundTint="?attr/colorPrimary" />
+                    </LinearLayout>
                 </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-        </LinearLayout>
+
+                <!-- Start Scan button below the grid -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/button_scan"
+                    style="@style/Widget.Material3.Button"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/btn_capture" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
 
         <!-- ANSWER KEY OVERLAY -->
         <LinearLayout
@@ -240,7 +273,16 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
+                            android:layout_marginEnd="4dp"
                             android:text="@string/btn_slot_export" />
+                        
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_slot_save_set"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/btn_slot_save_set" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -637,14 +679,59 @@
                         android:text="Filter: All exams and sections"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:textSize="14sp" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/button_masterlist_back"
-                        style="@style/Widget.Material3.Button"
-                        android:layout_width="wrap_content"
+                    
+                    <!-- Toggle for By Section / All -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+                        
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/button_masterlist_by_section"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="4dp"
+                            android:text="@string/masterlist_by_section" />
+                        
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/button_masterlist_all"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="4dp"
+                            android:text="@string/masterlist_all" />
+                    </LinearLayout>
+                    
+                    <!-- Action buttons -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:text="@string/btn_back" />
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/button_masterlist_back"
+                            style="@style/Widget.Material3.Button"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="4dp"
+                            android:text="@string/btn_back" />
+                        
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/button_export_masterlist_csv"
+                            style="@style/Widget.Material3.Button"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="4dp"
+                            android:text="@string/btn_export_csv" />
+                    </LinearLayout>
 
                     <ScrollView
                         android:layout_width="match_parent"
