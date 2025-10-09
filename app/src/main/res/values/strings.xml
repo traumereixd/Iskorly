@@ -68,6 +68,7 @@
     <string name="btn_import_students">Import Students</string>
     <string name="masterlist_by_section">By Section</string>
     <string name="masterlist_all">All</string>
+    <string name="btn_reset_all">Reset All</string>
     <string name="btn_main_start">Start</string>
     <string name="btn_main_tutorial">Tutorial</string>
     <string name="btn_main_credits">Credits</string>
