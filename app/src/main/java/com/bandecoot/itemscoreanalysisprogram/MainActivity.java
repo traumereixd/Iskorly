@@ -108,7 +108,7 @@ public class MainActivity extends AppCompatActivity {
     private Button saveAnswerButton, removeAnswerButton, clearButton, backButton;
     private Button historyBackButton, tryAgainButton, captureResultButton, cancelScanButton;
     private Button confirmParsedButton, importPhotosButton, masterlistButton, masterlistBackButton, exportCsvButton;
-    private Button importStudentsButton, exportMasterlistCsvButton;
+    private Button importStudentsButton, exportMasterlistCsvButton, masterlistResetAllButton;
     private Button masterlistBySectionButton, masterlistAllButton, btnSlotSaveSet;
     private TextView currentKeyTextView, sessionScoreTextView, parsedLabel, masterlistInfoTextView;
     private MaterialCardView resultsCard;
@@ -844,6 +844,15 @@ public class MainActivity extends AppCompatActivity {
             exportMasterlistCsvButton.setOnClickListener(v -> {
                 v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
                 exportMasterlistCsv();
+            });
+        }
+        
+        // Reset All button in Masterlist
+        masterlistResetAllButton = findViewById(R.id.button_masterlist_reset_all);
+        if (masterlistResetAllButton != null) {
+            masterlistResetAllButton.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                confirmResetAll();
             });
         }
 
@@ -2937,7 +2946,7 @@ public class MainActivity extends AppCompatActivity {
                     ViewGroup.LayoutParams.WRAP_CONTENT));
             cardContent.setPadding(dp(12), dp(12), dp(12), dp(12));
             
-            // Section header with trash button (horizontal layout)
+            // Section header with edit and trash buttons (horizontal layout)
             LinearLayout headerLayout = new LinearLayout(this);
             headerLayout.setOrientation(LinearLayout.HORIZONTAL);
             headerLayout.setLayoutParams(new LinearLayout.LayoutParams(
@@ -2955,6 +2964,20 @@ public class MainActivity extends AppCompatActivity {
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     1.0f)); // Weight 1 to take available space
             
+            // Rename (edit) button for section
+            ImageButton renameButton = new ImageButton(this);
+            renameButton.setImageResource(android.R.drawable.ic_menu_edit);
+            renameButton.setBackgroundColor(Color.TRANSPARENT);
+            renameButton.setPadding(dp(8), dp(8), dp(8), dp(8));
+            renameButton.setLayoutParams(new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+            renameButton.setContentDescription("Rename section");
+            renameButton.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                promptRenameSectionAll(section);
+            });
+            
             // Delete button for section
             ImageButton deleteButton = new ImageButton(this);
             deleteButton.setImageResource(android.R.drawable.ic_menu_delete);
@@ -2963,12 +2986,14 @@ public class MainActivity extends AppCompatActivity {
             deleteButton.setLayoutParams(new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT));
+            deleteButton.setContentDescription("Delete section");
             deleteButton.setOnClickListener(v -> {
                 v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
                 confirmDeleteSectionAll(section);
             });
             
             headerLayout.addView(sectionHeader);
+            headerLayout.addView(renameButton);
             headerLayout.addView(deleteButton);
             
             // Question table container
@@ -3088,10 +3113,8 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
             
-            // Save updated history
-            historyPreferences.edit()
-                    .putString("history_json", newHistory.toString())
-                    .apply();
+            // Save updated history using the correct method
+            saveHistoryArray(newHistory);
             
             Toast.makeText(this, "Deleted all records for section: " + section, Toast.LENGTH_SHORT).show();
             Log.d(TAG, "Deleted section " + section + " from history");
@@ -3103,6 +3126,101 @@ public class MainActivity extends AppCompatActivity {
             Log.e(TAG, "Error deleting section", e);
             Toast.makeText(this, "Error deleting section", Toast.LENGTH_SHORT).show();
         }
+    }
+    
+    /**
+     * Confirm before resetting all history records.
+     */
+    private void confirmResetAll() {
+        new AlertDialog.Builder(this)
+                .setTitle("Reset All Records")
+                .setMessage("Delete ALL records across all exams and sections? This cannot be undone.")
+                .setPositiveButton("Delete All", (dialog, which) -> {
+                    resetAllHistory();
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+    
+    /**
+     * Reset all history records.
+     */
+    private void resetAllHistory() {
+        try {
+            // Clear the history by saving an empty array
+            saveHistoryArray(new JSONArray());
+            
+            Toast.makeText(this, "All records have been reset", Toast.LENGTH_SHORT).show();
+            Log.d(TAG, "Reset all history records");
+            
+            // Refresh Masterlist display
+            displayMasterlist();
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error resetting history", e);
+            Toast.makeText(this, "Error resetting history", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    /**
+     * Prompt to rename a section across all records (any exam).
+     */
+    private void promptRenameSectionAll(String oldSection) {
+        final EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+        input.setText(oldSection);
+        
+        new AlertDialog.Builder(this)
+                .setTitle("Rename Section")
+                .setMessage("Rename section \"" + oldSection + "\" across all exams?")
+                .setView(input)
+                .setPositiveButton("Rename", (dialog, which) -> {
+                    String newName = input.getText().toString().trim();
+                    
+                    // Validate: ignore if empty or unchanged
+                    if (newName.isEmpty() || newName.equals(oldSection)) {
+                        if (newName.isEmpty()) {
+                            Toast.makeText(this, "Section name cannot be empty", Toast.LENGTH_SHORT).show();
+                        }
+                        return;
+                    }
+                    
+                    // Rename section across all records
+                    try {
+                        JSONArray historyArray = getHistoryArray();
+                        JSONArray newHistory = new JSONArray();
+                        int renamedCount = 0;
+                        
+                        for (int i = 0; i < historyArray.length(); i++) {
+                            JSONObject record = historyArray.getJSONObject(i);
+                            String recordSection = record.optString("section", "");
+                            
+                            if (recordSection.equals(oldSection)) {
+                                record.put("section", newName);
+                                renamedCount++;
+                            }
+                            
+                            newHistory.put(record);
+                        }
+                        
+                        // Save updated history
+                        saveHistoryArray(newHistory);
+                        
+                        Toast.makeText(this, 
+                                String.format(Locale.US, "Renamed section in %d record(s)", renamedCount), 
+                                Toast.LENGTH_SHORT).show();
+                        Log.d(TAG, "Renamed section " + oldSection + " to " + newName + " in " + renamedCount + " records");
+                        
+                        // Refresh Masterlist display
+                        displayMasterlist();
+                        
+                    } catch (Exception e) {
+                        Log.e(TAG, "Error renaming section", e);
+                        Toast.makeText(this, "Error renaming section", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
     
     private void displayMasterlistAll(JSONArray historyArray) {
