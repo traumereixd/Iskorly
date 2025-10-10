@@ -3294,6 +3294,52 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         
+        // Phase 3: Add heatmap legend
+        MaterialCardView legendCard = new MaterialCardView(this);
+        legendCard.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, 
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        legendCard.setCardBackgroundColor(0xFFF5F5F5);
+        legendCard.setCardElevation(dp(2));
+        legendCard.setRadius(dp(6));
+        LinearLayout.LayoutParams legendParams = 
+                (LinearLayout.LayoutParams) legendCard.getLayoutParams();
+        legendParams.setMargins(0, 0, 0, dp(12));
+        legendCard.setLayoutParams(legendParams);
+        
+        LinearLayout legendLayout = new LinearLayout(this);
+        legendLayout.setOrientation(LinearLayout.HORIZONTAL);
+        legendLayout.setPadding(dp(12), dp(8), dp(12), dp(8));
+        
+        TextView legendLabel = new TextView(this);
+        legendLabel.setText("🎨 Heatmap: ");
+        legendLabel.setTextSize(12);
+        legendLabel.setTextColor(0xFF424242);
+        legendLabel.setTypeface(legendLabel.getTypeface(), Typeface.BOLD);
+        legendLayout.addView(legendLabel);
+        
+        // Add color samples
+        String[] labels = {"0-49%", "50-69%", "70-84%", "85-100%"};
+        int[] colors = {0xFFFFCDD2, 0xFFFFF9C4, 0xFFDCEDC8, 0xFFC8E6C9};
+        
+        for (int i = 0; i < labels.length; i++) {
+            TextView sample = new TextView(this);
+            sample.setText(" " + labels[i] + " ");
+            sample.setTextSize(11);
+            sample.setTextColor(0xFF212121);
+            sample.setBackgroundColor(colors[i]);
+            sample.setPadding(dp(6), dp(2), dp(6), dp(2));
+            LinearLayout.LayoutParams sampleParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT);
+            sampleParams.setMargins(dp(4), 0, dp(4), 0);
+            sample.setLayoutParams(sampleParams);
+            legendLayout.addView(sample);
+        }
+        
+        legendCard.addView(legendLayout);
+        masterlistContent.addView(legendCard);
+        
         // Compute per-section stats
         Map<String, Map<Integer, QuestionStats.QuestionStat>> perSectionStats = 
                 QuestionStats.computePerSectionStats(historyArray, currentAnswerKey, null);
@@ -3367,13 +3413,19 @@ public class MainActivity extends AppCompatActivity {
                 if (sectionStats != null) {
                     QuestionStats.QuestionStat stat = sectionStats.get(q);
                     if (stat != null && stat.attemptCount > 0) {
-                        // Show correct count instead of percentage
+                        // Show correct count
                         cell.setText(String.valueOf(stat.correctCount));
+                        
+                        // Phase 3: Apply heatmap color based on % correct
+                        int heatmapColor = getHeatmapColor(stat.percentCorrect);
+                        cell.setBackgroundColor(heatmapColor);
                     } else {
                         cell.setText("-");
+                        cell.setBackgroundColor(0xFFFFFFFF); // White for no data
                     }
                 } else {
                     cell.setText("-");
+                    cell.setBackgroundColor(0xFFFFFFFF);
                 }
                 cell.setTextSize(12);
                 cell.setTextColor(Color.BLACK);
@@ -3495,6 +3547,34 @@ public class MainActivity extends AppCompatActivity {
         tv.setLayoutParams(params);
         
         row.addView(tv);
+    }
+    
+    /**
+     * Phase 3: Compute heatmap color based on performance percentage.
+     * Uses discrete color scale: red (poor) -> yellow (medium) -> green (good).
+     * 
+     * @param percentCorrect Percentage correct [0-100]
+     * @return Color int for background
+     */
+    private int getHeatmapColor(double percentCorrect) {
+        if (percentCorrect < 0 || percentCorrect > 100) {
+            return 0xFFFFFFFF; // White for invalid values
+        }
+        
+        // Discrete color scale
+        if (percentCorrect < 50) {
+            // Red zone (0-49%): #FFCDD2 (light red)
+            return 0xFFFFCDD2;
+        } else if (percentCorrect < 70) {
+            // Yellow zone (50-69%): #FFF9C4 (light yellow)
+            return 0xFFFFF9C4;
+        } else if (percentCorrect < 85) {
+            // Light green zone (70-84%): #DCEDC8 (light lime)
+            return 0xFFDCEDC8;
+        } else {
+            // Green zone (85-100%): #C8E6C9 (light green)
+            return 0xFFC8E6C9;
+        }
     }
     
     // ---------------------------
