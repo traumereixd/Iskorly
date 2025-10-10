@@ -3053,33 +3053,6 @@ public class MainActivity extends AppCompatActivity {
         List<String> sections = QuestionStats.getUniqueSections(historyArray, null);
         Log.d(TAG, "Displaying By Section view for " + sections.size() + " sections");
         
-        // Add analytics legend/explainer (Phase 2)
-        MaterialCardView legendCard = new MaterialCardView(this);
-        legendCard.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 
-                ViewGroup.LayoutParams.WRAP_CONTENT));
-        legendCard.setCardBackgroundColor(0xFFFFF9C4); // Light yellow background
-        legendCard.setCardElevation(dp(2));
-        legendCard.setRadius(dp(6));
-        LinearLayout.LayoutParams legendParams = 
-                (LinearLayout.LayoutParams) legendCard.getLayoutParams();
-        legendParams.setMargins(0, 0, 0, dp(12));
-        legendCard.setLayoutParams(legendParams);
-        
-        TextView legendText = new TextView(this);
-        legendText.setPadding(dp(12), dp(10), dp(12), dp(10));
-        legendText.setTextSize(12);
-        legendText.setTextColor(0xFF424242);
-        legendText.setText("📊 Analytics Guide:\n" +
-                "• Difficulty (p-value): proportion correct [0-1]; higher = easier\n" +
-                "• Discrimination (r): correlation with total score; >0.2 is acceptable, >0.3 is good\n" +
-                "• Upper%/Lower%: performance of top/bottom 27% students; large gap = good discrimination\n" +
-                "• Reliability (KR-20/α): test consistency [0-1]; >0.7 is acceptable, >0.8 is good\n" +
-                "• SEM: standard error of measurement; lower is better");
-        
-        legendCard.addView(legendText);
-        masterlistContent.addView(legendCard);
-        
         if (sections.isEmpty()) {
             TextView noSectionsMsg = new TextView(this);
             noSectionsMsg.setText("No sections found in history.");
@@ -3168,31 +3141,23 @@ public class MainActivity extends AppCompatActivity {
             Map<Integer, QuestionStats.QuestionStat> stats = 
                     QuestionStats.computeQuestionStats(historyArray, currentAnswerKey, null, section);
             
-            // Compute advanced analytics (Phase 2)
-            QuestionStats.computeDiscrimination(historyArray, currentAnswerKey, null, section, stats);
-            QuestionStats.computeUpperLower27(historyArray, currentAnswerKey, null, section, stats);
-            
             List<Integer> questions = QuestionStats.getSortedQuestions(stats);
             
-            // Header row with advanced analytics columns
+            // Header row
             LinearLayout headerRow = new LinearLayout(this);
             headerRow.setOrientation(LinearLayout.HORIZONTAL);
             headerRow.setPadding(dp(4), dp(4), dp(4), dp(4));
             headerRow.setBackgroundColor(0xFFE0E0E0);
             
-            addTableCell(headerRow, "Q#", 0.10f, true);
-            addTableCell(headerRow, "Correct", 0.12f, true);
-            addTableCell(headerRow, "Incorrect", 0.12f, true);
-            addTableCell(headerRow, "% Correct", 0.13f, true);
-            addTableCell(headerRow, "Difficulty", 0.13f, true);
-            addTableCell(headerRow, "Discrim.", 0.13f, true);
-            addTableCell(headerRow, "Upper%", 0.10f, true);
-            addTableCell(headerRow, "Lower%", 0.10f, true);
-            addTableCell(headerRow, "Common Miss", 0.17f, true);
+            addTableCell(headerRow, "Q#", 0.15f, true);
+            addTableCell(headerRow, "Correct", 0.18f, true);
+            addTableCell(headerRow, "Incorrect", 0.18f, true);
+            addTableCell(headerRow, "% Correct", 0.20f, true);
+            addTableCell(headerRow, "Common Miss", 0.29f, true);
             
             tableContainer.addView(headerRow);
             
-            // Data rows with advanced analytics
+            // Data rows
             for (Integer q : questions) {
                 QuestionStats.QuestionStat stat = stats.get(q);
                 if (stat == null) continue;
@@ -3207,38 +3172,29 @@ public class MainActivity extends AppCompatActivity {
                     row.setBackgroundColor(0xFFFFFFFF);
                 }
                 
-                addTableCell(row, String.valueOf(q), 0.10f, false);
-                addTableCell(row, String.valueOf(stat.correctCount), 0.12f, false);
-                addTableCell(row, String.valueOf(stat.incorrectCount), 0.12f, false);
-                addTableCell(row, String.format(Locale.US, "%.1f%%", stat.percentCorrect), 0.13f, false);
-                
-                // Advanced analytics
-                addTableCell(row, String.format(Locale.US, "%.2f", stat.difficulty), 0.13f, false);
-                addTableCell(row, String.format(Locale.US, "%.2f", stat.discrimination), 0.13f, false);
-                addTableCell(row, String.format(Locale.US, "%.1f%%", stat.upperPercent), 0.10f, false);
-                addTableCell(row, String.format(Locale.US, "%.1f%%", stat.lowerPercent), 0.10f, false);
+                addTableCell(row, String.valueOf(q), 0.15f, false);
+                addTableCell(row, String.valueOf(stat.correctCount), 0.18f, false);
+                addTableCell(row, String.valueOf(stat.incorrectCount), 0.18f, false);
+                addTableCell(row, String.format(Locale.US, "%.1f%%", stat.percentCorrect), 0.20f, false);
                 
                 String missInfo = stat.mostCommonWrongCount > 0 
                         ? stat.mostCommonWrong + " (" + stat.mostCommonWrongCount + ")"
                         : "-";
-                addTableCell(row, missInfo, 0.17f, false);
+                addTableCell(row, missInfo, 0.29f, false);
                 
                 tableContainer.addView(row);
             }
             
-            // Section summary with reliability metrics (Phase 2)
+            // Section summary
             QuestionStats.SectionSummary summary = 
                     QuestionStats.computeSectionSummary(historyArray, section, null);
-            
-            // Compute reliability metrics
-            QuestionStats.computeReliability(historyArray, currentAnswerKey, null, section, summary);
             
             TextView summaryText = new TextView(this);
             summaryText.setPadding(dp(8), dp(12), dp(8), dp(8));
             summaryText.setTextSize(13);
             summaryText.setTextColor(0xFF424242);
             
-            // Build summary text with reliability info
+            // Build summary text
             StringBuilder summaryBuilder = new StringBuilder();
             
             // Compute raw scores from percentages
@@ -3255,15 +3211,8 @@ public class MainActivity extends AppCompatActivity {
             }
             
             summaryBuilder.append(String.format(Locale.US,
-                    "Overall Score: %d | Mean: %s | Std Dev: %.2f | MPS: %s (n=%d)\n",
+                    "Overall Score: %d | Mean: %s | Std Dev: %.2f | MPS: %s (n=%d)",
                     summary.totalScore, meanStr, summary.stdDev, mpsStr, summary.recordCount));
-            
-            // Add reliability metrics if available
-            if (summary.recordCount >= 2 && currentAnswerKey.size() > 1) {
-                summaryBuilder.append(String.format(Locale.US,
-                        "Reliability: KR-20=%.3f | α=%.3f | SEM=%.2f",
-                        summary.kr20, summary.cronbachAlpha, summary.sem));
-            }
             
             summaryText.setText(summaryBuilder.toString());
             
@@ -4472,14 +4421,10 @@ public class MainActivity extends AppCompatActivity {
         
         for (String section : sections) {
             writer.write("Section: " + escapeCsv(section) + "\n");
-            writer.write("Q#,Correct,Incorrect,% Correct,Difficulty,Discrimination,Upper%,Lower%,Delta,Common Miss\n");
+            writer.write("Q#,Correct,Incorrect,% Correct,Common Miss\n");
             
             Map<Integer, QuestionStats.QuestionStat> stats = 
                     QuestionStats.computeQuestionStats(historyArray, currentAnswerKey, null, section);
-            
-            // Compute advanced analytics (Phase 2)
-            QuestionStats.computeDiscrimination(historyArray, currentAnswerKey, null, section, stats);
-            QuestionStats.computeUpperLower27(historyArray, currentAnswerKey, null, section, stats);
             
             List<Integer> questions = QuestionStats.getSortedQuestions(stats);
             
@@ -4491,17 +4436,15 @@ public class MainActivity extends AppCompatActivity {
                         ? stat.mostCommonWrong + " (" + stat.mostCommonWrongCount + ")"
                         : "-";
                 
-                writer.write(String.format(Locale.US, "%d,%d,%d,%.1f%%,%.3f,%.3f,%.1f%%,%.1f%%,%.1f%%,%s\n",
+                writer.write(String.format(Locale.US, "%d,%d,%d,%.1f%%,%s\n",
                         q, stat.correctCount, stat.incorrectCount, 
-                        stat.percentCorrect, stat.difficulty, stat.discrimination,
-                        stat.upperPercent, stat.lowerPercent, stat.upperLowerDelta,
+                        stat.percentCorrect,
                         escapeCsv(commonMiss)));
             }
             
-            // Section summary with reliability metrics (Phase 2)
+            // Section summary
             QuestionStats.SectionSummary summary = 
                     QuestionStats.computeSectionSummary(historyArray, section, null);
-            QuestionStats.computeReliability(historyArray, currentAnswerKey, null, section, summary);
             
             writer.write(String.format(Locale.US, 
                     "\nSummary for %s\n", escapeCsv(section)));
@@ -4515,18 +4458,6 @@ public class MainActivity extends AppCompatActivity {
                     "MPS,%.2f%%\n", summary.mps));
             writer.write(String.format(Locale.US, 
                     "Records,%d\n", summary.recordCount));
-            
-            // Add reliability metrics if available
-            if (summary.recordCount >= 2 && currentAnswerKey.size() > 1) {
-                writer.write(String.format(Locale.US, 
-                        "KR-20,%.3f\n", summary.kr20));
-                writer.write(String.format(Locale.US, 
-                        "Cronbach's Alpha,%.3f\n", summary.cronbachAlpha));
-                writer.write(String.format(Locale.US, 
-                        "KR-21,%.3f\n", summary.kr21));
-                writer.write(String.format(Locale.US, 
-                        "SEM,%.2f\n", summary.sem));
-            }
             
             writer.write("\n");
         }
@@ -4638,7 +4569,7 @@ public class MainActivity extends AppCompatActivity {
      * Load OCR settings from SharedPreferences and update UI switches.
      */
     private void loadOcrSettings() {
-        boolean twoColumnEnabled = appPreferences.getBoolean(PREF_OCR_TWO_COLUMN, true);
+        boolean twoColumnEnabled = appPreferences.getBoolean(PREF_OCR_TWO_COLUMN, false);
         boolean highContrastEnabled = appPreferences.getBoolean(PREF_OCR_HIGH_CONTRAST, false);
         
         if (switchOcrTwoColumn != null) {
@@ -4655,7 +4586,7 @@ public class MainActivity extends AppCompatActivity {
      * Check if two-column OCR mode is enabled.
      */
     private boolean isTwoColumnEnabled() {
-        return appPreferences.getBoolean(PREF_OCR_TWO_COLUMN, true);
+        return appPreferences.getBoolean(PREF_OCR_TWO_COLUMN, false);
     }
     
     /**
