@@ -226,6 +226,209 @@ public class OcrProcessor {
         return ocrSpaceApiKey != null && !ocrSpaceApiKey.trim().isEmpty();
     }
     
+    // ========== Phase 4: OCR Robustness Enhancements ==========
+    
+    /**
+     * Process image with high-contrast preprocessing mode.
+     * Uses adaptive thresholding to improve handwriting recognition.
+     * 
+     * @param bitmap Source bitmap
+     * @return Parsed answers
+     */
+    public HashMap<Integer, String> processImageWithHighContrast(Bitmap bitmap) {
+        if (bitmap == null) {
+            Log.e(TAG, "Bitmap is null");
+            return new HashMap<>();
+        }
+        
+        try {
+            // Apply high-contrast thresholding
+            Bitmap thresholded = ImageUtil.thresholdForOcr(bitmap);
+            if (thresholded == null) {
+                Log.e(TAG, "Thresholding failed");
+                return new HashMap<>();
+            }
+            
+            // Compress to JPEG
+            byte[] jpegBytes = ImageUtil.resizeAndCompress(thresholded, 1600);
+            thresholded.recycle();
+            
+            // OCR
+            String recognizedText = callVisionApi(jpegBytes);
+            
+            // Fallback to OCR.Space if empty
+            if ((recognizedText == null || recognizedText.trim().isEmpty()) && hasOcrSpaceKey()) {
+                Log.d(TAG, "Vision returned empty, trying OCR.Space fallback with high-contrast");
+                recognizedText = callOcrSpaceApi(jpegBytes);
+            }
+            
+            if (recognizedText == null) {
+                recognizedText = "";
+            }
+            
+            // Parse and filter
+            return parseAndFilter(recognizedText);
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error processing image with high-contrast", e);
+            return new HashMap<>();
+        }
+    }
+    
+    /**
+     * Process image using two-column OCR mode.
+     * Splits image into left/right halves, processes each separately,
+     * then merges results (first non-blank answer wins).
+     * 
+     * @param bitmap Source bitmap
+     * @return Parsed answers merged from both columns
+     */
+    public HashMap<Integer, String> processImageTwoColumn(Bitmap bitmap) {
+        if (bitmap == null) {
+            Log.e(TAG, "Bitmap is null");
+            return new HashMap<>();
+        }
+        
+        try {
+            // Split image vertically
+            Bitmap[] halves = ImageUtil.splitImageVertically(bitmap);
+            Bitmap leftHalf = halves[0];
+            Bitmap rightHalf = halves[1];
+            
+            if (leftHalf == null || rightHalf == null) {
+                Log.e(TAG, "Image split failed");
+                return new HashMap<>();
+            }
+            
+            // Process left half
+            HashMap<Integer, String> leftAnswers = processHalf(leftHalf, "left");
+            leftHalf.recycle();
+            
+            // Process right half
+            HashMap<Integer, String> rightAnswers = processHalf(rightHalf, "right");
+            rightHalf.recycle();
+            
+            // Merge results: first non-blank answer wins
+            HashMap<Integer, String> merged = new HashMap<>();
+            
+            // Add left answers first
+            merged.putAll(leftAnswers);
+            
+            // Add right answers if not already present or if left was empty
+            for (Map.Entry<Integer, String> entry : rightAnswers.entrySet()) {
+                Integer q = entry.getKey();
+                String rightAns = entry.getValue();
+                
+                if (!merged.containsKey(q) || merged.get(q).trim().isEmpty()) {
+                    merged.put(q, rightAns);
+                }
+            }
+            
+            Log.d(TAG, "Two-column merge: left=" + leftAnswers.size() + 
+                    ", right=" + rightAnswers.size() + ", merged=" + merged.size());
+            
+            return merged;
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error processing two-column image", e);
+            return new HashMap<>();
+        }
+    }
+    
+    /**
+     * Process a single half of the image (helper for two-column mode).
+     */
+    private HashMap<Integer, String> processHalf(Bitmap half, String side) {
+        try {
+            // Enhance for OCR
+            Bitmap enhanced = ImageUtil.enhanceForOcr(half);
+            if (enhanced == null) {
+                Log.e(TAG, "Enhancement failed for " + side + " half");
+                return new HashMap<>();
+            }
+            
+            // Compress to JPEG
+            byte[] jpegBytes = ImageUtil.resizeAndCompress(enhanced, 1600);
+            enhanced.recycle();
+            
+            // OCR
+            String recognizedText = callVisionApi(jpegBytes);
+            
+            // Fallback to OCR.Space if empty
+            if ((recognizedText == null || recognizedText.trim().isEmpty()) && hasOcrSpaceKey()) {
+                Log.d(TAG, "Vision returned empty for " + side + " half, trying OCR.Space");
+                recognizedText = callOcrSpaceApi(jpegBytes);
+            }
+            
+            if (recognizedText == null) {
+                recognizedText = "";
+            }
+            
+            // Parse and filter
+            return parseAndFilter(recognizedText);
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error processing " + side + " half", e);
+            return new HashMap<>();
+        }
+    }
+    
+    /**
+     * Process image using smart parser with answer-first support.
+     * Uses restricted parsing based on allowed answer tokens from the answer key.
+     * 
+     * @param bitmap Source bitmap
+     * @return Parsed answers using smart parser
+     */
+    public HashMap<Integer, String> processImageWithSmartParser(Bitmap bitmap) {
+        if (bitmap == null) {
+            Log.e(TAG, "Bitmap is null");
+            return new HashMap<>();
+        }
+        
+        try {
+            // Enhance for OCR
+            Bitmap enhanced = ImageUtil.enhanceForOcr(bitmap);
+            if (enhanced == null) {
+                Log.e(TAG, "Enhancement failed");
+                return new HashMap<>();
+            }
+            
+            // Compress to JPEG
+            byte[] jpegBytes = ImageUtil.resizeAndCompress(enhanced, 1600);
+            enhanced.recycle();
+            
+            // OCR
+            String recognizedText = callVisionApi(jpegBytes);
+            
+            // Fallback to OCR.Space if empty
+            if ((recognizedText == null || recognizedText.trim().isEmpty()) && hasOcrSpaceKey()) {
+                Log.d(TAG, "Vision returned empty, trying OCR.Space fallback");
+                recognizedText = callOcrSpaceApi(jpegBytes);
+            }
+            
+            if (recognizedText == null) {
+                recognizedText = "";
+            }
+            
+            // Use smart parser with answer key validation
+            LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextToAnswersSmart(recognizedText, answerKey);
+            
+            // Filter to answer key (additional safety check)
+            LinkedHashMap<Integer, String> filtered = Parser.filterToAnswerKey(parsed, answerKey);
+            
+            // Convert to HashMap
+            HashMap<Integer, String> result = new HashMap<>();
+            result.putAll(filtered);
+            
+            return result;
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error processing image with smart parser", e);
+            return new HashMap<>();
+        }
+    }
+    
     /**
      * Close and cleanup resources.
      */
