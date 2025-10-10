@@ -102,6 +102,7 @@ public class MainActivity extends AppCompatActivity {
     private Button backToMenuButton;
     private LinearLayout mainLayout, answerKeyLayout, testHistoryLayout, scanSessionLayout, masterlistLayout;
     private LinearLayout autocompleteManagerLayout;
+    private LinearLayout settingsLayout;
     private MaterialAutoCompleteTextView studentNameInput, sectionNameInput, examNameInput;
     private EditText questionNumberInput, removeQuestionInput;
     private MaterialAutoCompleteTextView answerDropdown;
@@ -111,6 +112,8 @@ public class MainActivity extends AppCompatActivity {
     private Button confirmParsedButton, importPhotosButton, masterlistButton, masterlistBackButton, exportCsvButton;
     private Button manageAutocompleteButton, exportMasterlistCsvButton, masterlistResetAllButton;
     private Button masterlistBySectionButton, masterlistAllButton, btnSlotSaveSet;
+    private Button buttonSettings, buttonSettingsClose;
+    private com.google.android.material.materialswitch.MaterialSwitch switchOcrTwoColumn, switchOcrHighContrast;
     private TextView currentKeyTextView, sessionScoreTextView, parsedLabel, masterlistInfoTextView;
     private MaterialCardView resultsCard;
     private LinearLayout testHistoryList, parsedAnswersContainer, masterlistContent;
@@ -143,6 +146,8 @@ public class MainActivity extends AppCompatActivity {
     private static final String PREF_RECENT_STUDENTS = "recent_students";
     private static final String PREF_RECENT_SECTIONS = "recent_sections";
     private static final String PREF_RECENT_EXAMS = "recent_exams";
+    private static final String PREF_OCR_TWO_COLUMN = "ocr_two_column_enabled";
+    private static final String PREF_OCR_HIGH_CONTRAST = "ocr_high_contrast_enabled";
     private static final int MAX_RECENTS = 50;
     private String currentSlotId = "default";
     private final HashMap<String, SlotData> slots = new HashMap<>();
@@ -931,6 +936,47 @@ public class MainActivity extends AppCompatActivity {
             masterlistResetAllButton.setOnClickListener(v -> {
                 v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
                 confirmResetAll();
+            });
+        }
+        
+        // Settings overlay
+        settingsLayout = findViewById(R.id.settings_layout);
+        buttonSettings = findViewById(R.id.button_settings);
+        buttonSettingsClose = findViewById(R.id.button_settings_close);
+        switchOcrTwoColumn = findViewById(R.id.switch_ocr_two_column);
+        switchOcrHighContrast = findViewById(R.id.switch_ocr_high_contrast);
+        
+        // Load OCR settings from preferences
+        loadOcrSettings();
+        
+        // Settings button listener
+        if (buttonSettings != null) {
+            buttonSettings.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                showSettings();
+            });
+        }
+        
+        // Settings close button listener
+        if (buttonSettingsClose != null) {
+            buttonSettingsClose.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                hideSettings();
+            });
+        }
+        
+        // OCR toggle listeners
+        if (switchOcrTwoColumn != null) {
+            switchOcrTwoColumn.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                appPreferences.edit().putBoolean(PREF_OCR_TWO_COLUMN, isChecked).apply();
+                Log.d(TAG, "Two-column OCR " + (isChecked ? "enabled" : "disabled"));
+            });
+        }
+        
+        if (switchOcrHighContrast != null) {
+            switchOcrHighContrast.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                appPreferences.edit().putBoolean(PREF_OCR_HIGH_CONTRAST, isChecked).apply();
+                Log.d(TAG, "High-contrast OCR " + (isChecked ? "enabled" : "disabled"));
             });
         }
 
@@ -2331,6 +2377,7 @@ public class MainActivity extends AppCompatActivity {
         if (testHistoryLayout != null) testHistoryLayout.setVisibility(View.GONE);
         if (scanSessionLayout != null) scanSessionLayout.setVisibility(View.GONE);
         if (masterlistLayout != null) masterlistLayout.setVisibility(View.GONE);
+        if (settingsLayout != null) settingsLayout.setVisibility(View.GONE);
         
         switch (viewName) {
             case "main":
@@ -2842,7 +2889,8 @@ public class MainActivity extends AppCompatActivity {
                     runOnUiThread(() -> Toast.makeText(this, "Failed to load cropped image", Toast.LENGTH_SHORT).show());
                     return;
                 }
-                HashMap<Integer, String> parsed = ocrProcessor.processImage(bitmap);
+                // Use settings-aware processing
+                HashMap<Integer, String> parsed = processImageWithSettings(bitmap);
                 bitmap.recycle();
                 lastDetectedAnswers = parsed != null ? parsed : new HashMap<>();
                 runOnUiThread(() -> {
@@ -4580,6 +4628,95 @@ public class MainActivity extends AppCompatActivity {
             return "\"" + value.replace("\"", "\"\"") + "\"";
         }
         return value;
+    }
+    
+    // ---------------------------
+    // OCR Settings Helper Methods
+    // ---------------------------
+    
+    /**
+     * Load OCR settings from SharedPreferences and update UI switches.
+     */
+    private void loadOcrSettings() {
+        boolean twoColumnEnabled = appPreferences.getBoolean(PREF_OCR_TWO_COLUMN, true);
+        boolean highContrastEnabled = appPreferences.getBoolean(PREF_OCR_HIGH_CONTRAST, false);
+        
+        if (switchOcrTwoColumn != null) {
+            switchOcrTwoColumn.setChecked(twoColumnEnabled);
+        }
+        if (switchOcrHighContrast != null) {
+            switchOcrHighContrast.setChecked(highContrastEnabled);
+        }
+        
+        Log.d(TAG, "OCR settings loaded: two-column=" + twoColumnEnabled + ", high-contrast=" + highContrastEnabled);
+    }
+    
+    /**
+     * Check if two-column OCR mode is enabled.
+     */
+    private boolean isTwoColumnEnabled() {
+        return appPreferences.getBoolean(PREF_OCR_TWO_COLUMN, true);
+    }
+    
+    /**
+     * Check if high-contrast OCR mode is enabled.
+     */
+    private boolean isHighContrastEnabled() {
+        return appPreferences.getBoolean(PREF_OCR_HIGH_CONTRAST, false);
+    }
+    
+    /**
+     * Process image with OCR using current settings.
+     * Routes to appropriate OCR method based on user toggles.
+     */
+    private HashMap<Integer, String> processImageWithSettings(Bitmap bitmap) {
+        if (bitmap == null || ocrProcessor == null) {
+            return new HashMap<>();
+        }
+        
+        boolean twoColumn = isTwoColumnEnabled();
+        boolean highContrast = isHighContrastEnabled();
+        
+        Log.d(OCR_FLOW, "Processing with settings: two-column=" + twoColumn + ", high-contrast=" + highContrast);
+        
+        // Determine which OCR method to use based on settings
+        if (twoColumn && highContrast) {
+            // Both enabled: apply high-contrast to both columns
+            // For simplicity, we'll process with two-column first (which already handles standard enhancement)
+            // If we need both effects, we could enhance the two-column method in OcrProcessor
+            Log.d(OCR_FLOW, "Using two-column mode (high-contrast not combined in this version)");
+            return ocrProcessor.processImageTwoColumn(bitmap);
+        } else if (twoColumn) {
+            // Two-column only
+            Log.d(OCR_FLOW, "Using two-column mode");
+            return ocrProcessor.processImageTwoColumn(bitmap);
+        } else if (highContrast) {
+            // High-contrast only
+            Log.d(OCR_FLOW, "Using high-contrast mode");
+            return ocrProcessor.processImageWithHighContrast(bitmap);
+        } else {
+            // Standard processing
+            Log.d(OCR_FLOW, "Using standard mode");
+            return ocrProcessor.processImage(bitmap);
+        }
+    }
+    
+    /**
+     * Show settings overlay.
+     */
+    private void showSettings() {
+        if (settingsLayout != null) {
+            settingsLayout.setVisibility(View.VISIBLE);
+        }
+    }
+    
+    /**
+     * Hide settings overlay.
+     */
+    private void hideSettings() {
+        if (settingsLayout != null) {
+            settingsLayout.setVisibility(View.GONE);
+        }
     }
 }
 
