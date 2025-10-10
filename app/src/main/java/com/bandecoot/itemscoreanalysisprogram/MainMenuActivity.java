@@ -46,13 +46,17 @@ public class MainMenuActivity extends AppCompatActivity {
         // Tutorial
         cardTutorial.setOnClickListener(v -> {
             v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-            showTutorial();
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.putExtra("open_tutorial", true);
+            startActivity(intent);
         });
 
         // Credits
         cardCredits.setOnClickListener(v -> {
             v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-            showCredits();
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.putExtra("open_credits", true);
+            startActivity(intent);
         });
     }
     
