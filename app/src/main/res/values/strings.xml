@@ -111,4 +111,25 @@ Tips:\n
     <string name="crop_flip_horizontal">Flip horizontal</string>
     <string name="crop_confirm">Confirm crop</string>
     <string name="crop_cancel">Cancel crop</string>
+    
+    <!-- Autocomplete Manager -->
+    <string name="btn_manage_autocomplete">Manage Autocomplete</string>
+    <string name="autocomplete_manager_title">Autocomplete Manager</string>
+    <string name="autocomplete_students_label">Student Names</string>
+    <string name="autocomplete_section_label">Subgroup 1 (Section)</string>
+    <string name="autocomplete_exam_label">Subgroup 2 (Exam)</string>
+    <string name="autocomplete_add_hint">Add new word</string>
+    <string name="btn_add">Add</string>
+    <string name="btn_import_json">Import JSON</string>
+    <string name="btn_export_json">Export JSON</string>
+    <string name="btn_import_all">Import All</string>
+    <string name="btn_export_all">Export All</string>
+    <string name="btn_close">Close</string>
+    
+    <!-- History Filters -->
+    <string name="filter_exam_label">Filter by Exam</string>
+    <string name="filter_section_label">Filter by Section</string>
+    <string name="filter_all">All</string>
+    <string name="btn_expand_all">Expand All</string>
+    <string name="btn_collapse_all">Collapse All</string>
 </resources>
