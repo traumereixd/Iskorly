@@ -101,6 +101,7 @@ public class MainActivity extends AppCompatActivity {
     // UI components
     private Button backToMenuButton;
     private LinearLayout mainLayout, answerKeyLayout, testHistoryLayout, scanSessionLayout, masterlistLayout;
+    private LinearLayout autocompleteManagerLayout;
     private MaterialAutoCompleteTextView studentNameInput, sectionNameInput, examNameInput;
     private EditText questionNumberInput, removeQuestionInput;
     private MaterialAutoCompleteTextView answerDropdown;
@@ -108,13 +109,27 @@ public class MainActivity extends AppCompatActivity {
     private Button saveAnswerButton, removeAnswerButton, clearButton, backButton;
     private Button historyBackButton, tryAgainButton, captureResultButton, cancelScanButton;
     private Button confirmParsedButton, importPhotosButton, masterlistButton, masterlistBackButton, exportCsvButton;
-    private Button importStudentsButton, exportMasterlistCsvButton, masterlistResetAllButton;
+    private Button manageAutocompleteButton, exportMasterlistCsvButton, masterlistResetAllButton;
     private Button masterlistBySectionButton, masterlistAllButton, btnSlotSaveSet;
     private TextView currentKeyTextView, sessionScoreTextView, parsedLabel, masterlistInfoTextView;
     private MaterialCardView resultsCard;
     private LinearLayout testHistoryList, parsedAnswersContainer, masterlistContent;
     private TextureView cameraPreviewTextureView;
     private View shutterView;
+    
+    // Autocomplete Manager UI
+    private com.google.android.material.chip.ChipGroup chipGroupStudents, chipGroupSections, chipGroupExams;
+    private com.google.android.material.textfield.TextInputEditText inputAddStudent, inputAddSection, inputAddExam;
+    private Button buttonAddStudent, buttonAddSection, buttonAddExam;
+    private Button buttonImportStudentsJson, buttonExportStudentsJson;
+    private Button buttonImportSectionsJson, buttonExportSectionsJson;
+    private Button buttonImportExamsJson, buttonExportExamsJson;
+    private Button buttonAutocompleteImportAll, buttonAutocompleteExportAll;
+    private Button buttonAutocompleteClose;
+    
+    // History Filters
+    private MaterialAutoCompleteTextView filterExamDropdown, filterSectionDropdown;
+    private Button buttonExpandAll, buttonCollapseAll;
 
     // Slot management
     private MaterialAutoCompleteTextView slotSelector;
@@ -187,10 +202,19 @@ public class MainActivity extends AppCompatActivity {
     // CSV Export
     private ActivityResultLauncher<String> createCsvLauncher;
     private ActivityResultLauncher<String> exportMasterlistCsvLauncher;
-    private ActivityResultLauncher<String[]> importStudentsLauncher;
+    
+    // Autocomplete JSON Import/Export
+    private ActivityResultLauncher<String[]> importAutocompleteJsonLauncher;
+    private ActivityResultLauncher<String> exportAutocompleteJsonLauncher;
+    private String pendingAutocompleteCategory = null; // "students", "sections", "exams", or "all"
     
     // Masterlist state
     private boolean masterlistShowBySection = true; // true = By Section, false = All
+    
+    // History filters
+    private String currentExamFilter = "All";
+    private String currentSectionFilter = "All";
+    private boolean historyGroupsExpanded = false;
     
     // Masterlist Repository
     private MasterlistRepository masterlistRepository;
@@ -366,19 +390,28 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
         
-        importStudentsLauncher = registerForActivityResult(
-                new ActivityResultContracts.OpenDocument(),
-                result -> {
-                    if (result != null) {
-                        importStudentsFromUri(result);
-                    }
-                });
-        
         exportMasterlistCsvLauncher = registerForActivityResult(
                 new ActivityResultContracts.CreateDocument("text/csv"),
                 result -> {
                     if (result != null) {
                         exportMasterlistCsvToUri(result);
+                    }
+                });
+        
+        // Autocomplete JSON Import/Export
+        importAutocompleteJsonLauncher = registerForActivityResult(
+                new ActivityResultContracts.OpenDocument(),
+                result -> {
+                    if (result != null) {
+                        importAutocompleteFromUri(result);
+                    }
+                });
+        
+        exportAutocompleteJsonLauncher = registerForActivityResult(
+                new ActivityResultContracts.CreateDocument("application/json"),
+                result -> {
+                    if (result != null) {
+                        exportAutocompleteToUri(result);
                     }
                 });
     }
@@ -732,7 +765,7 @@ public class MainActivity extends AppCompatActivity {
         studentNameInput = findViewById(R.id.editText_student_name);
         sectionNameInput = findViewById(R.id.editText_section_name);
         examNameInput = findViewById(R.id.editText_exam_name);
-        importStudentsButton = findViewById(R.id.button_import_students);
+        manageAutocompleteButton = findViewById(R.id.button_manage_autocomplete);
         startScanButton = findViewById(R.id.button_scan);
         setupButton = findViewById(R.id.button_setup_answers);
         viewHistoryButton = findViewById(R.id.button_view_history);
@@ -741,11 +774,11 @@ public class MainActivity extends AppCompatActivity {
         // Setup autocomplete for inputs
         setupAutocompleteInputs();
         
-        // Import students button
-        if (importStudentsButton != null) {
-            importStudentsButton.setOnClickListener(v -> {
+        // Manage autocomplete button
+        if (manageAutocompleteButton != null) {
+            manageAutocompleteButton.setOnClickListener(v -> {
                 v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-                importStudentsLauncher.launch(new String[]{"text/plain", "text/csv"});
+                showAutocompleteManager();
             });
         }
 
@@ -784,6 +817,49 @@ public class MainActivity extends AppCompatActivity {
             v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
             toggleView("main");
         });
+        
+        // History filters
+        filterExamDropdown = findViewById(R.id.filter_exam_dropdown);
+        filterSectionDropdown = findViewById(R.id.filter_section_dropdown);
+        buttonExpandAll = findViewById(R.id.button_expand_all);
+        buttonCollapseAll = findViewById(R.id.button_collapse_all);
+        
+        if (buttonExpandAll != null) {
+            buttonExpandAll.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                expandAllHistoryGroups();
+            });
+        }
+        
+        if (buttonCollapseAll != null) {
+            buttonCollapseAll.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                collapseAllHistoryGroups();
+            });
+        }
+        
+        // Autocomplete Manager UI
+        autocompleteManagerLayout = findViewById(R.id.autocomplete_manager_layout);
+        chipGroupStudents = findViewById(R.id.chip_group_students);
+        chipGroupSections = findViewById(R.id.chip_group_sections);
+        chipGroupExams = findViewById(R.id.chip_group_exams);
+        inputAddStudent = findViewById(R.id.input_add_student);
+        inputAddSection = findViewById(R.id.input_add_section);
+        inputAddExam = findViewById(R.id.input_add_exam);
+        buttonAddStudent = findViewById(R.id.button_add_student);
+        buttonAddSection = findViewById(R.id.button_add_section);
+        buttonAddExam = findViewById(R.id.button_add_exam);
+        buttonImportStudentsJson = findViewById(R.id.button_import_students_json);
+        buttonExportStudentsJson = findViewById(R.id.button_export_students_json);
+        buttonImportSectionsJson = findViewById(R.id.button_import_sections_json);
+        buttonExportSectionsJson = findViewById(R.id.button_export_sections_json);
+        buttonImportExamsJson = findViewById(R.id.button_import_exams_json);
+        buttonExportExamsJson = findViewById(R.id.button_export_exams_json);
+        buttonAutocompleteImportAll = findViewById(R.id.button_autocomplete_import_all);
+        buttonAutocompleteExportAll = findViewById(R.id.button_autocomplete_export_all);
+        buttonAutocompleteClose = findViewById(R.id.button_autocomplete_close);
+        
+        setupAutocompleteManagerListeners();
         
         // Masterlist button in history
         masterlistButton = findViewById(R.id.button_masterlist);
@@ -909,6 +985,7 @@ public class MainActivity extends AppCompatActivity {
         viewHistoryButton.setOnClickListener(v -> {
             v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
             toggleView("history");
+            setupHistoryFilters();
             displayTestHistory();
         });
         
@@ -1713,8 +1790,8 @@ public class MainActivity extends AppCompatActivity {
         testHistoryList.removeAllViews();
         JSONArray history = getHistoryArray();
         if (history.length() == 0) {
-            TextView tv = makeBlackBoldText("No history yet.", 16);
-            tv.setPadding(dp(12), dp(12), dp(12), dp(12));
+            TextView tv = makeBlackBoldText("No history yet.", 14);
+            tv.setPadding(dp(8), dp(8), dp(8), dp(8));
             testHistoryList.addView(tv);
             return;
         }
@@ -1726,6 +1803,14 @@ public class MainActivity extends AppCompatActivity {
             if (rec == null) continue;
             String exam = rec.optString("exam", "Untitled Quiz");
             String section = rec.optString("section", "Unsectioned");
+            
+            // Apply filters if set
+            if (currentExamFilter != null && !currentExamFilter.equals("All") && !exam.equals(currentExamFilter)) {
+                continue;
+            }
+            if (currentSectionFilter != null && !currentSectionFilter.equals("All") && !section.equals(currentSectionFilter)) {
+                continue;
+            }
 
             LinkedHashMap<String, List<JSONObject>> sections = grouped.get(exam);
             if (sections == null) {
@@ -1746,14 +1831,14 @@ public class MainActivity extends AppCompatActivity {
 
             LinearLayout examContainer = new LinearLayout(this);
             examContainer.setOrientation(LinearLayout.VERTICAL);
-            examContainer.setPadding(dp(8), dp(8), dp(8), dp(8));
+            examContainer.setPadding(dp(6), dp(6), dp(6), dp(6));
 
             LinearLayout examHeaderRow = new LinearLayout(this);
             examHeaderRow.setOrientation(LinearLayout.HORIZONTAL);
-            examHeaderRow.setPadding(dp(12), dp(12), dp(8), dp(8));
+            examHeaderRow.setPadding(dp(8), dp(8), dp(6), dp(6));
             examHeaderRow.setBackgroundColor(0xFFEFEFEF);
 
-            TextView examTitle = makeBlackBoldText("Quiz: " + exam + " (" + countRecords(sections) + ") ▶", 18);
+            TextView examTitle = makeBlackBoldText("Quiz: " + exam + " (" + countRecords(sections) + ") ▶", 15);
             LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
             examTitle.setLayoutParams(titleLp);
 
@@ -1769,7 +1854,8 @@ public class MainActivity extends AppCompatActivity {
 
             LinearLayout sectionsContainer = new LinearLayout(this);
             sectionsContainer.setOrientation(LinearLayout.VERTICAL);
-            sectionsContainer.setVisibility(View.GONE);
+            // Default to collapsed unless expanded flag is set
+            sectionsContainer.setVisibility(historyGroupsExpanded ? View.VISIBLE : View.GONE);
 
             examHeaderRow.setOnClickListener(v -> toggleCollapse(sectionsContainer, examTitle));
 
@@ -1781,14 +1867,14 @@ public class MainActivity extends AppCompatActivity {
 
                 LinearLayout sectionContainer = new LinearLayout(this);
                 sectionContainer.setOrientation(LinearLayout.VERTICAL);
-                sectionContainer.setPadding(dp(8), dp(4), dp(8), dp(8));
+                sectionContainer.setPadding(dp(6), dp(3), dp(6), dp(6));
 
                 LinearLayout sectionHeaderRow = new LinearLayout(this);
                 sectionHeaderRow.setOrientation(LinearLayout.HORIZONTAL);
-                sectionHeaderRow.setPadding(dp(16), dp(10), dp(12), dp(6));
+                sectionHeaderRow.setPadding(dp(12), dp(6), dp(8), dp(4));
                 sectionHeaderRow.setBackgroundColor(0xFFF6F6F6);
 
-                TextView sectionTitle = makeBlackBoldText("Section: " + section + " (" + records.size() + ") ▶", 16);
+                TextView sectionTitle = makeBlackBoldText("Section: " + section + " (" + records.size() + ") ▶", 14);
                 sectionTitle.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
                 ImageButton btnSectionRename = makeIconButton(android.R.drawable.ic_menu_edit, "Rename section");
@@ -1814,7 +1900,7 @@ public class MainActivity extends AppCompatActivity {
 
                 sectionWrapper.setOnClickListener(v -> toggleCollapse(recordsContainer, sectionTitle));
 
-                // Records (newest first)
+                // Records (newest first) - Compact format
                 for (int i = records.size() - 1; i >= 0; i--) {
                     JSONObject rec = records.get(i);
                     String ts = rec.optString("ts", "");
@@ -1825,10 +1911,10 @@ public class MainActivity extends AppCompatActivity {
 
                     LinearLayout recordRow = new LinearLayout(this);
                     recordRow.setOrientation(LinearLayout.HORIZONTAL);
-                    recordRow.setPadding(dp(24), dp(6), dp(12), dp(6));
+                    recordRow.setPadding(dp(16), dp(4), dp(8), dp(4));
 
                     String line = String.format(Locale.US, "[%s] %s — %d/%d (%.1f%%)", ts, student, score, total, pct);
-                    TextView recordTv = makeBlackBoldText(line, 14);
+                    TextView recordTv = makeBlackBoldText(line, 12);
                     recordTv.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
                     ImageButton btnRecordDelete = makeIconButton(android.R.drawable.ic_menu_delete, "Delete record");
@@ -1849,7 +1935,7 @@ public class MainActivity extends AppCompatActivity {
 
             View divider = new View(this);
             LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(1));
-            dlp.setMargins(0, dp(8), 0, dp(8));
+            dlp.setMargins(0, dp(6), 0, dp(6));
             divider.setLayoutParams(dlp);
             divider.setBackgroundColor(0xFFCCCCCC);
 
@@ -3591,21 +3677,63 @@ public class MainActivity extends AppCompatActivity {
             ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
                     android.R.layout.simple_dropdown_item_1line, recentStudents);
             studentNameInput.setAdapter(adapter);
-            studentNameInput.setThreshold(1);
+            studentNameInput.setThreshold(0);
+            
+            // Show dropdown on focus
+            studentNameInput.setOnFocusChangeListener((v, hasFocus) -> {
+                if (hasFocus && adapter.getCount() > 0) {
+                    studentNameInput.showDropDown();
+                }
+            });
+            
+            // Show dropdown on click
+            studentNameInput.setOnClickListener(v -> {
+                if (adapter.getCount() > 0) {
+                    studentNameInput.showDropDown();
+                }
+            });
         }
         
         if (sectionNameInput != null) {
             ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
                     android.R.layout.simple_dropdown_item_1line, recentSections);
             sectionNameInput.setAdapter(adapter);
-            sectionNameInput.setThreshold(1);
+            sectionNameInput.setThreshold(0);
+            
+            // Show dropdown on focus
+            sectionNameInput.setOnFocusChangeListener((v, hasFocus) -> {
+                if (hasFocus && adapter.getCount() > 0) {
+                    sectionNameInput.showDropDown();
+                }
+            });
+            
+            // Show dropdown on click
+            sectionNameInput.setOnClickListener(v -> {
+                if (adapter.getCount() > 0) {
+                    sectionNameInput.showDropDown();
+                }
+            });
         }
         
         if (examNameInput != null) {
             ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
                     android.R.layout.simple_dropdown_item_1line, recentExams);
             examNameInput.setAdapter(adapter);
-            examNameInput.setThreshold(1);
+            examNameInput.setThreshold(0);
+            
+            // Show dropdown on focus
+            examNameInput.setOnFocusChangeListener((v, hasFocus) -> {
+                if (hasFocus && adapter.getCount() > 0) {
+                    examNameInput.showDropDown();
+                }
+            });
+            
+            // Show dropdown on click
+            examNameInput.setOnClickListener(v -> {
+                if (adapter.getCount() > 0) {
+                    examNameInput.showDropDown();
+                }
+            });
         }
     }
     
@@ -3660,6 +3788,375 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) {
             Log.e(TAG, "Error updating recents for " + prefsKey, e);
         }
+    }
+    
+    // ---------------------------
+    // Autocomplete Manager Methods
+    // ---------------------------
+    
+    private void showAutocompleteManager() {
+        if (autocompleteManagerLayout == null) return;
+        
+        // Load and display saved words
+        loadSavedWords();
+        
+        // Toggle visibility
+        autocompleteManagerLayout.setVisibility(View.VISIBLE);
+    }
+    
+    private void setupAutocompleteManagerListeners() {
+        // Close button
+        if (buttonAutocompleteClose != null) {
+            buttonAutocompleteClose.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                if (autocompleteManagerLayout != null) {
+                    autocompleteManagerLayout.setVisibility(View.GONE);
+                }
+            });
+        }
+        
+        // Add buttons
+        if (buttonAddStudent != null) {
+            buttonAddStudent.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                if (inputAddStudent != null) {
+                    String value = inputAddStudent.getText().toString().trim();
+                    if (!value.isEmpty()) {
+                        addWord("students", value);
+                        inputAddStudent.setText("");
+                    }
+                }
+            });
+        }
+        
+        if (buttonAddSection != null) {
+            buttonAddSection.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                if (inputAddSection != null) {
+                    String value = inputAddSection.getText().toString().trim();
+                    if (!value.isEmpty()) {
+                        addWord("sections", value);
+                        inputAddSection.setText("");
+                    }
+                }
+            });
+        }
+        
+        if (buttonAddExam != null) {
+            buttonAddExam.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                if (inputAddExam != null) {
+                    String value = inputAddExam.getText().toString().trim();
+                    if (!value.isEmpty()) {
+                        addWord("exams", value);
+                        inputAddExam.setText("");
+                    }
+                }
+            });
+        }
+        
+        // Import/Export buttons for each category
+        if (buttonImportStudentsJson != null) {
+            buttonImportStudentsJson.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                pendingAutocompleteCategory = "students";
+                importAutocompleteJsonLauncher.launch(new String[]{"application/json", "*/*"});
+            });
+        }
+        
+        if (buttonExportStudentsJson != null) {
+            buttonExportStudentsJson.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                pendingAutocompleteCategory = "students";
+                exportAutocompleteJsonLauncher.launch("autocomplete_students.json");
+            });
+        }
+        
+        if (buttonImportSectionsJson != null) {
+            buttonImportSectionsJson.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                pendingAutocompleteCategory = "sections";
+                importAutocompleteJsonLauncher.launch(new String[]{"application/json", "*/*"});
+            });
+        }
+        
+        if (buttonExportSectionsJson != null) {
+            buttonExportSectionsJson.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                pendingAutocompleteCategory = "sections";
+                exportAutocompleteJsonLauncher.launch("autocomplete_sections.json");
+            });
+        }
+        
+        if (buttonImportExamsJson != null) {
+            buttonImportExamsJson.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                pendingAutocompleteCategory = "exams";
+                importAutocompleteJsonLauncher.launch(new String[]{"application/json", "*/*"});
+            });
+        }
+        
+        if (buttonExportExamsJson != null) {
+            buttonExportExamsJson.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                pendingAutocompleteCategory = "exams";
+                exportAutocompleteJsonLauncher.launch("autocomplete_exams.json");
+            });
+        }
+        
+        // Import/Export All
+        if (buttonAutocompleteImportAll != null) {
+            buttonAutocompleteImportAll.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                pendingAutocompleteCategory = "all";
+                importAutocompleteJsonLauncher.launch(new String[]{"application/json", "*/*"});
+            });
+        }
+        
+        if (buttonAutocompleteExportAll != null) {
+            buttonAutocompleteExportAll.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                pendingAutocompleteCategory = "all";
+                exportAutocompleteJsonLauncher.launch("autocomplete_all.json");
+            });
+        }
+    }
+    
+    private void loadSavedWords() {
+        // Load and render chips for each category
+        renderChips("students", chipGroupStudents);
+        renderChips("sections", chipGroupSections);
+        renderChips("exams", chipGroupExams);
+    }
+    
+    private void renderChips(String category, com.google.android.material.chip.ChipGroup chipGroup) {
+        if (chipGroup == null) return;
+        
+        chipGroup.removeAllViews();
+        
+        String prefsKey = getCategoryPrefsKey(category);
+        List<String> words = loadRecents(prefsKey);
+        
+        for (String word : words) {
+            com.google.android.material.chip.Chip chip = new com.google.android.material.chip.Chip(this);
+            chip.setText(word);
+            chip.setCloseIconVisible(true);
+            chip.setOnCloseIconClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                removeWord(category, word);
+            });
+            chipGroup.addView(chip);
+        }
+    }
+    
+    private void addWord(String category, String value) {
+        if (value == null || value.trim().isEmpty()) return;
+        
+        String prefsKey = getCategoryPrefsKey(category);
+        addToRecents(prefsKey, value);
+        
+        // Reload chips and adapters
+        if (category.equals("students")) {
+            renderChips("students", chipGroupStudents);
+        } else if (category.equals("sections")) {
+            renderChips("sections", chipGroupSections);
+        } else if (category.equals("exams")) {
+            renderChips("exams", chipGroupExams);
+        }
+        
+        setupAutocompleteInputs();
+        
+        Toast.makeText(this, "Added: " + value, Toast.LENGTH_SHORT).show();
+    }
+    
+    private void removeWord(String category, String value) {
+        try {
+            String prefsKey = getCategoryPrefsKey(category);
+            List<String> recents = loadRecents(prefsKey);
+            
+            recents.remove(value);
+            
+            // Save updated list
+            JSONArray arr = new JSONArray(recents);
+            appPreferences.edit().putString(prefsKey, arr.toString()).apply();
+            
+            // Reload chips and adapters
+            if (category.equals("students")) {
+                renderChips("students", chipGroupStudents);
+            } else if (category.equals("sections")) {
+                renderChips("sections", chipGroupSections);
+            } else if (category.equals("exams")) {
+                renderChips("exams", chipGroupExams);
+            }
+            
+            setupAutocompleteInputs();
+            
+            Toast.makeText(this, "Removed: " + value, Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Log.e(TAG, "Error removing word", e);
+        }
+    }
+    
+    private String getCategoryPrefsKey(String category) {
+        switch (category) {
+            case "students": return PREF_RECENT_STUDENTS;
+            case "sections": return PREF_RECENT_SECTIONS;
+            case "exams": return PREF_RECENT_EXAMS;
+            default: return PREF_RECENT_STUDENTS;
+        }
+    }
+    
+    private void importAutocompleteFromUri(android.net.Uri uri) {
+        try {
+            InputStream is = getContentResolver().openInputStream(uri);
+            if (is == null) return;
+            
+            byte[] buffer = new byte[is.available()];
+            is.read(buffer);
+            is.close();
+            
+            String jsonStr = new String(buffer, "UTF-8");
+            JSONObject json = new JSONObject(jsonStr);
+            
+            if ("all".equals(pendingAutocompleteCategory)) {
+                // Import all categories
+                if (json.has("students")) {
+                    importCategoryFromJson(json.getJSONArray("students"), PREF_RECENT_STUDENTS);
+                }
+                if (json.has("sections")) {
+                    importCategoryFromJson(json.getJSONArray("sections"), PREF_RECENT_SECTIONS);
+                }
+                if (json.has("exams")) {
+                    importCategoryFromJson(json.getJSONArray("exams"), PREF_RECENT_EXAMS);
+                }
+                Toast.makeText(this, "Imported all categories", Toast.LENGTH_SHORT).show();
+            } else {
+                // Import single category
+                String key = pendingAutocompleteCategory;
+                if (json.has(key)) {
+                    String prefsKey = getCategoryPrefsKey(key);
+                    importCategoryFromJson(json.getJSONArray(key), prefsKey);
+                    Toast.makeText(this, "Imported " + key, Toast.LENGTH_SHORT).show();
+                }
+            }
+            
+            loadSavedWords();
+            setupAutocompleteInputs();
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error importing autocomplete JSON", e);
+            Toast.makeText(this, "Error importing: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+    
+    private void importCategoryFromJson(JSONArray arr, String prefsKey) throws JSONException {
+        List<String> words = new ArrayList<>();
+        for (int i = 0; i < arr.length(); i++) {
+            words.add(arr.getString(i));
+        }
+        
+        // Save to preferences
+        JSONArray jsonArr = new JSONArray(words);
+        appPreferences.edit().putString(prefsKey, jsonArr.toString()).apply();
+    }
+    
+    private void exportAutocompleteToUri(android.net.Uri uri) {
+        try {
+            JSONObject json = new JSONObject();
+            
+            if ("all".equals(pendingAutocompleteCategory)) {
+                // Export all categories
+                json.put("students", new JSONArray(loadRecents(PREF_RECENT_STUDENTS)));
+                json.put("sections", new JSONArray(loadRecents(PREF_RECENT_SECTIONS)));
+                json.put("exams", new JSONArray(loadRecents(PREF_RECENT_EXAMS)));
+            } else {
+                // Export single category
+                String key = pendingAutocompleteCategory;
+                String prefsKey = getCategoryPrefsKey(key);
+                json.put(key, new JSONArray(loadRecents(prefsKey)));
+            }
+            
+            OutputStream os = getContentResolver().openOutputStream(uri);
+            if (os != null) {
+                os.write(json.toString(2).getBytes("UTF-8"));
+                os.close();
+                Toast.makeText(this, "Exported successfully", Toast.LENGTH_SHORT).show();
+            }
+            
+        } catch (Exception e) {
+            Log.e(TAG, "Error exporting autocomplete JSON", e);
+            Toast.makeText(this, "Error exporting: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+    
+    // ---------------------------
+    // History Filter Methods
+    // ---------------------------
+    
+    private void setupHistoryFilters() {
+        if (filterExamDropdown == null || filterSectionDropdown == null) return;
+        
+        // Get unique exams and sections
+        JSONArray history = getHistoryArray();
+        java.util.Set<String> exams = new java.util.HashSet<>();
+        java.util.Set<String> sections = new java.util.HashSet<>();
+        
+        exams.add("All");
+        sections.add("All");
+        
+        for (int i = 0; i < history.length(); i++) {
+            JSONObject rec = history.optJSONObject(i);
+            if (rec != null) {
+                exams.add(rec.optString("exam", "Untitled Quiz"));
+                sections.add(rec.optString("section", "Unsectioned"));
+            }
+        }
+        
+        // Setup exam filter dropdown
+        List<String> examList = new ArrayList<>(exams);
+        Collections.sort(examList, (a, b) -> {
+            if (a.equals("All")) return -1;
+            if (b.equals("All")) return 1;
+            return a.compareTo(b);
+        });
+        ArrayAdapter<String> examAdapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_dropdown_item_1line, examList);
+        filterExamDropdown.setAdapter(examAdapter);
+        filterExamDropdown.setText("All", false);
+        currentExamFilter = "All";
+        
+        filterExamDropdown.setOnItemClickListener((parent, view, position, id) -> {
+            currentExamFilter = (String) parent.getItemAtPosition(position);
+            displayTestHistory();
+        });
+        
+        // Setup section filter dropdown
+        List<String> sectionList = new ArrayList<>(sections);
+        Collections.sort(sectionList, (a, b) -> {
+            if (a.equals("All")) return -1;
+            if (b.equals("All")) return 1;
+            return a.compareTo(b);
+        });
+        ArrayAdapter<String> sectionAdapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_dropdown_item_1line, sectionList);
+        filterSectionDropdown.setAdapter(sectionAdapter);
+        filterSectionDropdown.setText("All", false);
+        currentSectionFilter = "All";
+        
+        filterSectionDropdown.setOnItemClickListener((parent, view, position, id) -> {
+            currentSectionFilter = (String) parent.getItemAtPosition(position);
+            displayTestHistory();
+        });
+    }
+    
+    private void expandAllHistoryGroups() {
+        historyGroupsExpanded = true;
+        displayTestHistory();
+    }
+    
+    private void collapseAllHistoryGroups() {
+        historyGroupsExpanded = false;
+        displayTestHistory();
     }
     
     // ---------------------------
