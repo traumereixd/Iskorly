@@ -125,6 +125,7 @@ public class MainActivity extends AppCompatActivity {
     private Button buttonImportSectionsJson, buttonExportSectionsJson;
     private Button buttonImportExamsJson, buttonExportExamsJson;
     private Button buttonAutocompleteImportAll, buttonAutocompleteExportAll;
+    private Button buttonAutocompleteClearAll;
     private Button buttonAutocompleteClose;
     
     // History Filters
@@ -857,6 +858,7 @@ public class MainActivity extends AppCompatActivity {
         buttonExportExamsJson = findViewById(R.id.button_export_exams_json);
         buttonAutocompleteImportAll = findViewById(R.id.button_autocomplete_import_all);
         buttonAutocompleteExportAll = findViewById(R.id.button_autocomplete_export_all);
+        buttonAutocompleteClearAll = findViewById(R.id.button_autocomplete_clear_all);
         buttonAutocompleteClose = findViewById(R.id.button_autocomplete_close);
         
         setupAutocompleteManagerListeners();
@@ -3190,9 +3192,23 @@ public class MainActivity extends AppCompatActivity {
             
             // Build summary text with reliability info
             StringBuilder summaryBuilder = new StringBuilder();
+            
+            // Compute raw scores from percentages
+            double totalItems = currentAnswerKey.size();
+            String meanStr, mpsStr;
+            if (totalItems == 0) {
+                meanStr = String.format(Locale.US, "%.2f%%", summary.mean);
+                mpsStr = String.format(Locale.US, "%.2f%%", summary.mps);
+            } else {
+                double meanRaw = (summary.mean / 100.0) * totalItems;
+                double mpsRaw = (summary.mps / 100.0) * totalItems;
+                meanStr = String.format(Locale.US, "%.2f (%.2f%%)", meanRaw, summary.mean);
+                mpsStr = String.format(Locale.US, "%.2f (%.2f%%)", mpsRaw, summary.mps);
+            }
+            
             summaryBuilder.append(String.format(Locale.US,
-                    "Overall Score: %d | Mean: %.2f%% | Std Dev: %.2f | MPS: %.2f%% (n=%d)\n",
-                    summary.totalScore, summary.mean, summary.stdDev, summary.mps, summary.recordCount));
+                    "Overall Score: %d | Mean: %s | Std Dev: %.2f | MPS: %s (n=%d)\n",
+                    summary.totalScore, meanStr, summary.stdDev, mpsStr, summary.recordCount));
             
             // Add reliability metrics if available
             if (summary.recordCount >= 2 && currentAnswerKey.size() > 1) {
@@ -3542,18 +3558,30 @@ public class MainActivity extends AppCompatActivity {
                         QuestionStats.computeSectionSummary(historyArray, section, null);
                 
                 TextView cell = (TextView) summaryRow.getChildAt(i + 1);
+                double totalItems = currentAnswerKey.size();
+                
                 switch (label) {
                     case "Total Score":
                         cell.setText(String.valueOf(summary.totalScore));
                         break;
                     case "Mean":
-                        cell.setText(String.format(Locale.US, "%.2f%%", summary.mean));
+                        if (totalItems == 0) {
+                            cell.setText(String.format(Locale.US, "%.2f%%", summary.mean));
+                        } else {
+                            double meanRaw = (summary.mean / 100.0) * totalItems;
+                            cell.setText(String.format(Locale.US, "%.2f (%.2f%%)", meanRaw, summary.mean));
+                        }
                         break;
                     case "Std Dev":
                         cell.setText(String.format(Locale.US, "%.2f", summary.stdDev));
                         break;
                     case "MPS":
-                        cell.setText(String.format(Locale.US, "%.2f%%", summary.mps));
+                        if (totalItems == 0) {
+                            cell.setText(String.format(Locale.US, "%.2f%%", summary.mps));
+                        } else {
+                            double mpsRaw = (summary.mps / 100.0) * totalItems;
+                            cell.setText(String.format(Locale.US, "%.2f (%.2f%%)", mpsRaw, summary.mps));
+                        }
                         break;
                 }
             }
@@ -3571,10 +3599,24 @@ public class MainActivity extends AppCompatActivity {
         overallText.setTextSize(14);
         overallText.setTextColor(0xFF424242);
         overallText.setTypeface(overallText.getTypeface(), Typeface.BOLD);
+        
+        // Compute raw scores from percentages
+        double totalItems = currentAnswerKey.size();
+        String meanStr, mpsStr;
+        if (totalItems == 0) {
+            meanStr = String.format(Locale.US, "%.2f%%", overallSummary.mean);
+            mpsStr = String.format(Locale.US, "%.2f%%", overallSummary.mps);
+        } else {
+            double meanRaw = (overallSummary.mean / 100.0) * totalItems;
+            double mpsRaw = (overallSummary.mps / 100.0) * totalItems;
+            meanStr = String.format(Locale.US, "%.2f (%.2f%%)", meanRaw, overallSummary.mean);
+            mpsStr = String.format(Locale.US, "%.2f (%.2f%%)", mpsRaw, overallSummary.mps);
+        }
+        
         overallText.setText(String.format(Locale.US,
-                "OVERALL SUMMARY\nTotal Score: %d\nMean: %.2f%%\nStd Dev: %.2f\nMPS: %.2f%% (n=%d)",
-                overallSummary.totalScore, overallSummary.mean, overallSummary.stdDev, 
-                overallSummary.mps, overallSummary.recordCount));
+                "OVERALL SUMMARY\nTotal Score: %d\nMean: %s\nStd Dev: %.2f\nMPS: %s (n=%d)",
+                overallSummary.totalScore, meanStr, overallSummary.stdDev, 
+                mpsStr, overallSummary.recordCount));
         
         masterlistContent.addView(overallText);
         
@@ -3918,6 +3960,32 @@ public class MainActivity extends AppCompatActivity {
                 v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
                 pendingAutocompleteCategory = "all";
                 exportAutocompleteJsonLauncher.launch("autocomplete_all.json");
+            });
+        }
+        
+        // Clear All
+        if (buttonAutocompleteClearAll != null) {
+            buttonAutocompleteClearAll.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                new AlertDialog.Builder(this)
+                        .setTitle("Clear All")
+                        .setMessage(getString(R.string.clear_all_confirmation))
+                        .setPositiveButton("Clear", (dialog, which) -> {
+                            // Clear all three lists
+                            appPreferences.edit()
+                                    .putString(PREF_RECENT_STUDENTS, "[]")
+                                    .putString(PREF_RECENT_SECTIONS, "[]")
+                                    .putString(PREF_RECENT_EXAMS, "[]")
+                                    .apply();
+                            
+                            // Refresh chips and adapters
+                            loadSavedWords();
+                            setupAutocompleteInputs();
+                            
+                            Toast.makeText(this, "All saved words cleared", Toast.LENGTH_SHORT).show();
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
             });
         }
     }
