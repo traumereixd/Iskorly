@@ -1135,6 +1135,12 @@ public class MainActivity extends AppCompatActivity {
             displayMasterlist();
         } else if (intent.getBooleanExtra("open_answer_key", false)) {
             toggleView("setup");
+        } else if (intent.getBooleanExtra("open_tutorial", false)) {
+            toggleView("main");
+            showTutorialDialog();
+        } else if (intent.getBooleanExtra("open_credits", false)) {
+            toggleView("main");
+            showCreditsDialog();
         }
     }
 
@@ -3201,6 +3207,26 @@ public class MainActivity extends AppCompatActivity {
             summaryBuilder.append(String.format(Locale.US,
                     "Overall Score: %d | Mean: %s | Std Dev: %.2f | MPS: %s (n=%d)",
                     summary.totalScore, meanStr, summary.stdDev, mpsStr, summary.recordCount));
+            
+            // Add exam names for this section
+            java.util.Set<String> examNames = new java.util.LinkedHashSet<>();
+            for (int i = 0; i < historyArray.length(); i++) {
+                try {
+                    JSONObject record = historyArray.getJSONObject(i);
+                    String recordSection = record.optString("section", "");
+                    String recordExam = record.optString("exam", "");
+                    if (section.equals(recordSection) && !recordExam.isEmpty()) {
+                        examNames.add(recordExam);
+                    }
+                } catch (JSONException e) {
+                    // Skip invalid records
+                }
+            }
+            
+            if (!examNames.isEmpty()) {
+                summaryBuilder.append("\nExam(s): ");
+                summaryBuilder.append(String.join(", ", examNames));
+            }
             
             summaryText.setText(summaryBuilder.toString());
             

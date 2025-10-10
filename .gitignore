@@ -7,6 +7,10 @@ captures/
 .idea/
 *.iml
 
+# Placeholder images (replace with actual artwork)
+app/src/main/res/drawable-nodpi/*.jpg
+app/src/main/res/drawable-nodpi/*.png
+
 # Keystores
 *.keystore
 *.jks
