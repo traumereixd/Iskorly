@@ -1,4 +1,4 @@
-## Iskorly (formerly Item Score Analysis App) v1.3
+## Iskorly (formerly Item Score Analysis App) v1.7
 
 AI-powered answer sheet scanning, scoring, and item analysis for classrooms.
 
