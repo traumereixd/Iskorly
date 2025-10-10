@@ -132,4 +132,6 @@ Tips:\n
     <string name="filter_all">All</string>
     <string name="btn_expand_all">Expand All</string>
     <string name="btn_collapse_all">Collapse All</string>
+    <string name="btn_clear_all_words">Clear All</string>
+    <string name="clear_all_confirmation">Clear all saved words? This cannot be undone.</string>
 </resources>
