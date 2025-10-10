@@ -15,33 +15,27 @@
 
         <!-- Logo Mark -->
         <ImageView
-            android:layout_width="200dp"
-            android:layout_height="200dp"
+            android:layout_width="180dp"
+            android:layout_height="180dp"
             android:layout_marginTop="32dp"
             android:contentDescription="Iskorly logo"
-            android:src="@drawable/iskorlylogoo" />
+            android:src="@drawable/logomainmenu" />
 
         <!-- App Name -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Iskorly"
-            android:textSize="36sp"
-            android:textStyle="bold"
-            android:textColor="@color/on_primary"
-            android:layout_marginTop="16dp"/>
+
 
         <!-- Tagline -->
+
+        <!-- Action Buttons Container -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/main_menu_tagline"
-            android:textSize="16sp"
-            android:textColor="@color/primary_variant"
             android:layout_marginTop="8dp"
-            android:layout_marginBottom="48dp"/>
+            android:layout_marginBottom="48dp"
+            android:text="@string/main_menu_tagline"
+            android:textColor="@color/primary_variant"
+            android:textSize="19sp" />
 
-        <!-- Action Buttons Container -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

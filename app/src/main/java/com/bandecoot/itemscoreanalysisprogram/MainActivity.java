@@ -1,6 +1,7 @@
 package com.bandecoot.itemscoreanalysisprogram;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
@@ -414,7 +415,7 @@ public class MainActivity extends AppCompatActivity {
                 });
         
         exportAutocompleteJsonLauncher = registerForActivityResult(
-                new ActivityResultContracts.CreateDocument("application/json"),
+                new ActivityResultContracts.CreateDocument("text/csv"),
                 result -> {
                     if (result != null) {
                         exportAutocompleteToUri(result);
@@ -470,26 +471,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void loadPersistedInputs() {
-        if (appPreferences != null) {
-            String lastSection = appPreferences.getString(PREF_LAST_SECTION, "");
-            String lastExam = appPreferences.getString(PREF_LAST_EXAM, "");
-            
-            if (sectionNameInput != null && !lastSection.isEmpty()) {
-                sectionNameInput.setText(lastSection);
-            }
-            if (examNameInput != null && !lastExam.isEmpty()) {
-                examNameInput.setText(lastExam);
-            }
-        }
+        // No longer prefill section and exam fields on app start
+        // Inputs will remain blank for cold start
+        // Autocomplete/recents functionality still available via dropdown
     }
 
     private void saveInputValues() {
-        if (appPreferences != null && sectionNameInput != null && examNameInput != null) {
-            appPreferences.edit()
-                    .putString(PREF_LAST_SECTION, sectionNameInput.getText().toString().trim())
-                    .putString(PREF_LAST_EXAM, examNameInput.getText().toString().trim())
-                    .apply();
-        }
+        // No longer save section and exam for persistence/prefill
+        // Recents/autocomplete functionality handled separately in updateRecents()
     }
 
     private void updateAnswerKeyDisplay() {
@@ -749,6 +738,7 @@ public class MainActivity extends AppCompatActivity {
         answerDropdown.setHint(getString(R.string.hint_answer));
     }
 
+    @SuppressLint("MissingInflatedId")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -3899,7 +3889,7 @@ public class MainActivity extends AppCompatActivity {
             buttonImportStudentsJson.setOnClickListener(v -> {
                 v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
                 pendingAutocompleteCategory = "students";
-                importAutocompleteJsonLauncher.launch(new String[]{"application/json", "*/*"});
+                showImportChoiceDialog("students");
             });
         }
         
@@ -3907,7 +3897,7 @@ public class MainActivity extends AppCompatActivity {
             buttonExportStudentsJson.setOnClickListener(v -> {
                 v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
                 pendingAutocompleteCategory = "students";
-                exportAutocompleteJsonLauncher.launch("autocomplete_students.json");
+                exportAutocompleteJsonLauncher.launch("autocomplete_students.csv");
             });
         }
         
@@ -3915,7 +3905,7 @@ public class MainActivity extends AppCompatActivity {
             buttonImportSectionsJson.setOnClickListener(v -> {
                 v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
                 pendingAutocompleteCategory = "sections";
-                importAutocompleteJsonLauncher.launch(new String[]{"application/json", "*/*"});
+                showImportChoiceDialog("sections");
             });
         }
         
@@ -3923,7 +3913,7 @@ public class MainActivity extends AppCompatActivity {
             buttonExportSectionsJson.setOnClickListener(v -> {
                 v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
                 pendingAutocompleteCategory = "sections";
-                exportAutocompleteJsonLauncher.launch("autocomplete_sections.json");
+                exportAutocompleteJsonLauncher.launch("autocomplete_sections.csv");
             });
         }
         
@@ -3931,7 +3921,7 @@ public class MainActivity extends AppCompatActivity {
             buttonImportExamsJson.setOnClickListener(v -> {
                 v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
                 pendingAutocompleteCategory = "exams";
-                importAutocompleteJsonLauncher.launch(new String[]{"application/json", "*/*"});
+                showImportChoiceDialog("exams");
             });
         }
         
@@ -3939,7 +3929,7 @@ public class MainActivity extends AppCompatActivity {
             buttonExportExamsJson.setOnClickListener(v -> {
                 v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
                 pendingAutocompleteCategory = "exams";
-                exportAutocompleteJsonLauncher.launch("autocomplete_exams.json");
+                exportAutocompleteJsonLauncher.launch("autocomplete_exams.csv");
             });
         }
         
@@ -3948,7 +3938,7 @@ public class MainActivity extends AppCompatActivity {
             buttonAutocompleteImportAll.setOnClickListener(v -> {
                 v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
                 pendingAutocompleteCategory = "all";
-                importAutocompleteJsonLauncher.launch(new String[]{"application/json", "*/*"});
+                importAutocompleteJsonLauncher.launch(new String[]{"text/plain", "text/csv", "application/json", "*/*"});
             });
         }
         
@@ -3956,7 +3946,7 @@ public class MainActivity extends AppCompatActivity {
             buttonAutocompleteExportAll.setOnClickListener(v -> {
                 v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
                 pendingAutocompleteCategory = "all";
-                exportAutocompleteJsonLauncher.launch("autocomplete_all.json");
+                exportAutocompleteJsonLauncher.launch("autocomplete_all.csv");
             });
         }
         
@@ -4062,6 +4052,98 @@ public class MainActivity extends AppCompatActivity {
         }
     }
     
+    private void showImportChoiceDialog(String category) {
+        new AlertDialog.Builder(this)
+                .setTitle("Import " + capitalize(category))
+                .setMessage("Choose import method:")
+                .setPositiveButton("Paste Text", (dialog, which) -> {
+                    showPasteImportDialog(category);
+                })
+                .setNegativeButton("Choose File", (dialog, which) -> {
+                    pendingAutocompleteCategory = category;
+                    importAutocompleteJsonLauncher.launch(new String[]{"text/plain", "text/csv", "application/json", "*/*"});
+                })
+                .setNeutralButton("Cancel", null)
+                .show();
+    }
+    
+    private void showPasteImportDialog(String category) {
+        // Create a multiline EditText for pasting
+        final EditText input = new EditText(this);
+        input.setHint("Paste your list here...\n\nSupported formats:\n• 1. NAME\n• 2) NAME\n• NAME (one per line)");
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        input.setMinLines(10);
+        input.setMaxLines(20);
+        input.setVerticalScrollBarEnabled(true);
+        
+        new AlertDialog.Builder(this)
+                .setTitle("Paste to Import — " + capitalize(category))
+                .setView(input)
+                .setPositiveButton("Import", (dialog, which) -> {
+                    String text = input.getText().toString();
+                    if (!text.trim().isEmpty()) {
+                        importFromPastedText(category, text);
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void importFromPastedText(String category, String text) {
+        try {
+            List<String> entries = parseSmartText(text);
+            if (entries.isEmpty()) {
+                Toast.makeText(this, "No valid entries found", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            String prefsKey = getCategoryPrefsKey(category);
+            int added = mergeIntoRecentsList(prefsKey, entries, false);
+
+            loadSavedWords();
+            setupAutocompleteInputs();
+
+            Toast.makeText(this,
+                    String.format(Locale.US, "Imported %d line(s), added %d new", entries.size(), added),
+                    Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Log.e(TAG, "Error importing pasted text", e);
+            Toast.makeText(this, "Error importing: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+    
+    private List<String> parseSmartText(String text) {
+        List<String> entries = new ArrayList<>();
+        String[] lines = text.split("\\r?\\n");
+        
+        for (String line : lines) {
+            // Skip blank lines
+            if (line.trim().isEmpty()) {
+                continue;
+            }
+            
+            // Strip leading numbering patterns like "1.", "2)", "3 -", etc.
+            String cleaned = line.trim().replaceFirst("^\\s*\\d+[.)-]?\\s*", "");
+            
+            // Trim trailing punctuation
+            cleaned = cleaned.replaceAll("[.,;!?]+$", "");
+            
+            // Keep the entry if it's not empty after cleaning
+            if (!cleaned.isEmpty()) {
+                entries.add(cleaned);
+            }
+        }
+        
+        return entries;
+    }
+    
+    private String capitalize(String str) {
+        if (str == null || str.isEmpty()) {
+            return str;
+        }
+        return str.substring(0, 1).toUpperCase() + str.substring(1);
+    }
+    
     private String getCategoryPrefsKey(String category) {
         switch (category) {
             case "students": return PREF_RECENT_STUDENTS;
@@ -4080,28 +4162,48 @@ public class MainActivity extends AppCompatActivity {
             is.read(buffer);
             is.close();
             
-            String jsonStr = new String(buffer, "UTF-8");
-            JSONObject json = new JSONObject(jsonStr);
+            String content = new String(buffer, "UTF-8");
             
-            if ("all".equals(pendingAutocompleteCategory)) {
-                // Import all categories
-                if (json.has("students")) {
-                    importCategoryFromJson(json.getJSONArray("students"), PREF_RECENT_STUDENTS);
+            // Try JSON first for backward compatibility
+            boolean isJson = false;
+            try {
+                JSONObject json = new JSONObject(content);
+                isJson = true;
+                
+                if ("all".equals(pendingAutocompleteCategory)) {
+                    // Import all categories from JSON
+                    if (json.has("students")) {
+                        importCategoryFromJson(json.getJSONArray("students"), PREF_RECENT_STUDENTS);
+                    }
+                    if (json.has("sections")) {
+                        importCategoryFromJson(json.getJSONArray("sections"), PREF_RECENT_SECTIONS);
+                    }
+                    if (json.has("exams")) {
+                        importCategoryFromJson(json.getJSONArray("exams"), PREF_RECENT_EXAMS);
+                    }
+                    Toast.makeText(this, "Imported all categories", Toast.LENGTH_SHORT).show();
+                } else {
+                    // Import single category from JSON
+                    String key = pendingAutocompleteCategory;
+                    if (json.has(key)) {
+                        String prefsKey = getCategoryPrefsKey(key);
+                        importCategoryFromJson(json.getJSONArray(key), prefsKey);
+                        Toast.makeText(this, "Imported " + key, Toast.LENGTH_SHORT).show();
+                    }
                 }
-                if (json.has("sections")) {
-                    importCategoryFromJson(json.getJSONArray("sections"), PREF_RECENT_SECTIONS);
-                }
-                if (json.has("exams")) {
-                    importCategoryFromJson(json.getJSONArray("exams"), PREF_RECENT_EXAMS);
-                }
-                Toast.makeText(this, "Imported all categories", Toast.LENGTH_SHORT).show();
-            } else {
-                // Import single category
-                String key = pendingAutocompleteCategory;
-                if (json.has(key)) {
-                    String prefsKey = getCategoryPrefsKey(key);
-                    importCategoryFromJson(json.getJSONArray(key), prefsKey);
-                    Toast.makeText(this, "Imported " + key, Toast.LENGTH_SHORT).show();
+            } catch (JSONException e) {
+                // Not JSON, treat as CSV/plain text
+                isJson = false;
+            }
+            
+            if (!isJson) {
+                // Parse as CSV/plain text
+                if ("all".equals(pendingAutocompleteCategory)) {
+                    // For "All" import, expect category,word format
+                    importFromCsvAll(content);
+                } else {
+                    // For single category, parse as plain text/single column CSV
+                    importFromCsvSingle(content, pendingAutocompleteCategory);
                 }
             }
             
@@ -4109,47 +4211,128 @@ public class MainActivity extends AppCompatActivity {
             setupAutocompleteInputs();
             
         } catch (Exception e) {
-            Log.e(TAG, "Error importing autocomplete JSON", e);
+            Log.e(TAG, "Error importing autocomplete", e);
             Toast.makeText(this, "Error importing: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
-    
+
+    private void importFromCsvAll(String content) throws Exception {
+        String[] lines = content.split("\\r?\\n");
+        List<String> students = new ArrayList<>();
+        List<String> sections = new ArrayList<>();
+        List<String> exams = new ArrayList<>();
+
+        for (String line : lines) {
+            line = line.trim();
+            if (line.isEmpty() || line.toLowerCase().startsWith("category")) continue;
+
+            String[] parts = line.split(",", 2);
+            if (parts.length >= 2) {
+                String category = parts[0].trim().toLowerCase();
+                String word = parts[1].trim();
+                if (word.isEmpty()) continue;
+
+                switch (category) {
+                    case "students": students.add(word); break;
+                    case "sections": sections.add(word); break;
+                    case "exams": exams.add(word); break;
+                }
+            }
+        }
+
+        int addedStudents = mergeIntoRecentsList(PREF_RECENT_STUDENTS, students, false);
+        int addedSections = mergeIntoRecentsList(PREF_RECENT_SECTIONS, sections, false);
+        int addedExams = mergeIntoRecentsList(PREF_RECENT_EXAMS, exams, false);
+
+        Toast.makeText(this,
+                String.format(Locale.US, "Imported (added): students %d, sections %d, exams %d",
+                        addedStudents, addedSections, addedExams),
+                Toast.LENGTH_SHORT).show();
+    }
+
+    private void importFromCsvSingle(String content, String category) throws Exception {
+        List<String> entries = new ArrayList<>();
+        String[] lines = content.split("\\r?\\n");
+
+        for (String line : lines) {
+            line = line.trim();
+            if (line.isEmpty() || line.equalsIgnoreCase("word")) continue;
+
+            String value;
+            if (line.contains(",")) {
+                String[] parts = line.split(",", 2);
+                value = parts[0].trim();
+            } else {
+                value = line;
+            }
+            value = value.replaceFirst("^\\s*\\d+[.)-]?\\s*", "").trim();
+            if (!value.isEmpty()) entries.add(value);
+        }
+
+        if (entries.isEmpty()) {
+            Toast.makeText(this, "No valid entries found", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        String prefsKey = getCategoryPrefsKey(category);
+        int added = mergeIntoRecentsList(prefsKey, entries, false);
+
+        Toast.makeText(this,
+                String.format(Locale.US, "Imported %d %s, added %d new", entries.size(), category, added),
+                Toast.LENGTH_SHORT).show();
+    }
+
     private void importCategoryFromJson(JSONArray arr, String prefsKey) throws JSONException {
         List<String> words = new ArrayList<>();
         for (int i = 0; i < arr.length(); i++) {
-            words.add(arr.getString(i));
+            String v = arr.optString(i, "").trim();
+            if (!v.isEmpty()) words.add(v);
         }
-        
-        // Save to preferences
-        JSONArray jsonArr = new JSONArray(words);
-        appPreferences.edit().putString(prefsKey, jsonArr.toString()).apply();
+        mergeIntoRecentsList(prefsKey, words, false);
     }
     
     private void exportAutocompleteToUri(android.net.Uri uri) {
         try {
-            JSONObject json = new JSONObject();
+            StringBuilder csv = new StringBuilder();
             
             if ("all".equals(pendingAutocompleteCategory)) {
-                // Export all categories
-                json.put("students", new JSONArray(loadRecents(PREF_RECENT_STUDENTS)));
-                json.put("sections", new JSONArray(loadRecents(PREF_RECENT_SECTIONS)));
-                json.put("exams", new JSONArray(loadRecents(PREF_RECENT_EXAMS)));
+                // Export all categories as category,word CSV
+                csv.append("category,word\n");
+                
+                List<String> students = loadRecents(PREF_RECENT_STUDENTS);
+                for (String student : students) {
+                    csv.append("students,").append(escapeCsv(student)).append("\n");
+                }
+                
+                List<String> sections = loadRecents(PREF_RECENT_SECTIONS);
+                for (String section : sections) {
+                    csv.append("sections,").append(escapeCsv(section)).append("\n");
+                }
+                
+                List<String> exams = loadRecents(PREF_RECENT_EXAMS);
+                for (String exam : exams) {
+                    csv.append("exams,").append(escapeCsv(exam)).append("\n");
+                }
             } else {
-                // Export single category
-                String key = pendingAutocompleteCategory;
-                String prefsKey = getCategoryPrefsKey(key);
-                json.put(key, new JSONArray(loadRecents(prefsKey)));
+                // Export single category as single column CSV
+                csv.append("word\n");
+                
+                String prefsKey = getCategoryPrefsKey(pendingAutocompleteCategory);
+                List<String> words = loadRecents(prefsKey);
+                for (String word : words) {
+                    csv.append(escapeCsv(word)).append("\n");
+                }
             }
             
             OutputStream os = getContentResolver().openOutputStream(uri);
             if (os != null) {
-                os.write(json.toString(2).getBytes("UTF-8"));
+                os.write(csv.toString().getBytes("UTF-8"));
                 os.close();
                 Toast.makeText(this, "Exported successfully", Toast.LENGTH_SHORT).show();
             }
             
         } catch (Exception e) {
-            Log.e(TAG, "Error exporting autocomplete JSON", e);
+            Log.e(TAG, "Error exporting autocomplete", e);
             Toast.makeText(this, "Error exporting: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
@@ -4368,6 +4551,40 @@ public class MainActivity extends AppCompatActivity {
                     Toast.LENGTH_LONG).show();
         }
     }
+
+    private int mergeIntoRecentsList(String prefsKey, List<String> newValues, boolean addToFront) {
+        List<String> existing = loadRecents(prefsKey);
+        int added = 0;
+
+        // Normalize and de-duplicate while preserving existing order
+        for (String v : newValues) {
+            if (v == null) continue;
+            String val = v.trim();
+            if (val.isEmpty()) continue;
+
+            if (existing.contains(val)) {
+                // Do not move existing entries; keep current order
+                continue;
+            }
+            if (addToFront) {
+                existing.add(0, val);
+            } else {
+                existing.add(val);
+            }
+            added++;
+        }
+
+        // Cap to MAX_RECENTS (keep the first MAX_RECENTS entries)
+        if (existing.size() > MAX_RECENTS) {
+            existing = new ArrayList<>(existing.subList(0, MAX_RECENTS));
+        }
+
+        JSONArray arr = new JSONArray(existing);
+        appPreferences.edit().putString(prefsKey, arr.toString()).apply();
+        return added;
+    }
+
+
     
     // ---------------------------
     // Export Masterlist CSV

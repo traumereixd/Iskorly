@@ -51,7 +51,7 @@
 \nMedel, Myra J.
 \nReyes, John Jharen R.
 \nSahagun, Jayson G.
-\nTagle, Steve Aldrei D.\n\nProgrammed By: Sahagun, Jayson G.\n\nIskorly v1.3\nGoogle Cloud Vision Powered</string>
+\nTagle, Steve Aldrei D.\n\nProgrammed By: Sahagun, Jayson G.\n\nIskorly v1.7\nGoogle Cloud Vision Powered</string>
 
     <!-- Menu -->
     <string name="menu_setup">Setup</string>
@@ -73,12 +73,12 @@
     <string name="btn_main_tutorial">Tutorial</string>
     <string name="btn_main_credits">Credits</string>
     <string name="main_menu_title">Iskorly</string>
-    <string name="main_menu_tagline">Faster Scoring. Smarter Teaching</string>
+    <string name="main_menu_tagline">Better. Faster. Smarter Scoring</string>
     <string name="processing_images">Processing %d image(s)…</string>
     <string name="filled_answers_status">Processed %d image(s) • Filled %d / %d answers</string>
 
     <!-- Optional extra tagline resource if you want to use dynamically -->
-    <string name="brand_tagline_alt">Faster Scores. Smarter Teaching.</string>
+    <string name="brand_tagline_alt">Better. Faster. Smarter Scoring.</string>
 
     <!-- Tutorial -->
     <string name="tutorial_title">How to Use</string>
@@ -113,15 +113,15 @@ Tips:\n
     <string name="crop_cancel">Cancel crop</string>
     
     <!-- Autocomplete Manager -->
-    <string name="btn_manage_autocomplete">Manage Autocomplete</string>
+    <string name="btn_manage_autocomplete">Edit Autocomplete</string>
     <string name="autocomplete_manager_title">Autocomplete Manager</string>
     <string name="autocomplete_students_label">Student Names</string>
     <string name="autocomplete_section_label">Subgroup 1 (Section)</string>
     <string name="autocomplete_exam_label">Subgroup 2 (Exam)</string>
     <string name="autocomplete_add_hint">Add new word</string>
     <string name="btn_add">Add</string>
-    <string name="btn_import_json">Import JSON</string>
-    <string name="btn_export_json">Export JSON</string>
+    <string name="btn_import_json">Import</string>
+    <string name="btn_export_json">Export</string>
     <string name="btn_import_all">Import All</string>
     <string name="btn_export_all">Export All</string>
     <string name="btn_close">Close</string>
