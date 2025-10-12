@@ -1,232 +1,82 @@
-# ISA v1.3 Stabilization - Implementation Summary
+# Text Color & Video Splash Implementation Summary
 
 ## Overview
-This PR implements comprehensive stabilization fixes for v1.3, addressing toolbar removal, back navigation, crop pipeline stability, OCR centralization, and defensive programming practices.
+This implementation addresses teacher feedback about hard-to-read gray text and adds an animated video splash screen to polish the app.
 
-## Changes Implemented
+## Changes Made
 
-### A. Toolbar Removal ✅
-**Files Modified:** 
-- `app/src/main/res/layout/activity_main.xml`
-- `app/src/main/java/com/bandecoot/itemscoreanalysisprogram/MainActivity.java`
+### 1. Black Text Color for All Input Fields
+**File: `app/src/main/res/layout/activity_main.xml`**
+- Added `android:textColor="#000000"` to all 12 text input fields:
+  - Main screen inputs: `editText_student_name`, `editText_section_name`, `editText_exam_name`
+  - Answer key overlay: `editText_question_number`, `auto_answer`, `editText_remove_question`
+  - Autocomplete manager: `input_add_student`, `input_add_section`, `input_add_exam`
+  - Filters: `filter_exam_dropdown`, `filter_section_dropdown`
+  - Slot selector: `slot_selector`
 
-**Changes:**
-- Removed `AppBarLayout` and `MaterialToolbar` from XML layout
-- Removed `topAppBar` field and menu handling code from MainActivity
-- Removed unused `MaterialToolbar` import
-- Added "Back to Main Menu" text button on main layout for explicit navigation
+### 2. Runtime Text Color Enforcement
+**File: `app/src/main/java/com/bandecoot/itemscoreanalysisprogram/MainActivity.java`**
+- Added `enforceBlackTextColorOnInputs()` helper method that:
+  - Recursively walks the view tree under `android.R.id.content`
+  - Forces text color to `Color.BLACK` for:
+    - `android.widget.EditText`
+    - `com.google.android.material.textfield.TextInputEditText`
+    - `com.google.android.material.textfield.MaterialAutoCompleteTextView`
+- Called from `onCreate()` after `setContentView()` to ensure black text at runtime
+- Guarantees black typing even if styles/themes attempt to override
 
-**Result:** Clean operational UI without toolbar, navigation via explicit buttons only.
-
----
-
-### B. Back Navigation ✅
+### 3. Animated Video Splash Screen
 **Files Modified:**
-- `app/src/main/java/com/bandecoot/itemscoreanalysisprogram/MainActivity.java`
+- `app/src/main/res/raw/iskorly_splash.mp4` - Moved from `drawable/` to `raw/` (proper location for media files)
+- `app/src/main/res/layout/activity_splash.xml` - Updated with full-screen VideoView
+- `app/src/main/java/com/bandecoot/itemscoreanalysisprogram/SplashActivity.java` - Completely rewritten
 
-**Changes:**
-- Added `onBackPressed()` override with comprehensive logic:
-  - First back in scan session → stops camera, returns to main layout
-  - Second back (or back from main) → returns to MainMenuActivity via `finish()`
-  - Back from overlays (setup, history, masterlist) → returns to main layout
-- Added `inScanSession` boolean flag to track scan session state
-- Added `backToMenuButton` click listener that calls `finish()`
+**Splash Implementation Details:**
+- Uses `VideoView` for full-screen video playback
+- Loads video from `res/raw/` using `android.resource://` URI
+- Mutes audio in `onPrepared` listener
+- Auto-navigates to `MainMenuActivity` on video completion
+- Guard timeout (5 seconds) prevents indefinite waiting if playback stalls
+- Error handling: gracefully falls back to menu if video fails to load
+- `hasNavigated` flag prevents duplicate navigation
+- Proper cleanup in `onDestroy()` to remove handler callbacks
+- Background fallback color: `#4452A6` (brand primary indigo)
 
-**Result:** Intuitive back navigation that prevents accidentally leaving MainActivity mid-scan and provides clear exit path.
+### 4. Manifest Configuration
+**File: `app/src/main/AndroidManifest.xml`**
+- Already properly configured with `SplashActivity` as `LAUNCHER`
+- Flow: SplashActivity → MainMenuActivity → MainActivity (no changes needed)
 
----
+## Technical Details
 
-### C. Stable Crop & Capture Pipeline ✅
-**Files Modified:**
-- `app/src/main/java/com/bandecoot/itemscoreanalysisprogram/MainActivity.java`
+### Video Resource Handling
+- Android expects media files in `res/raw/` directory (not `drawable/`)
+- Using `android.resource://` URI scheme for proper resource loading
+- File size: 8.9MB (within acceptable range for embedded video)
 
-**Changes:**
-- Added `lastCapturedFile` field to store File reference (not just URI)
-- Enhanced `startCropActivity()`:
-  - Added comprehensive logging with `CROP_FLOW` tag
-  - Explicit `grantUriPermission()` calls for uCrop package
-  - Added fallback to direct OCR if crop setup fails
-  - Improved error handling and user feedback
-- Enhanced `onCropResult()`:
-  - Added detailed logging for all result cases
-  - Added "Crop canceled" toast when user cancels
-  - Single fallback to original image on error (not repeated)
-  - Clear distinction between success, error, and cancel cases
-- Updated `onJpegAvailableListener`:
-  - Added defensive check: discard JPEG if `!scanSessionActive`
-  - Added logging at key points
-  - Store both file and URI for better URI management
+### Text Color Strategy
+- XML declarations ensure black text at inflation time
+- Runtime enforcement catches any dynamically created views
+- Two-layer approach guarantees consistency across all scenarios
 
-**Result:** Reliable crop flow with clear logging, proper URI permissions, and graceful fallback handling. Addresses "Crop not available" errors.
+### Build Verification
+- Clean build passes successfully: `./gradlew clean assembleDebug`
+- All 12 text fields verified to have `android:textColor="#000000"`
+- Video file confirmed in correct location: `app/src/main/res/raw/`
+- No build errors or warnings related to these changes
 
----
+## Acceptance Criteria Met
 
-### D. Centralized OCR via OcrProcessor ✅
-**Files Modified:**
-- `app/src/main/java/com/bandecoot/itemscoreanalysisprogram/MainActivity.java`
+✅ All typing in inputs appears pure black at runtime (XML + runtime enforcement)
+✅ Splash displays animated video and transitions to MainMenuActivity automatically
+✅ Video survives rotation and handles errors gracefully with timeout guard
+✅ Build passes and app launches normally
+✅ No changes to OCR/scoring code (only text-color enforcement helper added)
 
-**Changes:**
-- Added `ocrProcessor` field of type `OcrProcessor`
-- Initialize `OcrProcessor` in `startScanSession()` with current answer key and API keys
-- Close `OcrProcessor` in `stopScanSession()`
-- Replaced direct OCR calls in:
-  - `processCroppedImage()` → now uses `ocrProcessor.processImage(bitmap)`
-  - `onPhotosImported()` → now uses `ocrProcessor.processImage(bitmap)` for each image
-  - New `processImageWithOcrFallback()` → uses `ocrProcessor.processImage(bitmap)`
-- Kept legacy methods (`callVisionApiAndRecognize`, `processImageWithOcr`) as unused but marked deprecated for future removal
-- Added `OCR_FLOW` logging tag for OCR operations
+## Notes
 
-**Result:** Single, consistent OCR pipeline. All image processing uses `OcrProcessor` which handles enhancement, Vision API, OCR.Space fallback, parsing, and answer key filtering. Eliminates code duplication and inconsistencies.
-
----
-
-### E. Defensive Null & State Checks ✅
-**Files Modified:**
-- `app/src/main/java/com/bandecoot/itemscoreanalysisprogram/MainActivity.java`
-
-**Changes:**
-- `onJpegAvailableListener`:
-  - Check `!scanSessionActive` at start, discard if not active
-  - Added null checks and logging
-- `triggerStillCapture()`:
-  - Added `!scanSessionActive` check at start
-  - Enhanced camera readiness checks
-  - Added logging for each check
-- `startScanSession()`:
-  - Set `cameraSessionReady = false` at start
-  - Set `inScanSession = true` for navigation tracking
-  - Initialize `OcrProcessor` before camera setup
-- `stopScanSession()`:
-  - Reset `inScanSession = false`
-  - Reset `waitingForJpeg.set(false)`
-  - Close `OcrProcessor`
-- `closeCamera()`:
-  - Reset `cameraSessionReady = false`
-  - Reset `waitingForJpeg.set(false)`
-  - Added logging
-- `onConfigured()` callback:
-  - Added `!scanSessionActive` check
-  - Set `cameraSessionReady = true` only AFTER successful `setRepeatingRequest()`
-  - Update button text to "Scan" when ready
-
-**Result:** Robust state management prevents race conditions, late callbacks acting after session stop, and "Camera not ready" errors. All camera operations properly guarded.
-
----
-
-### F. UI/UX Polishing ✅
-**Files Modified:**
-- `app/src/main/java/com/bandecoot/itemscoreanalysisprogram/MainActivity.java`
-
-**Changes:**
-- Scan button text = "Opening..." when scan session starts
-- Scan button text = "Scan" when camera becomes ready
-- Toast "Crop canceled" when user cancels crop
-- Toast "Crop failed, processing original image" when crop errors
-- Toast "Crop not available" if crop setup fails with fallback
-- Enhanced error messages with context
-
-**Result:** Clear user feedback for all states and operations.
-
----
-
-### G. Integrity Cleanup ✅
-**Files Modified:**
-- `app/src/main/java/com/bandecoot/itemscoreanalysisprogram/MainActivity.java`
-
-**Changes:**
-- Moved `CAMERA_WIDTH` and `CAMERA_HEIGHT` to top constant section
-- Added `CROP_FLOW` and `OCR_FLOW` logging tags
-- Removed obsolete "Replace the whole method" duplicate comments (lines 407-408)
-- Added comprehensive logging:
-  - `CAMERA_FLOW`: camera lifecycle, session state, capture operations
-  - `CROP_FLOW`: crop activity start, result handling, fallback logic
-  - `OCR_FLOW`: OCR processor init/close, image processing, multi-import
-
-**Result:** Clean, maintainable code with excellent traceability for debugging.
-
----
-
-## Testing Status
-
-### Build Status
-⚠️ **Unable to complete full Gradle build** due to network connectivity issues with jitpack.io in the build environment. This is an **environment issue**, not a code issue.
-
-### Code Validation
-✅ **Syntax verified** - No syntax errors detected
-✅ **Imports verified** - All necessary imports present, unused imports removed
-✅ **Method signatures** - All method calls and signatures verified
-✅ **XML validated** - Layout changes are syntactically correct
-✅ **Brace counting** - Structure is sound (note: slight discrepancy is due to braces in comments/strings)
-
-### Manual Testing Checklist
-The following tests should be performed on a physical device or emulator:
-
-- [ ] App launches to MainMenuActivity
-- [ ] MainActivity opens without toolbar
-- [ ] "Back to Main Menu" button visible and functional
-- [ ] Start scan session → button shows "Opening..." then "Scan"
-- [ ] Single capture → crop UI opens reliably (test 3 times)
-- [ ] Cancel crop → Toast appears, returns to camera
-- [ ] Confirm crop → OCR runs, answers populate
-- [ ] Multi-image import → processes all images
-- [ ] Back in scan session → stops camera, shows main layout
-- [ ] Back from main layout → returns to MainMenuActivity
-- [ ] No crashes or ANRs during sequential captures
-- [ ] Log output shows proper CAMERA_FLOW, CROP_FLOW, OCR_FLOW messages
-
----
-
-## Impact Assessment
-
-### High Impact (Critical Fixes)
-1. **Crop Pipeline Stability** - Addresses intermittent "Crop not available" errors
-2. **OCR Centralization** - Eliminates inconsistent OCR behavior
-3. **Defensive Checks** - Prevents "Camera not ready" errors from race conditions
-4. **Back Navigation** - Prevents users from leaving mid-scan accidentally
-
-### Medium Impact (Quality Improvements)
-1. **Toolbar Removal** - Cleaner UI, removes redundant navigation
-2. **Logging Enhancement** - Dramatically improves debuggability
-3. **User Feedback** - Clear toast messages for all operations
-
-### Low Impact (Code Quality)
-1. **Comment Cleanup** - Removes obsolete markers
-2. **Constant Organization** - Better code structure
-
----
-
-## Known Limitations
-
-1. **Legacy Methods Retained**: Old OCR methods (`callVisionApiAndRecognize`, `processImageWithOcr`) are kept but unused. These should be removed in a future cleanup PR once stability is fully confirmed.
-
-2. **Network Build Issue**: Cannot verify full Gradle build in current environment due to jitpack.io connectivity. Build will succeed in environments with proper network access.
-
-3. **Snackbar Not Added**: Problem statement marked this as optional. Using Toast for simplicity and minimal changes.
-
----
-
-## Deployment Recommendations
-
-1. **Test thoroughly** on multiple devices/Android versions before production
-2. **Monitor logs** for CAMERA_FLOW, CROP_FLOW, OCR_FLOW entries to verify behavior
-3. **Check uCrop library** on first build to ensure jitpack.io resolves properly
-4. **Verify permissions** - FileProvider and camera permissions work correctly
-5. **Performance test** - Run 10+ sequential captures to verify no memory leaks
-
----
-
-## Version
-- Target Version: **1.3** (no version bump per requirements)
-- Commit: Major refactoring for stability
-
----
-
-## Files Changed Summary
-- ✏️ `app/src/main/res/layout/activity_main.xml` - Toolbar removed, back button added
-- ✏️ `app/src/main/java/com/bandecoot/itemscoreanalysisprogram/MainActivity.java` - Major refactoring (230 insertions, 121 deletions)
-- 📝 `IMPLEMENTATION_SUMMARY.md` - This file
-
----
-
-*Implementation completed by GitHub Copilot on behalf of traumereixd*
-*All requirements from problem statement addressed*
+- Hints remain in their original colors; only actual typed text is forced to black
+- VideoView uses `MATCH_PARENT` for full-screen display
+- `keepScreenOn="true"` prevents screen from turning off during splash
+- If video is missing or corrupt, app gracefully continues to main menu
+- No changes to existing functionality or behavior outside of text color and splash screen
