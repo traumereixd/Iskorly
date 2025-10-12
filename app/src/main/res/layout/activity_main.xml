@@ -69,6 +69,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:inputType="textCapWords|textPersonName"
+                            android:textColor="#000000"
                             android:paddingStart="0dp"
                             android:paddingEnd="0dp" />
                     </com.google.android.material.textfield.TextInputLayout>
@@ -88,6 +89,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:inputType="textCapSentences"
+                            android:textColor="#000000"
                             android:paddingStart="0dp"
                             android:paddingEnd="0dp" />
                     </com.google.android.material.textfield.TextInputLayout>
@@ -107,6 +109,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:inputType="textCapSentences"
+                            android:textColor="#000000"
                             android:paddingStart="0dp"
                             android:paddingEnd="0dp" />
                     </com.google.android.material.textfield.TextInputLayout>
@@ -328,6 +331,7 @@
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
                                     android:inputType="textCapWords"
+                                    android:textColor="#000000"
                                     android:imeOptions="actionDone" />
                             </com.google.android.material.textfield.TextInputLayout>
 
@@ -410,6 +414,7 @@
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
                                     android:inputType="textCapSentences"
+                                    android:textColor="#000000"
                                     android:imeOptions="actionDone" />
                             </com.google.android.material.textfield.TextInputLayout>
 
@@ -492,6 +497,7 @@
                                     android:layout_width="match_parent"
                                     android:layout_height="wrap_content"
                                     android:inputType="textCapSentences"
+                                    android:textColor="#000000"
                                     android:imeOptions="actionDone" />
                             </com.google.android.material.textfield.TextInputLayout>
 
@@ -597,7 +603,8 @@
                                 android:id="@+id/slot_selector"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:inputType="none" />
+                                android:inputType="none"
+                                android:textColor="#000000" />
                         </com.google.android.material.textfield.TextInputLayout>
 
                     </LinearLayout>
@@ -686,7 +693,8 @@
                                 android:id="@+id/editText_question_number"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:inputType="number" />
+                                android:inputType="number"
+                                android:textColor="#000000" />
                         </com.google.android.material.textfield.TextInputLayout>
 
                         <com.google.android.material.textfield.TextInputLayout
@@ -700,7 +708,8 @@
                             <com.google.android.material.textfield.MaterialAutoCompleteTextView
                                 android:id="@+id/auto_answer"
                                 android:layout_width="match_parent"
-                                android:layout_height="wrap_content" />
+                                android:layout_height="wrap_content"
+                                android:textColor="#000000" />
                         </com.google.android.material.textfield.TextInputLayout>
 
                         <com.google.android.material.button.MaterialButton
@@ -729,7 +738,8 @@
                                 android:id="@+id/editText_remove_question"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:inputType="number" />
+                                android:inputType="number"
+                                android:textColor="#000000" />
                         </com.google.android.material.textfield.TextInputLayout>
 
                         <com.google.android.material.button.MaterialButton
@@ -829,6 +839,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:inputType="none"
+                                android:textColor="#000000"
                                 android:textSize="12sp"
                                 android:paddingStart="8dp"
                                 android:paddingEnd="8dp" />
@@ -848,6 +859,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:inputType="none"
+                                android:textColor="#000000"
                                 android:textSize="12sp"
                                 android:paddingStart="8dp"
                                 android:paddingEnd="8dp" />

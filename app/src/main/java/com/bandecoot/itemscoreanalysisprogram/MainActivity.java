@@ -1117,6 +1117,37 @@ public class MainActivity extends AppCompatActivity {
         
         // Handle navigation intents from MainMenuActivity
         handleNavigationIntent();
+        
+        // Enforce black text color on all input fields
+        enforceBlackTextColorOnInputs();
+    }
+    
+    /**
+     * Runtime enforcement: Force all EditText-like views to render black text.
+     * This guarantees black typing even if some styles/themes override.
+     */
+    private void enforceBlackTextColorOnInputs() {
+        View rootView = findViewById(android.R.id.content);
+        if (rootView != null) {
+            enforceBlackTextRecursive(rootView);
+        }
+    }
+    
+    private void enforceBlackTextRecursive(View view) {
+        if (view instanceof EditText) {
+            ((EditText) view).setTextColor(Color.BLACK);
+        } else if (view instanceof com.google.android.material.textfield.TextInputEditText) {
+            ((com.google.android.material.textfield.TextInputEditText) view).setTextColor(Color.BLACK);
+        } else if (view instanceof MaterialAutoCompleteTextView) {
+            ((MaterialAutoCompleteTextView) view).setTextColor(Color.BLACK);
+        }
+        
+        if (view instanceof ViewGroup) {
+            ViewGroup viewGroup = (ViewGroup) view;
+            for (int i = 0; i < viewGroup.getChildCount(); i++) {
+                enforceBlackTextRecursive(viewGroup.getChildAt(i));
+            }
+        }
     }
     
     /**
