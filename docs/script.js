@@ -4,7 +4,12 @@
 (function() {
     'use strict';
     
-    // Utility: Load first available image from candidates list
+    /**
+     * Load first available image from candidates list
+     * Tries each image path in the data-candidates attribute until one successfully loads.
+     * If all candidates fail, keeps the existing src attribute as fallback.
+     * @param {HTMLImageElement} imgEl - Image element with data-candidates attribute
+     */
     function loadFirstAvailable(imgEl) {
         const candidatesStr = imgEl.getAttribute('data-candidates');
         if (!candidatesStr) return;
@@ -18,7 +23,6 @@
             function tryNext() {
                 if (currentIndex >= candidates.length) {
                     // All candidates failed, keep existing src or fallback
-                    console.log('All image candidates failed for:', imgEl);
                     return;
                 }
                 
@@ -42,7 +46,7 @@
             
             tryNext();
         } catch (e) {
-            console.error('Error parsing data-candidates:', e);
+            // Silently fail and keep existing src
         }
     }
     
