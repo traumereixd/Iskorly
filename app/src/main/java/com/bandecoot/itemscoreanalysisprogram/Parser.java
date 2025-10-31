@@ -9,6 +9,9 @@ import java.util.regex.Pattern;
 
 public final class Parser {
     private static final String TAG = "ISA_PARSER";
+    
+    // Parser configuration constants
+    private static final float ORDER_ONLY_FALLBACK_THRESHOLD = 0.3f; // Switch to order-only below 30% filled
 
     private Parser() {}
 
@@ -204,9 +207,9 @@ public final class Parser {
         
         Log.d(TAG, "Number-aware parsing found " + filledCount + " filled answers out of " + expectedCount);
         
-        // If we got less than 30% of expected answers, try order-only mode
-        if (filledCount < expectedCount * 0.3) {
-            Log.d(TAG, "Trying order-only fallback");
+        // If we got less than threshold of expected answers, try order-only mode
+        if (filledCount < expectedCount * ORDER_ONLY_FALLBACK_THRESHOLD) {
+            Log.d(TAG, "Trying order-only fallback (below " + (ORDER_ONLY_FALLBACK_THRESHOLD * 100) + "% threshold)");
             LinkedHashMap<Integer, String> orderOnlyResult = parseOrderOnly(text, answerKey);
             int orderFilledCount = countFilledAnswers(orderOnlyResult);
             

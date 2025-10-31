@@ -28,6 +28,10 @@ import okhttp3.Response;
 public class OcrProcessor {
     private static final String TAG = "ISA_VISION_PROC";
     
+    // Scoring constants
+    private static final int SCORE_PER_FILLED_ANSWER = 10;
+    private static final int SCORE_NUMERIC_ANCHOR_BONUS = 2;
+    
     private final OkHttpClient httpClient;
     private final String visionApiKey;
     private final String ocrSpaceApiKey; // Kept for legacy compatibility but not used
@@ -211,14 +215,14 @@ public class OcrProcessor {
         // Main score: count filled answers that match answer key questions
         for (Map.Entry<Integer, String> entry : parsed.entrySet()) {
             if (answerKey.containsKey(entry.getKey()) && !entry.getValue().trim().isEmpty()) {
-                score += 10; // 10 points per filled answer
+                score += SCORE_PER_FILLED_ANSWER;
             }
         }
         
         // Bonus: numeric anchors present (indicates numbered format was detected)
-        // Check for patterns like "1.", "2)", etc. in text
-        if (text != null && (text.contains("1.") || text.contains("1)") || text.contains("2.") || text.contains("2)"))) {
-            score += 2; // Small bonus for numeric anchors
+        // Check for patterns like "1.", "2)", "3.", "4)" etc. in text
+        if (text != null && text.matches(".*\\d+[.)].*")) {
+            score += SCORE_NUMERIC_ANCHOR_BONUS;
         }
         
         return score;

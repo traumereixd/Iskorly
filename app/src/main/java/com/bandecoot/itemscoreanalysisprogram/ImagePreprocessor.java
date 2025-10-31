@@ -112,14 +112,15 @@ public final class ImagePreprocessor {
         int[] pixels = new int[width * height];
         src.getPixels(pixels, 0, width, 0, 0, width, height);
         
-        // Convert to grayscale intensities
+        // Convert to grayscale intensities using standard luminance formula
         int[] gray = new int[pixels.length];
         for (int i = 0; i < pixels.length; i++) {
             int color = pixels[i];
             int r = (color >> 16) & 0xFF;
             int g = (color >> 8) & 0xFF;
             int b = color & 0xFF;
-            gray[i] = (r + g + b) / 3;
+            // Use standard luminance formula accounting for human eye sensitivity
+            gray[i] = (int)(0.299 * r + 0.587 * g + 0.114 * b);
         }
         
         // Build histogram
