@@ -259,26 +259,26 @@
     });
     
     console.log('Iskorly website initialized');
-    
+
     // Formspree form submission handler
     const contactForm = document.getElementById('contactForm');
     const formAlert = document.getElementById('formAlert');
-    
+
     if (contactForm && formAlert) {
         contactForm.addEventListener('submit', function(e) {
             e.preventDefault();
-            
+
             const formspreeEndpoint = contactForm.getAttribute('data-formspree') || contactForm.getAttribute('action');
-            
+
             if (!formspreeEndpoint || formspreeEndpoint.includes('your-form-id')) {
                 formAlert.textContent = 'Form endpoint not configured properly.';
                 formAlert.className = 'form-alert error';
                 return;
             }
-            
+
             // Get form data
             const formData = new FormData(contactForm);
-            
+
             // Submit via fetch with JSON accept header for Formspree AJAX response
             fetch(formspreeEndpoint, {
                 method: 'POST',
