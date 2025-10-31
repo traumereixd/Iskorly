@@ -31,7 +31,10 @@
                 
                 testImg.onload = function() {
                     // Success! Use this image
-                    imgEl.src = path;
+                    // Validate it's a relative path to prevent XSS
+                    if (path && path.startsWith('assets/')) {
+                        imgEl.src = path;
+                    }
                     imgEl.removeAttribute('data-candidates'); // Clean up
                 };
                 
@@ -41,7 +44,14 @@
                     tryNext();
                 };
                 
-                testImg.src = path;
+                // Only try paths that start with 'assets/' for security
+                if (path && path.startsWith('assets/')) {
+                    testImg.src = path;
+                } else {
+                    // Skip invalid paths
+                    currentIndex++;
+                    tryNext();
+                }
             }
             
             tryNext();
