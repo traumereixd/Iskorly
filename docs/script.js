@@ -295,6 +295,9 @@
                 } else {
                     return response.json().then(data => {
                         throw new Error(data.error || 'Form submission failed');
+                    }).catch(jsonError => {
+                        // If JSON parsing fails, throw generic error
+                        throw new Error('Form submission failed');
                     });
                 }
             })
