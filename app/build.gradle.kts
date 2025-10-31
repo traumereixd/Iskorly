@@ -39,6 +39,15 @@ android {
             else -> ""
         }
         buildConfigField("String", "OCR_SPACE_API_KEY", "\"$ocrSpaceKey\"")
+        
+        // OCR multi-variant configuration
+        buildConfigField("int", "MAX_VARIANTS", "4")
+        buildConfigField("float", "EARLY_EXIT_FILLED_THRESHOLD", "0.90f")
+        
+        // Optional AI re-parser endpoint for low-confidence results
+        val reparseEndpoint = props.getProperty("REPARSE_ENDPOINT")?.trim() ?: ""
+        buildConfigField("String", "REPARSE_ENDPOINT", "\"$reparseEndpoint\"")
+        buildConfigField("float", "REPARSE_MIN_FILLED_THRESHOLD", "0.50f")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

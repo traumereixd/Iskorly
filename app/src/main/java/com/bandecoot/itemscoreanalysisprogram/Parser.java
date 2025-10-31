@@ -9,6 +9,9 @@ import java.util.regex.Pattern;
 
 public final class Parser {
     private static final String TAG = "ISA_PARSER";
+    
+    // Parser configuration constants
+    private static final float ORDER_ONLY_FALLBACK_THRESHOLD = 0.3f; // Switch to order-only below 30% filled
 
     private Parser() {}
 
@@ -174,6 +177,161 @@ public final class Parser {
         Log.d(TAG, "Filtered to " + filtered.size() + " answer key questions (from " + 
               (parsed != null ? parsed.size() : 0) + " parsed)");
         return filtered;
+    }
+
+    /**
+     * Smart parser with fallback: tries number-aware parsing first, then falls back to order-only.
+     * This is the main entry point for the new multi-pass OCR pipeline.
+     * 
+     * Strategy:
+     * 1. Try parsing with number-aware mode (looks for "1. A", "2) B", etc.)
+     * 2. If too few answers found, try order-only mode (map lines sequentially to answer key)
+     * 3. Return whichever yields more filled answers
+     * 
+     * @param text OCR text to parse
+     * @param answerKey Current answer key for validation and fallback mapping
+     * @return Parsed answers map
+     */
+    public static LinkedHashMap<Integer, String> parseOcrTextSmartWithFallback(
+            String text, java.util.Map<Integer, String> answerKey) {
+        
+        if (text == null || text.trim().isEmpty()) return new LinkedHashMap<>();
+        if (answerKey == null || answerKey.isEmpty()) return new LinkedHashMap<>();
+        
+        // Step 1: Try number-aware parsing
+        LinkedHashMap<Integer, String> numberedResult = parseNumberAware(text, answerKey);
+        
+        // Step 2: If result is sparse, try order-only fallback
+        int filledCount = countFilledAnswers(numberedResult);
+        int expectedCount = answerKey.size();
+        
+        Log.d(TAG, "Number-aware parsing found " + filledCount + " filled answers out of " + expectedCount);
+        
+        // If we got less than threshold of expected answers, try order-only mode
+        if (filledCount < expectedCount * ORDER_ONLY_FALLBACK_THRESHOLD) {
+            Log.d(TAG, "Trying order-only fallback (below " + (ORDER_ONLY_FALLBACK_THRESHOLD * 100) + "% threshold)");
+            LinkedHashMap<Integer, String> orderOnlyResult = parseOrderOnly(text, answerKey);
+            int orderFilledCount = countFilledAnswers(orderOnlyResult);
+            
+            Log.d(TAG, "Order-only parsing found " + orderFilledCount + " filled answers");
+            
+            // Use whichever got more filled answers
+            if (orderFilledCount > filledCount) {
+                return orderOnlyResult;
+            }
+        }
+        
+        return numberedResult;
+    }
+    
+    /**
+     * Number-aware parser: looks for numbered patterns like "1. A", "2) B", etc.
+     * Strips leading numbers and extracts answers.
+     */
+    private static LinkedHashMap<Integer, String> parseNumberAware(
+            String text, java.util.Map<Integer, String> answerKey) {
+        
+        LinkedHashMap<Integer, String> map = new LinkedHashMap<>();
+        java.util.Set<String> allowedSet = buildAllowedSet(answerKey);
+        
+        // Normalize and convert roman numerals
+        String normalized = normalizeTextPreserveLines(text);
+        String converted = convertRomanNumeralsPreserveLines(normalized);
+        
+        // Parse line by line
+        String[] lines = converted.split("\n");
+        for (String line : lines) {
+            if (line.trim().isEmpty()) continue;
+            
+            // Try patterns: "1. A", "1) B", "1 A", "1- A", "1: A"
+            java.util.regex.Pattern p = java.util.regex.Pattern.compile(
+                    "^\\s*(\\d{1,3})\\s*[.):)]?\\s*[-:]?\\s*([A-Za-z]\\w{0,39})\\b");
+            java.util.regex.Matcher m = p.matcher(line);
+            
+            if (m.find()) {
+                int q = safeInt(m.group(1));
+                String answer = m.group(2).trim();
+                String canonical = canonical(answer);
+                
+                if (q >= 1 && q <= 200 && answerKey.containsKey(q) && 
+                    allowedSet.contains(canonical) && !map.containsKey(q)) {
+                    map.put(q, answer);
+                }
+            }
+        }
+        
+        return map;
+    }
+    
+    /**
+     * Order-only parser: ignores numbers, maps each line sequentially to answer key questions.
+     * Useful when OCR dropped numbering but preserved answer order.
+     */
+    private static LinkedHashMap<Integer, String> parseOrderOnly(
+            String text, java.util.Map<Integer, String> answerKey) {
+        
+        LinkedHashMap<Integer, String> map = new LinkedHashMap<>();
+        java.util.Set<String> allowedSet = buildAllowedSet(answerKey);
+        
+        // Get sorted list of answer key questions
+        java.util.List<Integer> keyQuestions = new java.util.ArrayList<>(answerKey.keySet());
+        java.util.Collections.sort(keyQuestions);
+        
+        // Normalize text
+        String normalized = normalizeTextPreserveLines(text);
+        String converted = convertRomanNumeralsPreserveLines(normalized);
+        
+        // Extract candidate answers (lines that look like answers)
+        java.util.List<String> candidates = new java.util.ArrayList<>();
+        String[] lines = converted.split("\n");
+        
+        for (String line : lines) {
+            line = line.trim();
+            if (line.isEmpty()) continue;
+            
+            // Strip any leading numbering (e.g., "1. ", "2) ", etc.)
+            String cleaned = line.replaceFirst("^\\s*\\d{1,3}\\s*[.):)]?\\s*[-:]?\\s*", "");
+            cleaned = cleaned.trim();
+            
+            if (cleaned.isEmpty()) continue;
+            
+            // Check if it looks like an answer (single word or single letter)
+            String[] words = cleaned.split("\\s+");
+            if (words.length <= 3) { // Accept up to 3 words as potential answer
+                String candidate = words[0]; // Take first word
+                String canonicalCandidate = canonical(candidate);
+                
+                // Only accept if it's in allowed set
+                if (allowedSet.contains(canonicalCandidate)) {
+                    candidates.add(candidate);
+                }
+            }
+        }
+        
+        Log.d(TAG, "Order-only found " + candidates.size() + " candidate answers");
+        
+        // Map candidates to answer key questions in order
+        int minCount = Math.min(candidates.size(), keyQuestions.size());
+        for (int i = 0; i < minCount; i++) {
+            Integer q = keyQuestions.get(i);
+            String answer = candidates.get(i);
+            map.put(q, answer);
+        }
+        
+        return map;
+    }
+    
+    /**
+     * Count how many non-empty answers are in the map.
+     */
+    private static int countFilledAnswers(java.util.Map<Integer, String> answers) {
+        int count = 0;
+        for (String value : answers.values()) {
+            if (value != null && !value.trim().isEmpty()) {
+                count++;
+            }
+        }
+        return count;
     }
 
     // ---------------------------
