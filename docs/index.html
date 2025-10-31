@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Iskorly - AI-powered answer sheet scanning, scoring, and analytics for educators. Free for teachers and students.">
+    <meta name="keywords" content="education, teacher tools, answer sheet scanning, OCR, classroom analytics, Philippines, SDG 4">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://traumereixd.github.io/Iskorly/">
+    <meta property="og:title" content="Iskorly - Scan. Score. Analyze. Free for every teacher.">
+    <meta property="og:description" content="Phone-based OCR answer sheet scoring with instant analytics. No OMR hardware needed. Always free for educators.">
+    <meta property="og:image" content="https://traumereixd.github.io/Iskorly/assets/placeholder-logo.svg">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://traumereixd.github.io/Iskorly/">
+    <meta property="twitter:title" content="Iskorly - Scan. Score. Analyze. Free for every teacher.">
+    <meta property="twitter:description" content="Phone-based OCR answer sheet scoring with instant analytics. No OMR hardware needed. Always free for educators.">
+    <meta property="twitter:image" content="https://traumereixd.github.io/Iskorly/assets/placeholder-logo.svg">
+    
+    <title>Iskorly - Scan. Score. Analyze. Free for every teacher.</title>
+    <link rel="icon" type="image/svg+xml" href="assets/placeholder-logo.svg">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar" id="navbar">
+        <div class="container">
+            <div class="nav-brand">
+                <img src="assets/placeholder-logo.svg" alt="Iskorly Logo" class="logo">
+                <span class="brand-name">Iskorly</span>
+            </div>
+            <button class="mobile-menu-toggle" aria-label="Toggle mobile menu" id="mobileMenuToggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <ul class="nav-links" id="navLinks">
+                <li><a href="#hero">Home</a></li>
+                <li><a href="#problem">Problem</a></li>
+                <li><a href="#solution">Solution</a></li>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#progress">Progress</a></li>
+                <li><a href="#team">Team</a></li>
+                <li><a href="#contact" class="cta-button">Contact Us</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero" id="hero">
+        <div class="container">
+            <div class="hero-content fade-in">
+                <h1 class="hero-title">Scan. Score. Analyze.<br>Free for every teacher.</h1>
+                <p class="hero-subtitle">Transform your smartphone into a powerful answer sheet scanner with instant analytics. No expensive OMR hardware needed.</p>
+                <div class="hero-cta">
+                    <a href="#contact" class="button button-primary">Request a Pilot</a>
+                    <a href="#solution" class="button button-secondary">Learn More</a>
+                </div>
+                <div class="hero-stats">
+                    <div class="stat">
+                        <span class="stat-number">≤2pp</span>
+                        <span class="stat-label">Accuracy Gap</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">≥50%</span>
+                        <span class="stat-label">Time Saved</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number">100%</span>
+                        <span class="stat-label">Free Forever</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Problem Section -->
+    <section class="section section-light" id="problem">
+        <div class="container">
+            <div class="section-header fade-in">
+                <span class="section-badge">The Challenge</span>
+                <h2 class="section-title">Teachers deserve better tools</h2>
+                <p class="section-description">Manual scoring creates unnecessary delays and burdens on already-stretched educators.</p>
+            </div>
+            <div class="problem-grid">
+                <div class="problem-card fade-in">
+                    <div class="problem-icon">⏱️</div>
+                    <h3>Delayed Feedback</h3>
+                    <p>Students wait days or weeks for results. Learning momentum is lost when feedback comes too late.</p>
+                </div>
+                <div class="problem-card fade-in">
+                    <div class="problem-icon">👥</div>
+                    <h3>Large Class Sizes</h3>
+                    <p>With 40-50 students per class, manual scoring becomes overwhelming and error-prone.</p>
+                </div>
+                <div class="problem-card fade-in">
+                    <div class="problem-icon">💰</div>
+                    <h3>No OMR Access</h3>
+                    <p>Optical Mark Reader machines are expensive and unavailable to most Philippine schools.</p>
+                </div>
+                <div class="problem-card fade-in">
+                    <div class="problem-icon">📊</div>
+                    <h3>Missing Analytics</h3>
+                    <p>Manual scoring provides no insights into which questions need review or common student mistakes.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Solution Section -->
+    <section class="section" id="solution">
+        <div class="container">
+            <div class="section-header fade-in">
+                <span class="section-badge">Our Solution</span>
+                <h2 class="section-title">Your phone is all you need</h2>
+                <p class="section-description">Iskorly transforms any Android smartphone into a powerful answer sheet scanner with built-in analytics.</p>
+            </div>
+            <div class="solution-content">
+                <div class="solution-text fade-in">
+                    <h3>Phone-Based OCR with Teacher Verification</h3>
+                    <p>Capture answer sheets with your phone's camera. Our domain-specific parser extracts student answers using Google Vision OCR with an OCR.Space fallback for challenging handwriting.</p>
+                    <p>Teachers review parsed answers in an editable grid before scoring—maintaining control and accuracy. Color-coded feedback (green for correct, red for incorrect, yellow for blank) makes verification fast.</p>
+                    <p>Results are stored locally with full privacy protection. Export to CSV for school records or analyze with our built-in masterlist analytics.</p>
+                    <div class="solution-features">
+                        <div class="feature-item">✓ Works offline after capture</div>
+                        <div class="feature-item">✓ No cloud database required</div>
+                        <div class="feature-item">✓ Always free for educators</div>
+                    </div>
+                </div>
+                <div class="solution-visual fade-in">
+                    <div class="app-screen-preview">
+                        <img src="assets/app-screen-scan.png" alt="Scan answer sheet" class="screen-img">
+                        <p class="screen-caption">Scan answer sheets</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="section section-light" id="how-it-works">
+        <div class="container">
+            <div class="section-header fade-in">
+                <span class="section-badge">Process</span>
+                <h2 class="section-title">How It Works</h2>
+                <p class="section-description">Five simple steps from capture to insights</p>
+            </div>
+            <div class="process-timeline">
+                <div class="process-step fade-in">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Camera Capture</h3>
+                        <p>Use Camera2 API to capture answer sheet photo with automatic orientation correction</p>
+                    </div>
+                </div>
+                <div class="process-step fade-in">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>OCR Processing</h3>
+                        <p>Google Vision primary OCR with OCR.Space fallback for challenging handwriting</p>
+                    </div>
+                </div>
+                <div class="process-step fade-in">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>Domain Parsing</h3>
+                        <p>Intelligent parser extracts answers matched to your answer key with Roman numeral support</p>
+                    </div>
+                </div>
+                <div class="process-step fade-in">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <h3>Teacher Verification</h3>
+                        <p>Review and edit parsed answers in color-coded grid before scoring</p>
+                    </div>
+                </div>
+                <div class="process-step fade-in">
+                    <div class="step-number">5</div>
+                    <div class="step-content">
+                        <h3>Analytics & Export</h3>
+                        <p>View MPS by section, item statistics, common errors, heatmap. Export to CSV or JSON</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="section" id="features">
+        <div class="container">
+            <div class="section-header fade-in">
+                <span class="section-badge">Capabilities</span>
+                <h2 class="section-title">Built for Real Classrooms</h2>
+                <p class="section-description">Features designed with teacher feedback and Filipino classroom needs in mind</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card fade-in">
+                    <div class="feature-icon">📷</div>
+                    <h3>Camera Orientation Fix</h3>
+                    <p>Automatic rotation correction ensures photos are properly oriented regardless of how you hold your phone.</p>
+                </div>
+                <div class="feature-card fade-in">
+                    <div class="feature-icon">📋</div>
+                    <h3>Two-Column Mode</h3>
+                    <p>High-contrast and two-column layout toggles for better visibility and faster review.</p>
+                </div>
+                <div class="feature-card fade-in">
+                    <div class="feature-icon">🖼️</div>
+                    <h3>Multi-Image Import</h3>
+                    <p>Batch process multiple sheets with deterministic merge logic—first non-blank answer wins.</p>
+                </div>
+                <div class="feature-card fade-in">
+                    <div class="feature-icon">🔑</div>
+                    <h3>Answer Key Slots</h3>
+                    <p>Store multiple answer keys for different quizzes. Import/export for easy sharing between teachers.</p>
+                </div>
+                <div class="feature-card fade-in">
+                    <div class="feature-icon">📊</div>
+                    <h3>History & Rename</h3>
+                    <p>Complete record keeping with rename and delete options. Organize by exam and section.</p>
+                </div>
+                <div class="feature-card fade-in">
+                    <div class="feature-icon">📈</div>
+                    <h3>Masterlist Analytics</h3>
+                    <p>Per-item stats: MPS by section, correct/incorrect counts, most common wrong answers, visual heatmap.</p>
+                </div>
+                <div class="feature-card fade-in">
+                    <div class="feature-icon">💾</div>
+                    <h3>CSV Export</h3>
+                    <p>Anonymized CSV exports for school records. All data stored locally via SharedPreferences.</p>
+                </div>
+                <div class="feature-card fade-in">
+                    <div class="feature-icon">🔒</div>
+                    <h3>Privacy First</h3>
+                    <p>No face capture required—answer area only. Local storage, no remote database. API keys secured.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Progress/Traction Section -->
+    <section class="section section-light" id="progress">
+        <div class="container">
+            <div class="section-header fade-in">
+                <span class="section-badge">Progress</span>
+                <h2 class="section-title">Pilot Results & Milestones</h2>
+                <p class="section-description">Real-world validation from Filipino educators</p>
+            </div>
+            <div class="traction-grid">
+                <div class="traction-card fade-in">
+                    <h3 class="traction-number">Working Prototype</h3>
+                    <p class="traction-label">Android app with full pipeline</p>
+                    <p class="traction-detail">Camera2 capture → OCR (dual engines) → domain parser → scoring → history/CSV → masterlist analytics</p>
+                </div>
+                <div class="traction-card fade-in">
+                    <h3 class="traction-number">Pilot Interest</h3>
+                    <p class="traction-label">Teachers requesting trials</p>
+                    <p class="traction-detail">Early validation from educators in Laguna and Metro Manila public schools</p>
+                </div>
+                <div class="traction-card fade-in">
+                    <h3 class="traction-number">≤2pp Accuracy</h3>
+                    <p class="traction-label">OCR accuracy gap vs manual</p>
+                    <p class="traction-detail">With teacher verification step, achieving near-manual accuracy on printed and handwritten sheets</p>
+                </div>
+            </div>
+            <div class="milestones fade-in">
+                <h3>Key Milestones</h3>
+                <ul class="milestone-list">
+                    <li>✅ Dual OCR engines (Google Vision + OCR.Space fallback)</li>
+                    <li>✅ Two-column and high-contrast display modes</li>
+                    <li>✅ Deterministic merge for multi-image imports</li>
+                    <li>✅ Anonymized CSV export with school-safe formatting</li>
+                    <li>✅ Masterlist analytics with MPS, item stats, and heatmap</li>
+                    <li>🔄 Teacher onboarding kit (in progress)</li>
+                    <li>🔄 Exploring on-device OCR to reduce cloud costs</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- App Screens Section -->
+    <section class="section" id="app-screens">
+        <div class="container">
+            <div class="section-header fade-in">
+                <span class="section-badge">Screenshots</span>
+                <h2 class="section-title">See It In Action</h2>
+            </div>
+            <div class="screens-gallery">
+                <div class="screen-item fade-in">
+                    <img src="assets/app-screen-scan.png" alt="Scan interface showing camera preview" class="screen-image">
+                    <p class="screen-title">Scan</p>
+                    <p class="screen-desc">Camera2 capture with auto-orientation</p>
+                </div>
+                <div class="screen-item fade-in">
+                    <img src="assets/app-screen-grid.png" alt="Parsed answer grid with color-coded feedback" class="screen-image">
+                    <p class="screen-title">Parsed Grid</p>
+                    <p class="screen-desc">Editable grid with visual feedback</p>
+                </div>
+                <div class="screen-item fade-in">
+                    <img src="assets/app-screen-heatmap.png" alt="Analytics heatmap showing item difficulty" class="screen-image">
+                    <p class="screen-title">Analytics Heatmap</p>
+                    <p class="screen-desc">Item stats and common mistakes</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SDG Alignment Section -->
+    <section class="section" id="sdg">
+        <div class="container">
+            <div class="section-header fade-in">
+                <span class="section-badge">Impact</span>
+                <h2 class="section-title">SDG Alignment</h2>
+                <p class="section-description">Contributing to global education goals</p>
+            </div>
+            <div class="sdg-content">
+                <div class="sdg-primary fade-in">
+                    <img src="assets/sdg4-badge.svg" alt="SDG 4 Quality Education" class="sdg-badge">
+                    <div class="sdg-text">
+                        <h3>SDG 4: Quality Education (Primary)</h3>
+                        <p><strong>Target 4.c:</strong> Increase the supply of qualified teachers and improve teaching effectiveness.</p>
+                        <p>Iskorly directly supports teachers by reducing administrative burden, enabling faster feedback cycles, and providing data-driven insights for instructional improvement. By making assessment technology accessible to under-resourced schools, we help close the digital divide in Philippine education.</p>
+                    </div>
+                </div>
+                <div class="sdg-secondary fade-in">
+                    <div class="sdg-text">
+                        <h3>SDG 9: Industry, Innovation & Infrastructure (Secondary)</h3>
+                        <p>Leveraging existing smartphone infrastructure removes hardware barriers. Our OCR-based approach democratizes educational technology by building on devices teachers already have.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Business Model Section -->
+    <section class="section section-light" id="business-model">
+        <div class="container">
+            <div class="section-header fade-in">
+                <span class="section-badge">Sustainability</span>
+                <h2 class="section-title">Always Free for Educators</h2>
+                <p class="section-description">B2B sponsorship model ensures teachers never pay</p>
+            </div>
+            <div class="business-content fade-in">
+                <div class="business-card">
+                    <h3>Free for Teachers & Students</h3>
+                    <p>Iskorly will always be free to download and use for individual teachers and students. No subscriptions, no paywalls, no hidden fees.</p>
+                </div>
+                <div class="business-card">
+                    <h3>Sponsored by Schools & LGUs</h3>
+                    <p>Operating costs (API usage, hosting) are covered through B2B sponsorships from schools, school districts, and local government units who value teacher efficiency.</p>
+                </div>
+                <div class="business-card">
+                    <h3>Grants & Cloud Credits</h3>
+                    <p>We pursue education grants and cloud provider credits (GCP, AWS Education) to subsidize infrastructure costs during growth phase.</p>
+                </div>
+                <div class="business-card">
+                    <h3>On-Device OCR Exploration</h3>
+                    <p>Actively researching on-device OCR solutions (MLKit, Tesseract) to reduce cloud API dependency and long-term costs.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Privacy Section -->
+    <section class="section" id="privacy">
+        <div class="container">
+            <div class="section-header fade-in">
+                <span class="section-badge">Privacy</span>
+                <h2 class="section-title">Privacy-First Design</h2>
+                <p class="section-description">Student data protection is paramount</p>
+            </div>
+            <div class="privacy-grid">
+                <div class="privacy-item fade-in">
+                    <div class="privacy-icon">👤</div>
+                    <h3>No Face Capture</h3>
+                    <p>Only answer areas are photographed. No student faces or identifying features required.</p>
+                </div>
+                <div class="privacy-item fade-in">
+                    <div class="privacy-icon">📱</div>
+                    <h3>Local Storage</h3>
+                    <p>All data stored locally via SharedPreferences. No remote database, no cloud sync.</p>
+                </div>
+                <div class="privacy-item fade-in">
+                    <div class="privacy-icon">🔐</div>
+                    <h3>Anonymized Export</h3>
+                    <p>CSV exports contain scores and statistics only—no personally identifiable information.</p>
+                </div>
+                <div class="privacy-item fade-in">
+                    <div class="privacy-icon">🔑</div>
+                    <h3>Secured API Keys</h3>
+                    <p>OCR API keys stored in local.properties (gitignored) and injected at build time. Never exposed in APK.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Team Section -->
+    <section class="section section-light" id="team">
+        <div class="container">
+            <div class="section-header fade-in">
+                <span class="section-badge">Team</span>
+                <h2 class="section-title">Meet the Team</h2>
+                <p class="section-description">Passionate about making education more effective</p>
+            </div>
+            <div class="team-grid">
+                <div class="team-member fade-in">
+                    <div class="member-avatar">JS</div>
+                    <h3>Jayson G. Sahagun</h3>
+                    <p class="member-role">Developer</p>
+                    <p class="member-bio">Camera2 pipeline, OCR integration, domain parser, and analytics implementation</p>
+                </div>
+                <div class="team-member fade-in">
+                    <div class="member-avatar">MM</div>
+                    <h3>Myra Mia Medel</h3>
+                    <p class="member-role">Graphic Designer</p>
+                    <p class="member-bio">Visual design, branding, and user interface design</p>
+                </div>
+                <div class="team-member fade-in">
+                    <div class="member-avatar">QM</div>
+                    <h3>Queen Rheyceljoy Mahusay</h3>
+                    <p class="member-role">Operations/Manager</p>
+                    <p class="member-bio">Teacher outreach, pilot coordination, and stakeholder engagement</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact/CTA Section -->
+    <section class="section section-cta" id="contact">
+        <div class="container">
+            <div class="cta-content fade-in">
+                <h2>Ready to Transform Your Classroom?</h2>
+                <p>Join teachers across the Philippines who are saving time and gaining insights with Iskorly.</p>
+                <div class="cta-buttons">
+                    <a href="mailto:jayson.sahagun@example.com?subject=Iskorly%20Pilot%20Request&body=Hello%20Iskorly%20team,%0A%0AI'm%20interested%20in%20piloting%20Iskorly%20at%20my%20school.%0A%0ASchool:%20%0ALocation:%20%0ANumber%20of%20teachers:%20%0AContact%20number:%20%0A%0AThank%20you!" class="button button-primary-light">Request a Pilot</a>
+                    <a href="mailto:jayson.sahagun@example.com?subject=Iskorly%20Inquiry" class="button button-secondary-light">General Inquiry</a>
+                </div>
+                <p class="cta-note">Or reach out to discuss partnerships, sponsorships, or investment opportunities.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <img src="assets/placeholder-logo.svg" alt="Iskorly Logo" class="footer-logo">
+                    <p class="footer-tagline">Scan. Score. Analyze. Free for every teacher.</p>
+                </div>
+                <div class="footer-links">
+                    <div class="footer-column">
+                        <h4>Product</h4>
+                        <ul>
+                            <li><a href="#features">Features</a></li>
+                            <li><a href="#how-it-works">How It Works</a></li>
+                            <li><a href="#progress">Progress</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Company</h4>
+                        <ul>
+                            <li><a href="#team">Team</a></li>
+                            <li><a href="#sdg">SDG Impact</a></li>
+                            <li><a href="#privacy">Privacy</a></li>
+                        </ul>
+                    </div>
+                    <div class="footer-column">
+                        <h4>Resources</h4>
+                        <ul>
+                            <li><a href="https://github.com/traumereixd/Iskorly" target="_blank" rel="noopener">GitHub</a></li>
+                            <li><a href="qbo.md" target="_blank">QBO Application</a></li>
+                            <li><a href="README.md" target="_blank">Docs</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 Iskorly. Educational use - DepEd Philippines. Built with ❤️ for Filipino teachers.</p>
+                <p class="footer-location">Based in Landayan, San Pedro, Laguna & Tunasan, Muntinlupa City</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>

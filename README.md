@@ -5,6 +5,8 @@ AI-powered answer sheet scanning, scoring, and item analysis for classrooms.
 > Rebranded from “Item Score Analysis” to “Iskorly” for a shorter, more memorable identity.
 > **UX 2.0** visual refresh brings modern interface, new color system, and enhanced crop reliability.
 
+
+🌐 **[Visit our website](https://traumereixd.github.io/Iskorly/)** | 📋 [QBO Application Materials](docs/qbo.md)
 ## Tagline
 Faster Scoring. Smarter Teaching
 
