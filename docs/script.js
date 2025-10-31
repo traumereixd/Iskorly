@@ -259,4 +259,50 @@
     });
     
     console.log('Iskorly website initialized');
+    
+    // Formspree form submission handler
+    const contactForm = document.getElementById('contactForm');
+    const formAlert = document.getElementById('formAlert');
+    
+    if (contactForm && formAlert) {
+        contactForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formspreeEndpoint = contactForm.getAttribute('data-formspree') || contactForm.getAttribute('action');
+            
+            if (!formspreeEndpoint || formspreeEndpoint.includes('your-form-id')) {
+                formAlert.textContent = 'Form endpoint not configured properly.';
+                formAlert.className = 'form-alert error';
+                return;
+            }
+            
+            // Get form data
+            const formData = new FormData(contactForm);
+            
+            // Submit via fetch with JSON accept header for Formspree AJAX response
+            fetch(formspreeEndpoint, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    formAlert.textContent = 'Thank you! Your message has been sent successfully.';
+                    formAlert.className = 'form-alert success';
+                    contactForm.reset();
+                } else {
+                    return response.json().then(data => {
+                        throw new Error(data.error || 'Form submission failed');
+                    });
+                }
+            })
+            .catch(error => {
+                formAlert.textContent = 'Oops! There was a problem submitting your form. Please try again.';
+                formAlert.className = 'form-alert error';
+                console.error('Form submission error:', error);
+            });
+        });
+    }
 })();
