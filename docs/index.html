@@ -421,10 +421,42 @@
             <div class="cta-content fade-in">
                 <h2>Ready to Transform Your Classroom?</h2>
                 <p>Join teachers across the Philippines who are saving time and gaining insights with Iskorly.</p>
-                <div class="cta-buttons">
-                    <a href="mailto:jayson.sahagun@gmail.com?subject=Iskorly%20Pilot%20Request&body=Hello%20Iskorly%20team,%0A%0AI'm%20interested%20in%20piloting%20Iskorly%20at%20my%20school.%0A%0ASchool:%20%0ALocation:%20%0ANumber%20of%20teachers:%20%0AContact%20number:%20%0A%0AThank%20you!" class="button button-primary-light">Request a Pilot</a>
-                    <a href="mailto:jayson.sahagun@example.com?subject=Iskorly%20Inquiry" class="button button-secondary-light">General Inquiry</a>
+                
+                <!-- Contact Details -->
+                <div class="contact-details">
+                    <p class="contact-item">
+                        <strong>Email:</strong> <a href="mailto:teamiskorly@gmail.com">teamiskorly@gmail.com</a>
+                    </p>
+                    <p class="contact-item">
+                        <strong>Phone:</strong> <a href="tel:+639687336476">+63 968 733 6476</a>
+                    </p>
                 </div>
+                
+                <!-- Contact Form -->
+                <form id="contactForm" class="contact-form" action="https://formspree.io/f/mzzkjqkr" method="POST" data-formspree="https://formspree.io/f/mzzkjqkr">
+                    <input type="hidden" name="_subject" value="New Contact from Iskorly Website">
+                    <input type="text" name="_gotcha" style="display:none" tabindex="-1" autocomplete="off" aria-hidden="true">
+                    
+                    <div class="form-group">
+                        <label for="name">Name</label>
+                        <input type="text" id="name" name="name" required placeholder="Your Name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" required placeholder="your.email@example.com">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="message">Message</label>
+                        <textarea id="message" name="message" rows="5" required placeholder="Tell us about your interest in Iskorly..."></textarea>
+                    </div>
+                    
+                    <button type="submit" class="button button-primary-light">Send Message</button>
+                    
+                    <p id="formAlert" class="form-alert"></p>
+                </form>
+                
                 <p class="cta-note">Or reach out to discuss partnerships, sponsorships, or investment opportunities.</p>
             </div>
         </div>
