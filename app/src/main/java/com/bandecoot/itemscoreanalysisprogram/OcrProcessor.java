@@ -26,7 +26,7 @@ import okhttp3.Response;
  * No longer uses OCR.Space fallback in active pipeline.
  */
 public class OcrProcessor {
-    private static final String TAG = "ISA_OCR_PROCESSOR";
+    private static final String TAG = "ISA_VISION_PROC";
     
     private final OkHttpClient httpClient;
     private final String visionApiKey;
@@ -50,11 +50,13 @@ public class OcrProcessor {
      * parses and scores each variant, then selects the best result.
      * 
      * Strategy:
-     * 1. Generate 3 preprocessing variants: light, classroom (de-yellow + Otsu), standard
+     * 1. Generate up to MAX_VARIANTS preprocessing variants
      * 2. Run Vision OCR on each variant
      * 3. Parse each result with smart parser
      * 4. Score based on: filled answer count, numeric anchor presence
-     * 5. Return the best scoring variant
+     * 5. Early-exit if filled threshold is met (EARLY_EXIT_FILLED_THRESHOLD)
+     * 6. Optionally call AI re-parser if result is below REPARSE_MIN_FILLED_THRESHOLD
+     * 7. Return the best scoring variant
      */
     public HashMap<Integer, String> processImage(Bitmap bitmap) {
         if (bitmap == null) {
@@ -62,27 +64,42 @@ public class OcrProcessor {
             return new HashMap<>();
         }
         
-        Log.d(TAG, "Starting multi-variant OCR processing");
+        Log.d(TAG, "Starting multi-variant OCR processing (MAX_VARIANTS=" + 
+                BuildConfig.MAX_VARIANTS + ", EARLY_EXIT=" + BuildConfig.EARLY_EXIT_FILLED_THRESHOLD + ")");
         
         // Generate preprocessing variants
         List<PreprocessVariant> variants = new ArrayList<>();
         
         // Variant 1: Light preprocessing (grayscale + contrast)
-        Bitmap light = ImagePreprocessor.preprocessLight(bitmap);
-        if (light != null) {
-            variants.add(new PreprocessVariant("light", light));
+        if (variants.size() < BuildConfig.MAX_VARIANTS) {
+            Bitmap light = ImagePreprocessor.preprocessLight(bitmap);
+            if (light != null) {
+                variants.add(new PreprocessVariant("light", light));
+            }
         }
         
         // Variant 2: Classroom preprocessing (de-yellow + grayscale + contrast + Otsu)
-        Bitmap classroom = ImagePreprocessor.preprocessForClassroom(bitmap);
-        if (classroom != null) {
-            variants.add(new PreprocessVariant("classroom", classroom));
+        if (variants.size() < BuildConfig.MAX_VARIANTS) {
+            Bitmap classroom = ImagePreprocessor.preprocessForClassroom(bitmap);
+            if (classroom != null) {
+                variants.add(new PreprocessVariant("classroom", classroom));
+            }
         }
         
         // Variant 3: Standard enhancement (existing method)
-        Bitmap standard = ImageUtil.enhanceForOcr(bitmap);
-        if (standard != null) {
-            variants.add(new PreprocessVariant("standard", standard));
+        if (variants.size() < BuildConfig.MAX_VARIANTS) {
+            Bitmap standard = ImageUtil.enhanceForOcr(bitmap);
+            if (standard != null) {
+                variants.add(new PreprocessVariant("standard", standard));
+            }
+        }
+        
+        // Variant 4: Grayscale only (minimal processing)
+        if (variants.size() < BuildConfig.MAX_VARIANTS) {
+            Bitmap grayscale = ImagePreprocessor.toGrayscale(bitmap);
+            if (grayscale != null) {
+                variants.add(new PreprocessVariant("grayscale", grayscale));
+            }
         }
         
         if (variants.isEmpty()) {
@@ -93,8 +110,11 @@ public class OcrProcessor {
         // Process each variant and score
         PreprocessResult bestResult = null;
         int bestScore = -1;
+        String bestOcrText = "";
+        int variantIndex = 0;
         
         for (PreprocessVariant variant : variants) {
+            variantIndex++;
             try {
                 // Compress to JPEG
                 byte[] jpegBytes = ImageUtil.resizeAndCompress(variant.bitmap, 1600);
@@ -111,13 +131,24 @@ public class OcrProcessor {
                 
                 // Score this variant
                 int score = scoreVariant(parsed, recognizedText);
+                int filledCount = countFilledAnswers(parsed);
+                float fillRatio = answerKey.isEmpty() ? 0 : (float) filledCount / answerKey.size();
                 
-                Log.d(TAG, "Variant '" + variant.name + "' scored " + score + 
-                        " (parsed " + parsed.size() + " answers)");
+                Log.d(TAG, String.format("Variant %d/%d '%s': score=%d, filled=%d/%d (%.1f%%)",
+                        variantIndex, variants.size(), variant.name, score, 
+                        filledCount, answerKey.size(), fillRatio * 100));
                 
                 if (score > bestScore) {
                     bestScore = score;
                     bestResult = new PreprocessResult(variant.name, parsed, recognizedText);
+                    bestOcrText = recognizedText;
+                }
+                
+                // Early exit if we've met the threshold
+                if (fillRatio >= BuildConfig.EARLY_EXIT_FILLED_THRESHOLD) {
+                    Log.d(TAG, "Early exit triggered at " + (fillRatio * 100) + "% filled (threshold: " + 
+                            (BuildConfig.EARLY_EXIT_FILLED_THRESHOLD * 100) + "%)");
+                    break;
                 }
                 
             } catch (Exception e) {
@@ -134,6 +165,38 @@ public class OcrProcessor {
         }
         
         Log.d(TAG, "Selected best variant: '" + bestResult.variantName + "' with score " + bestScore);
+        
+        // Check if we should call AI re-parser
+        int filledCount = countFilledAnswers(bestResult.parsedAnswers);
+        float fillRatio = answerKey.isEmpty() ? 0 : (float) filledCount / answerKey.size();
+        
+        if (fillRatio < BuildConfig.REPARSE_MIN_FILLED_THRESHOLD && 
+            !BuildConfig.REPARSE_ENDPOINT.isEmpty()) {
+            
+            Log.d(TAG, String.format("Fill ratio %.1f%% below threshold %.1f%%, calling AI re-parser",
+                    fillRatio * 100, BuildConfig.REPARSE_MIN_FILLED_THRESHOLD * 100));
+            
+            try {
+                Map<Integer, String> reParsed = NetworkUtil.callReparserEndpoint(
+                        httpClient, BuildConfig.REPARSE_ENDPOINT, bestOcrText, answerKey);
+                
+                // Merge re-parsed results (non-empty values override existing)
+                int mergedCount = 0;
+                for (Map.Entry<Integer, String> entry : reParsed.entrySet()) {
+                    String newValue = entry.getValue();
+                    if (newValue != null && !newValue.trim().isEmpty()) {
+                        bestResult.parsedAnswers.put(entry.getKey(), newValue);
+                        mergedCount++;
+                    }
+                }
+                
+                Log.d(TAG, "AI re-parser merged " + mergedCount + " improved answers");
+                
+            } catch (Exception e) {
+                Log.e(TAG, "Error calling AI re-parser", e);
+            }
+        }
+        
         return bestResult.parsedAnswers;
     }
     
@@ -154,11 +217,24 @@ public class OcrProcessor {
         
         // Bonus: numeric anchors present (indicates numbered format was detected)
         // Check for patterns like "1.", "2)", etc. in text
-        if (text != null && text.contains("1.") || text.contains("1)") || text.contains("2.") || text.contains("2)")) {
+        if (text != null && (text.contains("1.") || text.contains("1)") || text.contains("2.") || text.contains("2)"))) {
             score += 2; // Small bonus for numeric anchors
         }
         
         return score;
+    }
+    
+    /**
+     * Count how many non-empty answers are in the map.
+     */
+    private int countFilledAnswers(HashMap<Integer, String> answers) {
+        int count = 0;
+        for (String value : answers.values()) {
+            if (value != null && !value.trim().isEmpty()) {
+                count++;
+            }
+        }
+        return count;
     }
     
     /**
