@@ -2309,7 +2309,7 @@ public class MainActivity extends AppCompatActivity {
     private void showCreditsDialog() {
         new AlertDialog.Builder(this)
                 .setTitle("Credits")
-                .setMessage("Iskorly\nGoogle Vision OCR Powered\nVersion 1.8\n\nResearchers:\nEspaño, Elijah Ria D.\nLolos, Kneel Charles B.\nMahusay, Queen Rheyceljoy F.\nMedel, Myra J.\nReyes, John Jharen R.\nSahagun, Jayson G.\nTagle, Steve Aldrei D.\n\nProgrammed By: Jayson G. Sahagun")
+                .setMessage("Iskorly\nGoogle Vision OCR Powered\nVersion 1.8.1\n\nResearchers:\nEspaño, Elijah Ria D.\nLolos, Kneel Charles B.\nMahusay, Queen Rheyceljoy F.\nMedel, Myra J.\nReyes, John Jharen R.\nSahagun, Jayson G.\nTagle, Steve Aldrei D.\n\nProgrammed By: Jayson G. Sahagun")
                 .setPositiveButton("OK", null)
                 .show();
     }
@@ -4473,7 +4473,7 @@ public class MainActivity extends AppCompatActivity {
         
         // Both buttons use primary purple (indigo) background with white text
         ColorStateList purpleTint = ColorStateList.valueOf(
-                getResources().getColor(R.color.primary_indigo, getTheme()));
+                getResources().getColor(R.color.brand_brown, getTheme()));
         ColorStateList whiteText = ColorStateList.valueOf(
                 getResources().getColor(R.color.on_primary, getTheme()));
         

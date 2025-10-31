@@ -7,7 +7,7 @@
     
     <!-- Dark variant for cropper activity -->
     <style name="Theme.Iskorly.Cropper" parent="Theme.Material3.DayNight">
-        <item name="colorPrimary">@color/primary_indigo</item>
+        <item name="colorPrimary">@color/brand_brown</item>
         <item name="colorOnPrimary">@color/on_primary</item>
         <item name="colorSurface">@color/crop_surface</item>
         <item name="colorOnSurface">@color/crop_on_surface</item>

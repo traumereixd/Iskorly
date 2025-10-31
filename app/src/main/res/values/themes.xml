@@ -3,7 +3,7 @@
     <!-- Iskorly UX 2.0 Theme -->
     <style name="Theme.Iskorly" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Primary colors -->
-        <item name="colorPrimary">@color/primary_indigo</item>
+        <item name="colorPrimary">@color/brand_brown</item>
         <item name="colorOnPrimary">@color/on_primary</item>
         <item name="colorPrimaryContainer">@color/primary_variant</item>
 

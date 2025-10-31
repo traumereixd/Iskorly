@@ -14,7 +14,7 @@ android {
         minSdk = 23
         targetSdk = 34
         versionCode = 3
-        versionName = "1.3"
+        versionName = "1.8.1"
 
         // Inject Vision API key from local.properties or Gradle property
         val props = Properties().apply {

@@ -17,7 +17,7 @@ import androidx.appcompat.app.AppCompatActivity;
 public class SplashActivity extends AppCompatActivity {
     
     private static final String TAG = "SplashActivity";
-    private static final int TIMEOUT_MS = 5000; // 5 second timeout
+    private static final int TIMEOUT_MS = 3000; // 5 second timeout
     private VideoView videoView;
     private Handler timeoutHandler;
     private boolean hasNavigated = false;
@@ -35,7 +35,7 @@ public class SplashActivity extends AppCompatActivity {
         
         try {
             // Load video from raw resources
-            Uri videoUri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.iskorly_splash);
+            Uri videoUri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.finalboss);
             videoView.setVideoURI(videoUri);
             
             videoView.setOnPreparedListener(mp -> {

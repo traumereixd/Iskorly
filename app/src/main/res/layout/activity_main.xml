@@ -263,6 +263,7 @@
                                 android:layout_weight="1"
                                 android:layout_marginEnd="4dp"
                                 android:text="@string/btn_import_all"
+                                android:textColor="#000000"
                                 android:textSize="12sp" />
 
                             <com.google.android.material.button.MaterialButton
@@ -274,6 +275,7 @@
                                 android:layout_marginStart="4dp"
                                 android:layout_marginEnd="4dp"
                                 android:text="@string/btn_export_all"
+                                android:textColor="#000000"
                                 android:textSize="12sp" />
 
                             <com.google.android.material.button.MaterialButton
@@ -285,6 +287,7 @@
                                 android:layout_marginStart="4dp"
                                 android:backgroundTint="?attr/colorPrimary"
                                 android:text="@string/btn_clear_all_words"
+
                                 android:textColor="@android:color/white"
                                 android:textSize="12sp" />
                         </LinearLayout>
@@ -323,6 +326,7 @@
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
+                                android:textColor="#000000"
                                 android:layout_marginEnd="8dp"
                                 android:hint="@string/autocomplete_add_hint">
 
@@ -358,6 +362,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
                                 android:layout_marginEnd="4dp"
+                                android:textColor="#000000"
                                 android:text="@string/btn_import_json"
                                 android:textSize="12sp" />
 
@@ -368,6 +373,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
                                 android:layout_marginStart="4dp"
+                                android:textColor="#000000"
                                 android:text="@string/btn_export_json"
                                 android:textSize="12sp" />
                         </LinearLayout>
@@ -407,6 +413,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
                                 android:layout_marginEnd="8dp"
+                                android:textColor="#000000"
                                 android:hint="@string/autocomplete_add_hint">
 
                                 <com.google.android.material.textfield.TextInputEditText
@@ -441,6 +448,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
                                 android:layout_marginEnd="4dp"
+                                android:textColor="#000000"
                                 android:text="@string/btn_import_json"
                                 android:textSize="12sp" />
 
@@ -452,6 +460,7 @@
                                 android:layout_weight="1"
                                 android:layout_marginStart="4dp"
                                 android:text="@string/btn_export_json"
+                                android:textColor="#000000"
                                 android:textSize="12sp" />
                         </LinearLayout>
 
@@ -490,7 +499,8 @@
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
                                 android:layout_marginEnd="8dp"
-                                android:hint="@string/autocomplete_add_hint">
+                                android:hint="@string/autocomplete_add_hint"
+                                android:textColor="#000000">
 
                                 <com.google.android.material.textfield.TextInputEditText
                                     android:id="@+id/input_add_exam"
@@ -525,7 +535,8 @@
                                 android:layout_weight="1"
                                 android:layout_marginEnd="4dp"
                                 android:text="@string/btn_import_json"
-                                android:textSize="12sp" />
+                                android:textSize="12sp"
+                                android:textColor="#000000"/>
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/button_export_exams_json"
@@ -535,7 +546,8 @@
                                 android:layout_weight="1"
                                 android:layout_marginStart="4dp"
                                 android:text="@string/btn_export_json"
-                                android:textSize="12sp" />
+                                android:textSize="12sp"
+                                android:textColor="#000000"/>
                         </LinearLayout>
 
                         <!-- Close Button -->
@@ -623,6 +635,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:layout_marginEnd="4dp"
+                            android:textColor="#000000"
                             android:text="@string/btn_slot_new" />
 
                         <com.google.android.material.button.MaterialButton
@@ -632,6 +645,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:layout_marginEnd="4dp"
+                            android:textColor="#000000"
                             android:text="@string/btn_slot_rename" />
 
                         <com.google.android.material.button.MaterialButton
@@ -640,6 +654,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
+                            android:textColor="#000000"
                             android:text="@string/btn_slot_delete" />
                     </LinearLayout>
 
@@ -655,6 +670,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
+                            android:textColor="#000000"
                             android:layout_marginEnd="4dp"
                             android:text="@string/btn_slot_import" />
 
@@ -665,6 +681,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:layout_marginEnd="4dp"
+                            android:textColor="#000000"
                             android:text="@string/btn_slot_export" />
                         
                         <com.google.android.material.button.MaterialButton
@@ -672,6 +689,7 @@
                             style="@style/Widget.Material3.Button.OutlinedButton"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
+                            android:textColor="#000000"
                             android:layout_weight="1"
                             android:text="@string/btn_slot_save_set" />
                     </LinearLayout>
@@ -687,6 +705,7 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
+                            android:textColor="#000000"
                             android:hint="@string/hint_qnum"
                             style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
                             <com.google.android.material.textfield.TextInputEditText
@@ -718,6 +737,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
+                            android:textColor="#FFFFFF"
                             android:text="@string/btn_save" />
                     </LinearLayout>
 
@@ -771,6 +791,7 @@
                             style="@style/Widget.Material3.Button.OutlinedButton"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:textColor="#000000"
                             android:text="@string/btn_clear_all" />
 
                         <com.google.android.material.button.MaterialButton
@@ -881,6 +902,7 @@
                             android:layout_weight="1"
                             android:text="@string/btn_expand_all"
                             android:textSize="11sp"
+                            android:textColor="#000000"
                             android:paddingTop="4dp"
                             android:paddingBottom="4dp" />
 
@@ -891,6 +913,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="@string/btn_collapse_all"
+                            android:textColor="#000000"
                             android:textSize="11sp"
                             android:paddingTop="4dp"
                             android:paddingBottom="4dp" />
@@ -918,6 +941,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:layout_marginEnd="4dp"
+                            android:textColor="#000000"
                             android:text="@string/btn_masterlist" />
                         
                         <com.google.android.material.button.MaterialButton
@@ -926,7 +950,9 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
+                            android:textColor="#000000"
                             android:text="@string/btn_export_csv" />
+
                     </LinearLayout>
 
                     <ScrollView
@@ -1042,7 +1068,7 @@
                                     android:layout_height="wrap_content"
                                     android:layout_weight="1"
                                     android:layout_marginEnd="6dp"
-                                    android:text="Confirm &amp; Score" />
+                                    android:text="Confirm &amp; See Score" />
 
                                 <com.google.android.material.button.MaterialButton
                                     android:id="@+id/button_save_result"
@@ -1050,7 +1076,7 @@
                                     android:layout_width="0dp"
                                     android:layout_height="wrap_content"
                                     android:layout_weight="1"
-                                    android:text="Save" />
+                                    android:text="Quick Save to History" />
                             </LinearLayout>
 
                             <!-- Row 2: Scan Again | Cancel -->

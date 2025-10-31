@@ -58,8 +58,8 @@
                         android:layout_width="40dp"
                         android:layout_height="40dp"
                         android:src="@android:drawable/ic_menu_camera"
-                        android:tint="@color/brand_brown"
-                        android:contentDescription="Scan icon" />
+                        android:contentDescription="Scan icon"
+                        app:tint="@color/primary_indigo" />
 
                     <LinearLayout
                         android:layout_width="0dp"
@@ -109,8 +109,8 @@
                         android:layout_width="32dp"
                         android:layout_height="32dp"
                         android:src="@android:drawable/ic_menu_help"
-                        android:tint="@color/brand_brown"
-                        android:contentDescription="Tutorial icon" />
+                        android:contentDescription="Tutorial icon"
+                        app:tint="@color/primary_indigo" />
 
                     <TextView
                         android:layout_width="wrap_content"
@@ -145,8 +145,8 @@
                         android:layout_width="32dp"
                         android:layout_height="32dp"
                         android:src="@android:drawable/ic_menu_info_details"
-                        android:tint="@color/brand_brown"
-                        android:contentDescription="Credits icon" />
+                        android:contentDescription="Credits icon"
+                        app:tint="@color/primary_indigo" />
 
                     <TextView
                         android:layout_width="wrap_content"

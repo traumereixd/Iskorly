@@ -3,7 +3,7 @@
     android:color="?attr/colorPrimary">
     <item>
         <shape android:shape="oval">
-            <solid android:color="@color/primary_indigo" />
+            <solid android:color="@color/brand_brown" />
             <size android:width="56dp" android:height="56dp" />
         </shape>
     </item>
