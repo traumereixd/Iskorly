@@ -4,6 +4,62 @@
 (function() {
     'use strict';
     
+    /**
+     * Load first available image from candidates list
+     * Tries each image path in the data-candidates attribute until one successfully loads.
+     * If all candidates fail, keeps the existing src attribute as fallback.
+     * @param {HTMLImageElement} imgEl - Image element with data-candidates attribute
+     */
+    function loadFirstAvailable(imgEl) {
+        const candidatesStr = imgEl.getAttribute('data-candidates');
+        if (!candidatesStr) return;
+        
+        try {
+            const candidates = JSON.parse(candidatesStr);
+            if (!Array.isArray(candidates) || candidates.length === 0) return;
+            
+            let currentIndex = 0;
+            
+            function tryNext() {
+                if (currentIndex >= candidates.length) {
+                    // All candidates failed, keep existing src or fallback
+                    return;
+                }
+                
+                const path = candidates[currentIndex];
+                const testImg = new Image();
+                
+                testImg.onload = function() {
+                    // Success! Use this image
+                    // Validate it's a safe relative path to prevent XSS
+                    if (path && path.startsWith('assets/') && !path.includes('..') && !path.includes('://')) {
+                        imgEl.src = path;
+                    }
+                    imgEl.removeAttribute('data-candidates'); // Clean up
+                };
+                
+                testImg.onerror = function() {
+                    // Try next candidate
+                    currentIndex++;
+                    tryNext();
+                };
+                
+                // Only try safe paths for security: must start with 'assets/', no directory traversal, no protocol
+                if (path && path.startsWith('assets/') && !path.includes('..') && !path.includes('://')) {
+                    testImg.src = path;
+                } else {
+                    // Skip invalid paths
+                    currentIndex++;
+                    tryNext();
+                }
+            }
+            
+            tryNext();
+        } catch (e) {
+            // Silently fail and keep existing src
+        }
+    }
+    
     // Mobile Menu Toggle
     const mobileMenuToggle = document.getElementById('mobileMenuToggle');
     const navLinks = document.getElementById('navLinks');
@@ -142,11 +198,28 @@
         });
     }
     
-    // Email obfuscation helper (update email addresses as needed)
-    // This is a simple example - replace with actual contact emails
+    // Load dynamic images on DOM ready
     document.addEventListener('DOMContentLoaded', function() {
-        // Example: Update mailto links to prevent spam
-        // This can be enhanced with actual contact emails
+        // Load brand logo
+        const brandLogo = document.querySelector('.logo');
+        if (brandLogo && brandLogo.hasAttribute('data-candidates')) {
+            loadFirstAvailable(brandLogo);
+        }
+        
+        // Load footer logo
+        const footerLogo = document.querySelector('.footer-logo');
+        if (footerLogo && footerLogo.hasAttribute('data-candidates')) {
+            loadFirstAvailable(footerLogo);
+        }
+        
+        // Load member photos
+        const memberPhotos = document.querySelectorAll('.member-photo');
+        memberPhotos.forEach(function(img) {
+            loadFirstAvailable(img);
+        });
+        
+        // Email obfuscation helper (update email addresses as needed)
+        // This is a simple example - replace with actual contact emails
         const mailtoLinks = document.querySelectorAll('a[href*="mailto:"]');
         mailtoLinks.forEach(link => {
             // Email addresses are already in the HTML for simplicity
