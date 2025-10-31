@@ -8,8 +8,10 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -20,15 +22,19 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 /**
- * Feature #6: Helper class to encapsulate OCR processing logic.
- * Handles Vision API, OCR.Space fallback, image preprocessing, and answer parsing.
+ * Vision-only OCR processor with multi-pass preprocessing and smart parsing.
+ * No longer uses OCR.Space fallback in active pipeline.
  */
 public class OcrProcessor {
-    private static final String TAG = "ISA_OCR_PROCESSOR";
+    private static final String TAG = "ISA_VISION_PROC";
+    
+    // Scoring constants
+    private static final int SCORE_PER_FILLED_ANSWER = 10;
+    private static final int SCORE_NUMERIC_ANCHOR_BONUS = 2;
     
     private final OkHttpClient httpClient;
     private final String visionApiKey;
-    private final String ocrSpaceApiKey;
+    private final String ocrSpaceApiKey; // Kept for legacy compatibility but not used
     private final Map<Integer, String> answerKey;
     
     public OcrProcessor(String visionApiKey, String ocrSpaceApiKey, Map<Integer, String> answerKey) {
@@ -43,13 +49,18 @@ public class OcrProcessor {
     }
     
     /**
-     * Process a bitmap through OCR pipeline:
-     * 1. Enhance image for OCR
-     * 2. Compress to JPEG
-     * 3. Call Vision API
-     * 4. Fallback to OCR.Space if empty
-     * 5. Parse answers
-     * 6. Filter to answer key
+     * Process bitmap through multi-variant Vision-only OCR pipeline.
+     * Generates multiple preprocessed variants, runs Vision DOCUMENT_TEXT_DETECTION on each,
+     * parses and scores each variant, then selects the best result.
+     * 
+     * Strategy:
+     * 1. Generate up to MAX_VARIANTS preprocessing variants
+     * 2. Run Vision OCR on each variant
+     * 3. Parse each result with smart parser
+     * 4. Score based on: filled answer count, numeric anchor presence
+     * 5. Early-exit if filled threshold is met (EARLY_EXIT_FILLED_THRESHOLD)
+     * 6. Optionally call AI re-parser if result is below REPARSE_MIN_FILLED_THRESHOLD
+     * 7. Return the best scoring variant
      */
     public HashMap<Integer, String> processImage(Bitmap bitmap) {
         if (bitmap == null) {
@@ -57,42 +68,228 @@ public class OcrProcessor {
             return new HashMap<>();
         }
         
-        try {
-            // Enhance for OCR
-            Bitmap enhanced = ImageUtil.enhanceForOcr(bitmap);
-            if (enhanced == null) {
-                Log.e(TAG, "Enhancement failed");
-                return new HashMap<>();
+        Log.d(TAG, "Starting multi-variant OCR processing (MAX_VARIANTS=" + 
+                BuildConfig.MAX_VARIANTS + ", EARLY_EXIT=" + BuildConfig.EARLY_EXIT_FILLED_THRESHOLD + ")");
+        
+        // Generate preprocessing variants
+        List<PreprocessVariant> variants = new ArrayList<>();
+        
+        // Variant 1: Light preprocessing (grayscale + contrast)
+        if (variants.size() < BuildConfig.MAX_VARIANTS) {
+            Bitmap light = ImagePreprocessor.preprocessLight(bitmap);
+            if (light != null) {
+                variants.add(new PreprocessVariant("light", light));
             }
-            
-            // Compress to JPEG
-            byte[] jpegBytes = ImageUtil.resizeAndCompress(enhanced, 1600);
-            enhanced.recycle();
-            
-            // OCR
-            String recognizedText = callVisionApi(jpegBytes);
-            
-            // Fallback to OCR.Space if empty
-            if ((recognizedText == null || recognizedText.trim().isEmpty()) && hasOcrSpaceKey()) {
-                Log.d(TAG, "Vision returned empty, trying OCR.Space fallback");
-                recognizedText = callOcrSpaceApi(jpegBytes);
+        }
+        
+        // Variant 2: Classroom preprocessing (de-yellow + grayscale + contrast + Otsu)
+        if (variants.size() < BuildConfig.MAX_VARIANTS) {
+            Bitmap classroom = ImagePreprocessor.preprocessForClassroom(bitmap);
+            if (classroom != null) {
+                variants.add(new PreprocessVariant("classroom", classroom));
             }
-            
-            if (recognizedText == null) {
-                recognizedText = "";
+        }
+        
+        // Variant 3: Standard enhancement (existing method)
+        if (variants.size() < BuildConfig.MAX_VARIANTS) {
+            Bitmap standard = ImageUtil.enhanceForOcr(bitmap);
+            if (standard != null) {
+                variants.add(new PreprocessVariant("standard", standard));
             }
-            
-            // Parse and filter
-            return parseAndFilter(recognizedText);
-            
-        } catch (Exception e) {
-            Log.e(TAG, "Error processing image", e);
+        }
+        
+        // Variant 4: Grayscale only (minimal processing)
+        if (variants.size() < BuildConfig.MAX_VARIANTS) {
+            Bitmap grayscale = ImagePreprocessor.toGrayscale(bitmap);
+            if (grayscale != null) {
+                variants.add(new PreprocessVariant("grayscale", grayscale));
+            }
+        }
+        
+        if (variants.isEmpty()) {
+            Log.e(TAG, "All preprocessing variants failed");
             return new HashMap<>();
+        }
+        
+        // Process each variant and score
+        PreprocessResult bestResult = null;
+        int bestScore = -1;
+        String bestOcrText = "";
+        int variantIndex = 0;
+        
+        for (PreprocessVariant variant : variants) {
+            variantIndex++;
+            try {
+                // Compress to JPEG
+                byte[] jpegBytes = ImageUtil.resizeAndCompress(variant.bitmap, 1600);
+                
+                // Call Vision API (DOCUMENT_TEXT_DETECTION)
+                String recognizedText = callVisionApi(jpegBytes);
+                
+                if (recognizedText == null) {
+                    recognizedText = "";
+                }
+                
+                // Parse with smart parser
+                HashMap<Integer, String> parsed = parseAndFilterSmart(recognizedText);
+                
+                // Score this variant
+                int score = scoreVariant(parsed, recognizedText);
+                int filledCount = countFilledAnswers(parsed);
+                float fillRatio = answerKey.isEmpty() ? 0 : (float) filledCount / answerKey.size();
+                
+                Log.d(TAG, String.format("Variant %d/%d '%s': score=%d, filled=%d/%d (%.1f%%)",
+                        variantIndex, variants.size(), variant.name, score, 
+                        filledCount, answerKey.size(), fillRatio * 100));
+                
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestResult = new PreprocessResult(variant.name, parsed, recognizedText);
+                    bestOcrText = recognizedText;
+                }
+                
+                // Early exit if we've met the threshold
+                if (fillRatio >= BuildConfig.EARLY_EXIT_FILLED_THRESHOLD) {
+                    Log.d(TAG, "Early exit triggered at " + (fillRatio * 100) + "% filled (threshold: " + 
+                            (BuildConfig.EARLY_EXIT_FILLED_THRESHOLD * 100) + "%)");
+                    break;
+                }
+                
+            } catch (Exception e) {
+                Log.e(TAG, "Error processing variant '" + variant.name + "'", e);
+            } finally {
+                // Clean up bitmap
+                variant.bitmap.recycle();
+            }
+        }
+        
+        if (bestResult == null) {
+            Log.e(TAG, "No successful OCR variant");
+            return new HashMap<>();
+        }
+        
+        Log.d(TAG, "Selected best variant: '" + bestResult.variantName + "' with score " + bestScore);
+        
+        // Check if we should call AI re-parser
+        int filledCount = countFilledAnswers(bestResult.parsedAnswers);
+        float fillRatio = answerKey.isEmpty() ? 0 : (float) filledCount / answerKey.size();
+        
+        if (fillRatio < BuildConfig.REPARSE_MIN_FILLED_THRESHOLD && 
+            !BuildConfig.REPARSE_ENDPOINT.isEmpty()) {
+            
+            Log.d(TAG, String.format("Fill ratio %.1f%% below threshold %.1f%%, calling AI re-parser",
+                    fillRatio * 100, BuildConfig.REPARSE_MIN_FILLED_THRESHOLD * 100));
+            
+            try {
+                Map<Integer, String> reParsed = NetworkUtil.callReparserEndpoint(
+                        httpClient, BuildConfig.REPARSE_ENDPOINT, bestOcrText, answerKey);
+                
+                // Merge re-parsed results (non-empty values override existing)
+                int mergedCount = 0;
+                for (Map.Entry<Integer, String> entry : reParsed.entrySet()) {
+                    String newValue = entry.getValue();
+                    if (newValue != null && !newValue.trim().isEmpty()) {
+                        bestResult.parsedAnswers.put(entry.getKey(), newValue);
+                        mergedCount++;
+                    }
+                }
+                
+                Log.d(TAG, "AI re-parser merged " + mergedCount + " improved answers");
+                
+            } catch (Exception e) {
+                Log.e(TAG, "Error calling AI re-parser", e);
+            }
+        }
+        
+        return bestResult.parsedAnswers;
+    }
+    
+    /**
+     * Score a parsed variant based on:
+     * - Number of non-empty answers that align with answer key
+     * - Small bonus for presence of numeric anchors in text
+     */
+    private int scoreVariant(HashMap<Integer, String> parsed, String text) {
+        int score = 0;
+        
+        // Main score: count filled answers that match answer key questions
+        for (Map.Entry<Integer, String> entry : parsed.entrySet()) {
+            if (answerKey.containsKey(entry.getKey()) && !entry.getValue().trim().isEmpty()) {
+                score += SCORE_PER_FILLED_ANSWER;
+            }
+        }
+        
+        // Bonus: numeric anchors present (indicates numbered format was detected)
+        // Check for patterns like "1.", "2)", "3.", "4)" etc. in text
+        if (text != null && text.matches(".*\\d+[.)].*")) {
+            score += SCORE_NUMERIC_ANCHOR_BONUS;
+        }
+        
+        return score;
+    }
+    
+    /**
+     * Count how many non-empty answers are in the map.
+     */
+    private int countFilledAnswers(HashMap<Integer, String> answers) {
+        int count = 0;
+        for (String value : answers.values()) {
+            if (value != null && !value.trim().isEmpty()) {
+                count++;
+            }
+        }
+        return count;
+    }
+    
+    /**
+     * Helper class to hold preprocessing variant.
+     */
+    private static class PreprocessVariant {
+        final String name;
+        final Bitmap bitmap;
+        
+        PreprocessVariant(String name, Bitmap bitmap) {
+            this.name = name;
+            this.bitmap = bitmap;
         }
     }
     
     /**
-     * Parse OCR text and filter to answer key questions.
+     * Helper class to hold preprocessing result.
+     */
+    private static class PreprocessResult {
+        final String variantName;
+        final HashMap<Integer, String> parsedAnswers;
+        final String recognizedText;
+        
+        PreprocessResult(String variantName, HashMap<Integer, String> parsedAnswers, String recognizedText) {
+            this.variantName = variantName;
+            this.parsedAnswers = parsedAnswers;
+            this.recognizedText = recognizedText;
+        }
+    }
+
+    
+    /**
+     * Parse OCR text using smart parser and filter to answer key questions.
+     * Uses number-aware parser that can handle both numbered and unnumbered formats.
+     */
+    private HashMap<Integer, String> parseAndFilterSmart(String text) {
+        // Use smart parser with answer key validation
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
+        
+        // Filter to answer key
+        LinkedHashMap<Integer, String> filtered = Parser.filterToAnswerKey(parsed, answerKey);
+        
+        // Convert to HashMap
+        HashMap<Integer, String> result = new HashMap<>();
+        result.putAll(filtered);
+        
+        return result;
+    }
+    
+    /**
+     * Legacy parse method (kept for backward compatibility, but not used in new pipeline).
      */
     private HashMap<Integer, String> parseAndFilter(String text) {
         // Parse using enhanced parser
@@ -169,68 +366,33 @@ public class OcrProcessor {
         }
     }
     
+    // ========== Legacy OCR.Space stub methods (kept for backward compatibility) ==========
+    // These methods are no longer called in the active pipeline but kept for code references
+    
     /**
-     * Call OCR.Space API as fallback.
+     * OCR.Space fallback (LEGACY - not used in active pipeline).
+     * Kept as stub for backward compatibility.
      */
+    @Deprecated
     private String callOcrSpaceApi(byte[] jpegBytes) {
-        if (!hasOcrSpaceKey()) {
-            return null;
-        }
-        
-        try {
-            Log.d(TAG, "Using OCR.Space fallback");
-            
-            String base64Image = Base64.encodeToString(jpegBytes, Base64.NO_WRAP);
-            String body = "base64Image=" + java.net.URLEncoder.encode("data:image/jpeg;base64," + base64Image, "UTF-8")
-                    + "&language=eng"
-                    + "&isOverlayRequired=false";
-            
-            MediaType mediaType = MediaType.parse("application/x-www-form-urlencoded; charset=UTF-8");
-            RequestBody requestBody = RequestBody.create(body, mediaType);
-            
-            Request request = new Request.Builder()
-                    .url("https://api.ocr.space/parse/image")
-                    .post(requestBody)
-                    .addHeader("apikey", ocrSpaceApiKey)
-                    .build();
-            
-            try (Response resp = httpClient.newCall(request).execute()) {
-                if (!resp.isSuccessful()) {
-                    Log.e(TAG, "OCR.Space API error: " + resp.code());
-                    return null;
-                }
-                
-                String respStr = resp.body().string();
-                JSONObject respJson = new JSONObject(respStr);
-                JSONArray parsed = respJson.optJSONArray("ParsedResults");
-                
-                if (parsed != null && parsed.length() > 0) {
-                    JSONObject pr = parsed.getJSONObject(0);
-                    String text = pr.optString("ParsedText", "");
-                    Log.d(TAG, "OCR.Space returned " + text.length() + " chars");
-                    return text.trim();
-                }
-                
-                return null;
-            }
-        } catch (Exception e) {
-            Log.e(TAG, "OCR.Space API call failed", e);
-            return null;
-        }
+        // No longer used in active Vision-only pipeline
+        Log.d(TAG, "OCR.Space fallback disabled in Vision-only mode");
+        return null;
     }
     
     /**
-     * Check if OCR.Space API key is configured.
+     * Check if OCR.Space API key is configured (LEGACY).
      */
+    @Deprecated
     private boolean hasOcrSpaceKey() {
-        return ocrSpaceApiKey != null && !ocrSpaceApiKey.trim().isEmpty();
+        return false; // Always false in Vision-only mode
     }
     
     // ========== Phase 4: OCR Robustness Enhancements ==========
     
     /**
      * Process image with high-contrast preprocessing mode.
-     * Uses adaptive thresholding to improve handwriting recognition.
+     * Uses adaptive thresholding via Otsu binarization.
      * 
      * @param bitmap Source bitmap
      * @return Parsed answers
@@ -242,32 +404,26 @@ public class OcrProcessor {
         }
         
         try {
-            // Apply high-contrast thresholding
-            Bitmap thresholded = ImageUtil.thresholdForOcr(bitmap);
-            if (thresholded == null) {
-                Log.e(TAG, "Thresholding failed");
+            // Apply classroom preprocessing (includes Otsu binarization)
+            Bitmap preprocessed = ImagePreprocessor.preprocessForClassroom(bitmap);
+            if (preprocessed == null) {
+                Log.e(TAG, "Classroom preprocessing failed");
                 return new HashMap<>();
             }
             
             // Compress to JPEG
-            byte[] jpegBytes = ImageUtil.resizeAndCompress(thresholded, 1600);
-            thresholded.recycle();
+            byte[] jpegBytes = ImageUtil.resizeAndCompress(preprocessed, 1600);
+            preprocessed.recycle();
             
-            // OCR
+            // Call Vision API
             String recognizedText = callVisionApi(jpegBytes);
-            
-            // Fallback to OCR.Space if empty
-            if ((recognizedText == null || recognizedText.trim().isEmpty()) && hasOcrSpaceKey()) {
-                Log.d(TAG, "Vision returned empty, trying OCR.Space fallback with high-contrast");
-                recognizedText = callOcrSpaceApi(jpegBytes);
-            }
             
             if (recognizedText == null) {
                 recognizedText = "";
             }
             
-            // Parse and filter
-            return parseAndFilter(recognizedText);
+            // Parse with smart parser
+            return parseAndFilterSmart(recognizedText);
             
         } catch (Exception e) {
             Log.e(TAG, "Error processing image with high-contrast", e);
@@ -277,7 +433,7 @@ public class OcrProcessor {
     
     /**
      * Process image using two-column OCR mode.
-     * Splits image into left/right halves, processes each separately,
+     * Splits image into left/right halves, processes each separately with preprocessing,
      * then merges results (first non-blank answer wins).
      * 
      * @param bitmap Source bitmap
@@ -300,12 +456,12 @@ public class OcrProcessor {
                 return new HashMap<>();
             }
             
-            // Process left half
-            HashMap<Integer, String> leftAnswers = processHalf(leftHalf, "left");
+            // Process left half with preprocessing
+            HashMap<Integer, String> leftAnswers = processHalfWithPreprocessing(leftHalf, "left");
             leftHalf.recycle();
             
-            // Process right half
-            HashMap<Integer, String> rightAnswers = processHalf(rightHalf, "right");
+            // Process right half with preprocessing
+            HashMap<Integer, String> rightAnswers = processHalfWithPreprocessing(rightHalf, "right");
             rightHalf.recycle();
             
             // Merge results: first non-blank answer wins
@@ -336,36 +492,30 @@ public class OcrProcessor {
     }
     
     /**
-     * Process a single half of the image (helper for two-column mode).
+     * Process a single half of the image with classroom preprocessing (helper for two-column mode).
      */
-    private HashMap<Integer, String> processHalf(Bitmap half, String side) {
+    private HashMap<Integer, String> processHalfWithPreprocessing(Bitmap half, String side) {
         try {
-            // Enhance for OCR
-            Bitmap enhanced = ImageUtil.enhanceForOcr(half);
-            if (enhanced == null) {
-                Log.e(TAG, "Enhancement failed for " + side + " half");
+            // Apply classroom preprocessing
+            Bitmap preprocessed = ImagePreprocessor.preprocessForClassroom(half);
+            if (preprocessed == null) {
+                Log.e(TAG, "Preprocessing failed for " + side + " half");
                 return new HashMap<>();
             }
             
             // Compress to JPEG
-            byte[] jpegBytes = ImageUtil.resizeAndCompress(enhanced, 1600);
-            enhanced.recycle();
+            byte[] jpegBytes = ImageUtil.resizeAndCompress(preprocessed, 1600);
+            preprocessed.recycle();
             
-            // OCR
+            // Call Vision API
             String recognizedText = callVisionApi(jpegBytes);
-            
-            // Fallback to OCR.Space if empty
-            if ((recognizedText == null || recognizedText.trim().isEmpty()) && hasOcrSpaceKey()) {
-                Log.d(TAG, "Vision returned empty for " + side + " half, trying OCR.Space");
-                recognizedText = callOcrSpaceApi(jpegBytes);
-            }
             
             if (recognizedText == null) {
                 recognizedText = "";
             }
             
-            // Parse and filter
-            return parseAndFilter(recognizedText);
+            // Parse with smart parser
+            return parseAndFilterSmart(recognizedText);
             
         } catch (Exception e) {
             Log.e(TAG, "Error processing " + side + " half", e);
@@ -374,59 +524,16 @@ public class OcrProcessor {
     }
     
     /**
-     * Process image using smart parser with answer-first support.
-     * Uses restricted parsing based on allowed answer tokens from the answer key.
+     * Process image using smart parser (LEGACY - integrated into main pipeline).
+     * Redirects to standard multi-variant processing.
      * 
      * @param bitmap Source bitmap
      * @return Parsed answers using smart parser
      */
+    @Deprecated
     public HashMap<Integer, String> processImageWithSmartParser(Bitmap bitmap) {
-        if (bitmap == null) {
-            Log.e(TAG, "Bitmap is null");
-            return new HashMap<>();
-        }
-        
-        try {
-            // Enhance for OCR
-            Bitmap enhanced = ImageUtil.enhanceForOcr(bitmap);
-            if (enhanced == null) {
-                Log.e(TAG, "Enhancement failed");
-                return new HashMap<>();
-            }
-            
-            // Compress to JPEG
-            byte[] jpegBytes = ImageUtil.resizeAndCompress(enhanced, 1600);
-            enhanced.recycle();
-            
-            // OCR
-            String recognizedText = callVisionApi(jpegBytes);
-            
-            // Fallback to OCR.Space if empty
-            if ((recognizedText == null || recognizedText.trim().isEmpty()) && hasOcrSpaceKey()) {
-                Log.d(TAG, "Vision returned empty, trying OCR.Space fallback");
-                recognizedText = callOcrSpaceApi(jpegBytes);
-            }
-            
-            if (recognizedText == null) {
-                recognizedText = "";
-            }
-            
-            // Use smart parser with answer key validation
-            LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextToAnswersSmart(recognizedText, answerKey);
-            
-            // Filter to answer key (additional safety check)
-            LinkedHashMap<Integer, String> filtered = Parser.filterToAnswerKey(parsed, answerKey);
-            
-            // Convert to HashMap
-            HashMap<Integer, String> result = new HashMap<>();
-            result.putAll(filtered);
-            
-            return result;
-            
-        } catch (Exception e) {
-            Log.e(TAG, "Error processing image with smart parser", e);
-            return new HashMap<>();
-        }
+        // Redirect to standard multi-variant processing which includes smart parsing
+        return processImage(bitmap);
     }
     
     /**
