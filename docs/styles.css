@@ -119,6 +119,8 @@ body {
 .logo {
     height: 36px;
     width: auto;
+    max-height: 40px;
+    object-fit: contain;
 }
 
 .brand-name {
@@ -729,6 +731,16 @@ body {
     margin: 0 auto var(--spacing-sm);
 }
 
+.member-photo {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 50%;
+    margin: 0 auto var(--spacing-sm);
+    border: 3px solid var(--brand-primary);
+    display: block;
+}
+
 .team-member h3 {
     font-size: 1.25rem;
     margin-bottom: var(--spacing-xs);
@@ -807,6 +819,8 @@ body {
     height: 36px;
     margin-bottom: var(--spacing-sm);
     filter: brightness(0) invert(1);
+    max-height: 40px;
+    object-fit: contain;
 }
 
 .footer-tagline {

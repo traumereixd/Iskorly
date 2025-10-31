@@ -60,7 +60,7 @@ Teachers in the Philippines face significant delays in providing student feedbac
 
 ## Stage
 
-**Current Stage:** Idea/MVP (working prototype with pilot interest)
+**Current Stage:** Idea/MVP (working prototype, no pilots yet)
 
 **Development Status:**
 - Working Android app with full scanning-to-analytics pipeline
@@ -70,7 +70,7 @@ Teachers in the Philippines face significant delays in providing student feedbac
 - Multiple answer key slots with import/export
 - Batch multi-image processing with deterministic merge
 - Local storage with privacy-first design
-- Early pilots and teacher feedback collection underway
+- **No pilots started yet** - seeking initial school partners
 
 ---
 
@@ -78,16 +78,16 @@ Teachers in the Philippines face significant delays in providing student feedbac
 
 **How will Iskorly make money?**
 
-Iskorly will always be free to download and use for individual teachers and students. Our B2B sponsorship model ensures educators never pay.
+Iskorly is free for teachers and students. We have not raised funds and we are not sponsored yet. For now this is a student project applying to programs.
 
-**Revenue/Sustainability Strategy:**
+**Future Sustainability Strategy:**
 1. **Free for End Users:** Teachers and students never pay. No subscriptions, paywalls, or in-app purchases.
 
-2. **B2B Sponsorships:** Schools, school districts, and Local Government Units (LGUs) sponsor Iskorly as part of their educational technology initiatives. Sponsorships cover cloud API costs (Google Vision, OCR.Space) and infrastructure.
+2. **Future B2B Sponsorships (exploring):** Schools, school districts, and Local Government Units (LGUs) could sponsor Iskorly as part of their educational technology initiatives. Sponsorships would cover cloud API costs (Google Vision, OCR.Space) and infrastructure.
 
-3. **Grants and Cloud Credits:** We pursue education-focused grants (e.g., DepEd innovation grants, international education foundations) and cloud provider credits (Google Cloud Platform Education, AWS Educate) to subsidize operational costs during growth phase.
+3. **Grants and Cloud Credits:** We will pursue education-focused grants (e.g., DepEd innovation grants, international education foundations) and cloud provider credits (Google Cloud Platform Education, AWS Educate) to subsidize operational costs.
 
-4. **On-Device OCR Exploration:** Actively researching on-device OCR solutions (Google MLKit, Tesseract) to reduce cloud API dependency and long-term operating costs. This would further lower sponsorship requirements and improve offline functionality.
+4. **On-Device OCR Exploration:** Actively researching on-device OCR solutions (Google MLKit, Tesseract) to reduce cloud API dependency and minimize ongoing costs. This would improve offline functionality and reduce infrastructure needs.
 
 **Cost Structure:**
 - Primary costs: OCR API usage (billed per request)
@@ -105,9 +105,9 @@ Iskorly will always be free to download and use for individual teachers and stud
 
 ## Funding Status
 
-**Funding Raised:** No
+**Funding Raised:** $0 (No funding yet)
 
-**Current Funding Status:** Self-funded / bootstrapped
+**Current Funding Status:** Self-funded / bootstrapped student project
 
 **Future Funding Needs:**
 - Seed funding to scale API credits during pilot expansion
@@ -143,13 +143,12 @@ Iskorly will always be free to download and use for individual teachers and stud
 Our biggest achievement is developing a fully functional Android app that successfully implements the complete scanning-to-analytics workflow. Iskorly currently features:
 
 - **End-to-End Pipeline:** Camera2 capture → dual OCR (Google Vision + OCR.Space fallback) → domain parser → teacher verification → scoring → history tracking → masterlist analytics with CSV export
-- **Real Accuracy:** ≤2 percentage point gap vs manual scoring with teacher verification step
-- **Pilot Validation:** Teachers expressing interest and requesting trials in Laguna and Metro Manila public schools
-- **Time Savings:** ≥50% reduction in grading time reported by early testers
+- **Technical Validation:** ≤2 percentage point accuracy gap target vs manual scoring with teacher verification step
+- **MVP Complete:** Ready for pilot deployment with interested teachers
 - **Privacy-First Design:** No student face capture, local-only storage, anonymized exports
 - **Teacher-Friendly UX:** Color-coded feedback, editable grid, batch processing, answer key reuse
 
-This demonstrates technical feasibility, market need validation, and scalability potential with minimal infrastructure.
+This demonstrates technical feasibility and scalability potential with minimal infrastructure. **No pilots have been conducted yet** - we are in the application and preparation stage.
 
 ---
 
@@ -170,25 +169,25 @@ This demonstrates technical feasibility, market need validation, and scalability
 ## What We're Looking For (Indicators/Asks)
 
 **Networking:**
-- Connections with DepEd district supervisors and school principals in Laguna, Metro Manila, and other regions
+- Connections with DepEd district supervisors and school principals in Laguna, Metro Manila, and other regions for potential pilot partnerships
 - Introductions to educational technology advocates and teacher networks
 - Partnerships with educational NGOs and foundations focused on Filipino classrooms
 
-**Potential Customers:**
-- Public schools interested in piloting Iskorly (targeting 5-10 schools in Q1 2025)
+**Potential Customers (Schools/LGUs):**
+- Public schools interested in piloting Iskorly (seeking initial 3-5 schools for first pilots)
 - Private schools with large class sizes looking for assessment efficiency tools
 - Local Government Units (LGUs) with education technology budgets
 - DepEd regional offices evaluating tools for teacher professional development
 
-**Potential Investors:**
+**Potential Investors/Funders:**
 - Angel investors or VCs interested in EdTech and social impact in the Philippines
 - Grant programs focused on SDG 4 (Quality Education) and educational equity
 - Corporate social responsibility programs from tech companies (Google, AWS, Microsoft)
 - Impact investors prioritizing accessible, scalable education solutions
 
 **Other Support:**
-- Cloud provider credits (GCP, AWS) to subsidize OCR API costs during pilot expansion
-- Introductions to education research teams for formal efficacy studies
+- Cloud provider credits (GCP, AWS) to subsidize OCR API costs during initial pilots
+- Introductions to education research teams for formal efficacy studies when pilots begin
 - Media exposure to increase teacher awareness and adoption
 - Mentorship from experienced EdTech founders on scaling and sustainability
 
@@ -196,7 +195,7 @@ This demonstrates technical feasibility, market need validation, and scalability
 - Pitch competitions and demo days for visibility
 - DepEd innovation showcases and teacher conferences
 - EdTech publications and podcast features
-- Partnership announcements with schools/LGUs
+- Partnership announcements when first pilots launch
 
 ---
 
@@ -248,13 +247,13 @@ This demonstrates technical feasibility, market need validation, and scalability
 - Teacher verification step maintains human oversight and accuracy
 - Dual OCR for robustness
 - Works with existing smartphones (no new hardware)
-- Real pilot interest from public school teachers
+- Ready for pilot deployment
 
-**Traction Evidence:**
-- Working prototype deployed on Android
-- Early pilot interest from Laguna and Metro Manila public schools
-- Positive feedback on time savings and usability
-- Technical validation: ≤2pp accuracy gap, ≥50% time saved
+**Current Status:**
+- Working MVP deployed on Android
+- Applying to accelerator programs (QBO 2025)
+- Seeking initial pilot school partners
+- Technical targets: ≤2pp accuracy gap, ≥50% time savings
 
 ---
 
