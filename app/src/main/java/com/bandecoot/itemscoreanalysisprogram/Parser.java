@@ -12,6 +12,13 @@ public final class Parser {
     
     // Parser configuration constants
     private static final float ORDER_ONLY_FALLBACK_THRESHOLD = 0.3f; // Switch to order-only below 30% filled
+    private static final int MAX_QUESTION_NUMBER = 200; // Maximum valid question number
+    private static final int MAX_ANSWER_LENGTH = 40; // Maximum answer text length
+    
+    // Regex pattern to split lines containing multiple numbered items
+    // Matches: "answer_letter whitespace question_number punctuation"
+    // E.g., "A 2." or "B 3)" to split "1. A 2. B" into ["1. A", "2. B"]
+    private static final String MULTI_ITEM_SPLIT_PATTERN = "(?<=\\b[A-Za-z]\\b)\\s+(?=\\d{1,3}\\s*[.):)])";
 
     private Parser() {}
 
@@ -36,10 +43,10 @@ public final class Parser {
         // Extract answers using multiple patterns
         extractAnswersWithPatterns(convertedText, map);
 
-        // Deduplicate and limit to valid range (1-200)
+        // Deduplicate and limit to valid range (1-MAX_QUESTION_NUMBER)
         LinkedHashMap<Integer, String> filtered = new LinkedHashMap<>();
         for (Integer q : map.keySet()) {
-            if (q >= 1 && q <= 200 && !filtered.containsKey(q)) {
+            if (q >= 1 && q <= MAX_QUESTION_NUMBER && !filtered.containsKey(q)) {
                 filtered.put(q, map.get(q));
             }
         }
@@ -106,7 +113,7 @@ public final class Parser {
         Matcher matcher = pattern.matcher(text);
         while (matcher.find()) {
             int q = safeInt(matcher.group(1));
-            if (q <= 0 || q > 200) continue;
+            if (q <= 0 || q > MAX_QUESTION_NUMBER) continue;
             
             String rawAnswer = matcher.group(2);
             String answer = cleanAnswer(rawAnswer);
@@ -127,9 +134,9 @@ public final class Parser {
         // Trim and remove trailing punctuation/noise
         String cleaned = answer.trim().replaceAll("[.,;!?]+$", "");
         
-        // Limit length to 40 characters
-        if (cleaned.length() > 40) {
-            cleaned = cleaned.substring(0, 40).trim();
+        // Limit length to MAX_ANSWER_LENGTH
+        if (cleaned.length() > MAX_ANSWER_LENGTH) {
+            cleaned = cleaned.substring(0, MAX_ANSWER_LENGTH).trim();
         }
         
         return cleaned;
@@ -258,8 +265,7 @@ public final class Parser {
         java.util.List<String> splitLines = new java.util.ArrayList<>();
         for (String line : rawLines) {
             // Try to split if line contains multiple question patterns
-            // Pattern: detect "number. answer number. answer" or similar
-            String[] parts = line.split("(?<=\\b[A-Za-z]\\b)\\s+(?=\\d{1,3}\\s*[.):)])");
+            String[] parts = line.split(MULTI_ITEM_SPLIT_PATTERN);
             for (String part : parts) {
                 if (!part.trim().isEmpty()) {
                     splitLines.add(part.trim());
@@ -286,7 +292,7 @@ public final class Parser {
                 // Extract answer (single letter or short text)
                 String answer = extractAnswer(answerPart, allowedSet);
                 
-                if (q >= 1 && q <= 200 && answerKey.containsKey(q) && !answer.isEmpty() && !byNumber.containsKey(q)) {
+                if (q >= 1 && q <= MAX_QUESTION_NUMBER && answerKey.containsKey(q) && !answer.isEmpty() && !byNumber.containsKey(q)) {
                     byNumber.put(q, answer);
                 } else if (!answer.isEmpty()) {
                     // Valid answer but not matched to a question - add to orphans
@@ -344,9 +350,9 @@ public final class Parser {
         
         String candidate = words[0];
         
-        // Limit length to 40 characters
-        if (candidate.length() > 40) {
-            candidate = candidate.substring(0, 40);
+        // Limit length to MAX_ANSWER_LENGTH
+        if (candidate.length() > MAX_ANSWER_LENGTH) {
+            candidate = candidate.substring(0, MAX_ANSWER_LENGTH);
         }
         
         // Remove trailing punctuation
@@ -397,7 +403,7 @@ public final class Parser {
                 String answer = m.group(2).trim();
                 String canonical = canonical(answer);
                 
-                if (q >= 1 && q <= 200 && answerKey.containsKey(q) && 
+                if (q >= 1 && q <= MAX_QUESTION_NUMBER && answerKey.containsKey(q) && 
                     allowedSet.contains(canonical) && !map.containsKey(q)) {
                     map.put(q, answer);
                 }
@@ -521,7 +527,7 @@ public final class Parser {
                 String answer = m1.group(2).trim();
                 String canonical = canonical(answer);
                 
-                if (q >= 1 && q <= 200 && allowedSet.contains(canonical) && !map.containsKey(q)) {
+                if (q >= 1 && q <= MAX_QUESTION_NUMBER && allowedSet.contains(canonical) && !map.containsKey(q)) {
                     map.put(q, answer);
                     continue;
                 }
@@ -535,7 +541,7 @@ public final class Parser {
                 int q = safeInt(m2.group(2));
                 String canonical = canonical(answer);
                 
-                if (q >= 1 && q <= 200 && allowedSet.contains(canonical) && !map.containsKey(q)) {
+                if (q >= 1 && q <= MAX_QUESTION_NUMBER && allowedSet.contains(canonical) && !map.containsKey(q)) {
                     map.put(q, answer);
                 }
             }
