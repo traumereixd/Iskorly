@@ -12,6 +12,13 @@ public final class Parser {
     
     // Parser configuration constants
     private static final float ORDER_ONLY_FALLBACK_THRESHOLD = 0.3f; // Switch to order-only below 30% filled
+    private static final int MAX_QUESTION_NUMBER = 200; // Maximum valid question number
+    private static final int MAX_ANSWER_LENGTH = 40; // Maximum answer text length
+    
+    // Regex pattern to split lines containing multiple numbered items
+    // Matches: "answer_letter whitespace question_number punctuation"
+    // E.g., "A 2." or "B 3)" to split "1. A 2. B" into ["1. A", "2. B"]
+    private static final String MULTI_ITEM_SPLIT_PATTERN = "(?<=\\b[A-Za-z]\\b)\\s+(?=\\d{1,3}\\s*[.):)])";
 
     private Parser() {}
 
@@ -36,10 +43,10 @@ public final class Parser {
         // Extract answers using multiple patterns
         extractAnswersWithPatterns(convertedText, map);
 
-        // Deduplicate and limit to valid range (1-200)
+        // Deduplicate and limit to valid range (1-MAX_QUESTION_NUMBER)
         LinkedHashMap<Integer, String> filtered = new LinkedHashMap<>();
         for (Integer q : map.keySet()) {
-            if (q >= 1 && q <= 200 && !filtered.containsKey(q)) {
+            if (q >= 1 && q <= MAX_QUESTION_NUMBER && !filtered.containsKey(q)) {
                 filtered.put(q, map.get(q));
             }
         }
@@ -106,7 +113,7 @@ public final class Parser {
         Matcher matcher = pattern.matcher(text);
         while (matcher.find()) {
             int q = safeInt(matcher.group(1));
-            if (q <= 0 || q > 200) continue;
+            if (q <= 0 || q > MAX_QUESTION_NUMBER) continue;
             
             String rawAnswer = matcher.group(2);
             String answer = cleanAnswer(rawAnswer);
@@ -127,9 +134,9 @@ public final class Parser {
         // Trim and remove trailing punctuation/noise
         String cleaned = answer.trim().replaceAll("[.,;!?]+$", "");
         
-        // Limit length to 40 characters
-        if (cleaned.length() > 40) {
-            cleaned = cleaned.substring(0, 40).trim();
+        // Limit length to MAX_ANSWER_LENGTH
+        if (cleaned.length() > MAX_ANSWER_LENGTH) {
+            cleaned = cleaned.substring(0, MAX_ANSWER_LENGTH).trim();
         }
         
         return cleaned;
@@ -198,14 +205,14 @@ public final class Parser {
         if (text == null || text.trim().isEmpty()) return new LinkedHashMap<>();
         if (answerKey == null || answerKey.isEmpty()) return new LinkedHashMap<>();
         
-        // Step 1: Try number-aware parsing
-        LinkedHashMap<Integer, String> numberedResult = parseNumberAware(text, answerKey);
+        // Step 1: Try gap-tolerant parsing (hybrid strategy)
+        LinkedHashMap<Integer, String> gapTolerantResult = parseGapTolerant(text, answerKey);
         
         // Step 2: If result is sparse, try order-only fallback
-        int filledCount = countFilledAnswers(numberedResult);
+        int filledCount = countFilledAnswers(gapTolerantResult);
         int expectedCount = answerKey.size();
         
-        Log.d(TAG, "Number-aware parsing found " + filledCount + " filled answers out of " + expectedCount);
+        Log.d(TAG, "Gap-tolerant parsing found " + filledCount + " filled answers out of " + expectedCount);
         
         // If we got less than threshold of expected answers, try order-only mode
         if (filledCount < expectedCount * ORDER_ONLY_FALLBACK_THRESHOLD) {
@@ -221,7 +228,150 @@ public final class Parser {
             }
         }
         
-        return numberedResult;
+        return gapTolerantResult;
+    }
+    
+    /**
+     * Gap-tolerant parser with hybrid strategy:
+     * - Normalize text, split/join lines, strip numbering tokens
+     * - Handle roman numerals, accept A..Z or short words
+     * - Build two maps: byNumber (explicit numbers) and byOrder (sequence)
+     * - Merge by filling gaps using orphan lines
+     * 
+     * @param text OCR text to parse
+     * @param answerKey Current answer key for validation
+     * @return Parsed answers map with gaps filled
+     */
+    private static LinkedHashMap<Integer, String> parseGapTolerant(
+            String text, java.util.Map<Integer, String> answerKey) {
+        
+        if (text == null || text.trim().isEmpty()) return new LinkedHashMap<>();
+        if (answerKey == null || answerKey.isEmpty()) return new LinkedHashMap<>();
+        
+        // Build allowed answer set from answer key
+        java.util.Set<String> allowedSet = buildAllowedSet(answerKey);
+        
+        // Get sorted list of answer key questions
+        java.util.List<Integer> keyQuestions = new java.util.ArrayList<>(answerKey.keySet());
+        java.util.Collections.sort(keyQuestions);
+        
+        // Normalize and convert roman numerals
+        String normalized = normalizeTextPreserveLines(text);
+        String converted = convertRomanNumeralsPreserveLines(normalized);
+        
+        // Split lines that accidentally contain multiple numbered items
+        // E.g., "1. A 2. B" becomes ["1. A", "2. B"]
+        String[] rawLines = converted.split("\n");
+        java.util.List<String> splitLines = new java.util.ArrayList<>();
+        for (String line : rawLines) {
+            // Try to split if line contains multiple question patterns
+            String[] parts = line.split(MULTI_ITEM_SPLIT_PATTERN);
+            for (String part : parts) {
+                if (!part.trim().isEmpty()) {
+                    splitLines.add(part.trim());
+                }
+            }
+        }
+        
+        // Phase 1: Build byNumber map (number-aware mapping)
+        LinkedHashMap<Integer, String> byNumber = new LinkedHashMap<>();
+        java.util.List<String> orphanLines = new java.util.ArrayList<>();
+        
+        for (String line : splitLines) {
+            if (line.trim().isEmpty()) continue;
+            
+            // Try to extract question number and answer
+            // Strip numbering tokens: "1.", "2)", "3 -", "4:", etc.
+            Pattern numberPattern = Pattern.compile("^\\s*(\\d{1,3})\\s*[.):)]?\\s*[-:]?\\s*(.*)$");
+            Matcher matcher = numberPattern.matcher(line);
+            
+            if (matcher.find()) {
+                int q = safeInt(matcher.group(1));
+                String answerPart = matcher.group(2).trim();
+                
+                // Extract answer (single letter or short text)
+                String answer = extractAnswer(answerPart, allowedSet);
+                
+                if (q >= 1 && q <= MAX_QUESTION_NUMBER && answerKey.containsKey(q) && !answer.isEmpty() && !byNumber.containsKey(q)) {
+                    byNumber.put(q, answer);
+                } else if (!answer.isEmpty()) {
+                    // Valid answer but not matched to a question - add to orphans
+                    orphanLines.add(answer);
+                }
+            } else {
+                // No number found, try to extract answer only
+                String answer = extractAnswer(line, allowedSet);
+                if (!answer.isEmpty()) {
+                    orphanLines.add(answer);
+                }
+            }
+        }
+        
+        Log.d(TAG, "Gap-tolerant: byNumber=" + byNumber.size() + ", orphans=" + orphanLines.size());
+        
+        // Phase 2: Fill gaps using orphan lines in order
+        LinkedHashMap<Integer, String> merged = new LinkedHashMap<>();
+        int orphanIndex = 0;
+        
+        for (Integer q : keyQuestions) {
+            if (byNumber.containsKey(q)) {
+                // Use explicitly numbered answer
+                merged.put(q, byNumber.get(q));
+            } else if (orphanIndex < orphanLines.size()) {
+                // Fill gap with next orphan line
+                merged.put(q, orphanLines.get(orphanIndex));
+                orphanIndex++;
+            } else {
+                // No orphan available, leave empty
+                merged.put(q, "");
+            }
+        }
+        
+        int filledCount = countFilledAnswers(merged);
+        Log.d(TAG, "Gap-tolerant merge: filled " + filledCount + "/" + keyQuestions.size() + " questions");
+        
+        return merged;
+    }
+    
+    /**
+     * Extract answer from text, accepting single letters (A-Z) or short words.
+     * Validates against allowed set if provided.
+     * 
+     * @param text Text to extract answer from
+     * @param allowedSet Set of allowed answers (canonical form)
+     * @return Extracted answer or empty string
+     */
+    private static String extractAnswer(String text, java.util.Set<String> allowedSet) {
+        if (text == null || text.trim().isEmpty()) return "";
+        
+        // Trim and take first word
+        String[] words = text.trim().split("\\s+");
+        if (words.length == 0) return "";
+        
+        String candidate = words[0];
+        
+        // Limit length to MAX_ANSWER_LENGTH
+        if (candidate.length() > MAX_ANSWER_LENGTH) {
+            candidate = candidate.substring(0, MAX_ANSWER_LENGTH);
+        }
+        
+        // Remove trailing punctuation
+        candidate = candidate.replaceAll("[.,;!?]+$", "");
+        
+        if (candidate.isEmpty()) return "";
+        
+        // Check if it's in allowed set
+        String canonicalCandidate = canonical(candidate);
+        if (allowedSet != null && !allowedSet.isEmpty() && !allowedSet.contains(canonicalCandidate)) {
+            return "";
+        }
+        
+        // Return original case if single letter, otherwise keep as-is
+        if (candidate.length() == 1 && Character.isLetter(candidate.charAt(0))) {
+            return candidate.toUpperCase(Locale.US);
+        }
+        
+        return candidate;
     }
     
     /**
@@ -253,7 +403,7 @@ public final class Parser {
                 String answer = m.group(2).trim();
                 String canonical = canonical(answer);
                 
-                if (q >= 1 && q <= 200 && answerKey.containsKey(q) && 
+                if (q >= 1 && q <= MAX_QUESTION_NUMBER && answerKey.containsKey(q) && 
                     allowedSet.contains(canonical) && !map.containsKey(q)) {
                     map.put(q, answer);
                 }
@@ -377,7 +527,7 @@ public final class Parser {
                 String answer = m1.group(2).trim();
                 String canonical = canonical(answer);
                 
-                if (q >= 1 && q <= 200 && allowedSet.contains(canonical) && !map.containsKey(q)) {
+                if (q >= 1 && q <= MAX_QUESTION_NUMBER && allowedSet.contains(canonical) && !map.containsKey(q)) {
                     map.put(q, answer);
                     continue;
                 }
@@ -391,7 +541,7 @@ public final class Parser {
                 int q = safeInt(m2.group(2));
                 String canonical = canonical(answer);
                 
-                if (q >= 1 && q <= 200 && allowedSet.contains(canonical) && !map.containsKey(q)) {
+                if (q >= 1 && q <= MAX_QUESTION_NUMBER && allowedSet.contains(canonical) && !map.containsKey(q)) {
                     map.put(q, answer);
                 }
             }

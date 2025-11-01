@@ -1209,10 +1209,11 @@ public class MainActivity extends AppCompatActivity {
         Log.d(CAMERA_FLOW, "Starting scan session, button disabled until camera ready");
         
         // Initialize OcrProcessor with current answer key
+        // OCR.Space key is not used in the active flow (Vision-only pipeline)
         String visionKey = BuildConfig.GCLOUD_VISION_API_KEY;
-        String ocrSpaceKey = BuildConfig.OCR_SPACE_API_KEY;
+        String ocrSpaceKey = ""; // Empty key - OCR.Space fallback not used in active flow
         ocrProcessor = new OcrProcessor(visionKey, ocrSpaceKey, new HashMap<>(currentAnswerKey));
-        Log.d(OCR_FLOW, "OcrProcessor initialized with " + currentAnswerKey.size() + " answer key entries");
+        Log.d(OCR_FLOW, "OcrProcessor initialized with " + currentAnswerKey.size() + " answer key entries (Vision-only mode)");
         
         startBackgroundThread();
         // ... rest unchanged
@@ -4871,8 +4872,16 @@ public class MainActivity extends AppCompatActivity {
     }
     
     /**
-     * Process image with OCR using current settings.
-     * Routes to appropriate OCR method based on user toggles.
+     * Process image with OCR using current settings with safe fallbacks.
+     * 
+     * Strategy:
+     * 1. Compute primary result according to current toggle settings
+     * 2. If filled ratio < 0.5, try alternate variants and pick the best
+     * 3. Variants: standard, two-column, high-contrast, both
+     * 4. Early-exit if high fill ratio is achieved (>= 0.9)
+     * 
+     * @param bitmap Source bitmap
+     * @return Best parsed answers map
      */
     private HashMap<Integer, String> processImageWithSettings(Bitmap bitmap) {
         if (bitmap == null || ocrProcessor == null) {
@@ -4882,28 +4891,159 @@ public class MainActivity extends AppCompatActivity {
         boolean twoColumn = isTwoColumnEnabled();
         boolean highContrast = isHighContrastEnabled();
         
-        Log.d(OCR_FLOW, "Processing with settings: two-column=" + twoColumn + ", high-contrast=" + highContrast);
+        Log.d(OCR_FLOW, "Safe fallback processing: two-column=" + twoColumn + ", high-contrast=" + highContrast);
         
-        // Determine which OCR method to use based on settings
+        // Step 1: Try primary variant according to current toggles
+        HashMap<Integer, String> primaryResult = processPrimaryVariant(bitmap, twoColumn, highContrast);
+        float primaryFillRatio = computeFilledRatio(primaryResult);
+        
+        Log.d(OCR_FLOW, "Primary result: filled=" + primaryFillRatio * 100 + "%");
+        
+        // Early exit if primary result is good enough
+        if (primaryFillRatio >= 0.9f) {
+            Log.d(OCR_FLOW, "Primary result is excellent, skipping fallbacks");
+            return primaryResult;
+        }
+        
+        // Step 2: If primary result is poor, try alternate variants
+        if (primaryFillRatio < 0.5f) {
+            Log.d(OCR_FLOW, "Primary result below threshold, trying alternate variants...");
+            
+            HashMap<Integer, String> bestResult = primaryResult;
+            int bestFilledCount = countFilled(primaryResult);
+            
+            // Try alternate variants
+            java.util.List<VariantConfig> alternates = getAlternateVariants(twoColumn, highContrast);
+            
+            for (VariantConfig config : alternates) {
+                Log.d(OCR_FLOW, "Trying alternate: " + config.name);
+                HashMap<Integer, String> altResult = processVariant(bitmap, config);
+                int altFilledCount = countFilled(altResult);
+                float altFillRatio = computeFilledRatio(altResult);
+                
+                Log.d(OCR_FLOW, "Alternate '" + config.name + "': filled=" + altFillRatio * 100 + "%");
+                
+                // Pick if this variant is better
+                if (altFilledCount > bestFilledCount) {
+                    bestResult = altResult;
+                    bestFilledCount = altFilledCount;
+                    Log.d(OCR_FLOW, "New best variant: " + config.name);
+                }
+                
+                // Early exit if we achieve high fill ratio
+                if (altFillRatio >= 0.9f) {
+                    Log.d(OCR_FLOW, "Excellent result achieved, stopping search");
+                    break;
+                }
+            }
+            
+            return bestResult;
+        }
+        
+        return primaryResult;
+    }
+    
+    /**
+     * Process primary variant according to current toggle settings.
+     */
+    private HashMap<Integer, String> processPrimaryVariant(Bitmap bitmap, boolean twoColumn, boolean highContrast) {
         if (twoColumn && highContrast) {
-            // Both enabled: apply high-contrast to both columns
-            // For simplicity, we'll process with two-column first (which already handles standard enhancement)
-            // If we need both effects, we could enhance the two-column method in OcrProcessor
-            Log.d(OCR_FLOW, "Using two-column mode (high-contrast not combined in this version)");
+            // Both enabled: use two-column mode
             return ocrProcessor.processImageTwoColumn(bitmap);
         } else if (twoColumn) {
-            // Two-column only
-            Log.d(OCR_FLOW, "Using two-column mode");
             return ocrProcessor.processImageTwoColumn(bitmap);
         } else if (highContrast) {
-            // High-contrast only
-            Log.d(OCR_FLOW, "Using high-contrast mode");
             return ocrProcessor.processImageWithHighContrast(bitmap);
         } else {
-            // Standard processing
-            Log.d(OCR_FLOW, "Using standard mode");
             return ocrProcessor.processImage(bitmap);
         }
+    }
+    
+    /**
+     * Get list of alternate variants to try when primary fails.
+     */
+    private java.util.List<VariantConfig> getAlternateVariants(boolean currentTwoColumn, boolean currentHighContrast) {
+        java.util.List<VariantConfig> alternates = new java.util.ArrayList<>();
+        
+        // Add variants that differ from current settings
+        if (!currentTwoColumn && !currentHighContrast) {
+            // Current: standard. Try: two-column, high-contrast, both
+            alternates.add(new VariantConfig("two-column", true, false));
+            alternates.add(new VariantConfig("high-contrast", false, true));
+            alternates.add(new VariantConfig("both", true, true));
+        } else if (currentTwoColumn && !currentHighContrast) {
+            // Current: two-column. Try: standard, high-contrast, both
+            alternates.add(new VariantConfig("standard", false, false));
+            alternates.add(new VariantConfig("high-contrast", false, true));
+            alternates.add(new VariantConfig("both", true, true));
+        } else if (!currentTwoColumn && currentHighContrast) {
+            // Current: high-contrast. Try: standard, two-column, both
+            alternates.add(new VariantConfig("standard", false, false));
+            alternates.add(new VariantConfig("two-column", true, false));
+            alternates.add(new VariantConfig("both", true, true));
+        } else {
+            // Current: both. Try: standard, two-column, high-contrast
+            alternates.add(new VariantConfig("standard", false, false));
+            alternates.add(new VariantConfig("two-column", true, false));
+            alternates.add(new VariantConfig("high-contrast", false, true));
+        }
+        
+        return alternates;
+    }
+    
+    /**
+     * Process a specific variant configuration.
+     */
+    private HashMap<Integer, String> processVariant(Bitmap bitmap, VariantConfig config) {
+        if (config.twoColumn && config.highContrast) {
+            return ocrProcessor.processImageTwoColumn(bitmap);
+        } else if (config.twoColumn) {
+            return ocrProcessor.processImageTwoColumn(bitmap);
+        } else if (config.highContrast) {
+            return ocrProcessor.processImageWithHighContrast(bitmap);
+        } else {
+            return ocrProcessor.processImage(bitmap);
+        }
+    }
+    
+    /**
+     * Helper class to hold variant configuration.
+     */
+    private static class VariantConfig {
+        final String name;
+        final boolean twoColumn;
+        final boolean highContrast;
+        
+        VariantConfig(String name, boolean twoColumn, boolean highContrast) {
+            this.name = name;
+            this.twoColumn = twoColumn;
+            this.highContrast = highContrast;
+        }
+    }
+    
+    /**
+     * Count how many non-empty answers are in the map.
+     */
+    private int countFilled(HashMap<Integer, String> answers) {
+        if (answers == null) return 0;
+        int count = 0;
+        for (String value : answers.values()) {
+            if (value != null && !value.trim().isEmpty()) {
+                count++;
+            }
+        }
+        return count;
+    }
+    
+    /**
+     * Compute filled ratio (0.0 to 1.0) relative to answer key size.
+     */
+    private float computeFilledRatio(HashMap<Integer, String> answers) {
+        if (currentAnswerKey == null || currentAnswerKey.isEmpty()) {
+            return 0.0f;
+        }
+        int filled = countFilled(answers);
+        return (float) filled / currentAnswerKey.size();
     }
     
     /**
