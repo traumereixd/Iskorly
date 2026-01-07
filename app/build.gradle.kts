@@ -41,8 +41,8 @@ android {
         buildConfigField("String", "OCR_SPACE_API_KEY", "\"$ocrSpaceKey\"")
         
         // OCR multi-variant configuration
-        buildConfigField("int", "MAX_VARIANTS", "4")
-        buildConfigField("float", "EARLY_EXIT_FILLED_THRESHOLD", "0.90f")
+        buildConfigField("int", "MAX_VARIANTS", "8")
+        buildConfigField("float", "EARLY_EXIT_FILLED_THRESHOLD", "0.70f")
         
         // Optional AI re-parser endpoint for low-confidence results
         val reparseEndpoint = props.getProperty("REPARSE_ENDPOINT")?.trim() ?: ""

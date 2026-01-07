@@ -54,11 +54,11 @@ public class OcrProcessor {
      * parses and scores each variant, then selects the best result.
      * 
      * Strategy:
-     * 1. Generate up to MAX_VARIANTS preprocessing variants
-     * 2. Run Vision OCR on each variant
+     * 1. Generate up to MAX_VARIANTS preprocessing variants (now 8)
+     * 2. Run Vision OCR on each variant with high quality settings
      * 3. Parse each result with smart parser
-     * 4. Score based on: filled answer count, numeric anchor presence
-     * 5. Early-exit if filled threshold is met (EARLY_EXIT_FILLED_THRESHOLD)
+     * 4. Score based on: filled answer count, numeric anchor presence, quality metrics
+     * 5. Early-exit if filled threshold is met (EARLY_EXIT_FILLED_THRESHOLD - now 70%)
      * 6. Optionally call AI re-parser if result is below REPARSE_MIN_FILLED_THRESHOLD
      * 7. Return the best scoring variant
      */
@@ -71,10 +71,10 @@ public class OcrProcessor {
         Log.d(TAG, "Starting multi-variant OCR processing (MAX_VARIANTS=" + 
                 BuildConfig.MAX_VARIANTS + ", EARLY_EXIT=" + BuildConfig.EARLY_EXIT_FILLED_THRESHOLD + ")");
         
-        // Generate preprocessing variants
+        // Generate preprocessing variants (expanded to 8 variants for poor camera quality)
         List<PreprocessVariant> variants = new ArrayList<>();
         
-        // Variant 1: Light preprocessing (grayscale + contrast)
+        // Variant 1: Light preprocessing (grayscale + contrast) - good for clear images
         if (variants.size() < BuildConfig.MAX_VARIANTS) {
             Bitmap light = ImagePreprocessor.preprocessLight(bitmap);
             if (light != null) {
@@ -106,10 +106,45 @@ public class OcrProcessor {
             }
         }
         
+        // Variant 5: Ultra-high contrast (for faded text on poor cameras)
+        if (variants.size() < BuildConfig.MAX_VARIANTS) {
+            Bitmap ultraContrast = ImagePreprocessor.preprocessUltraHighContrast(bitmap);
+            if (ultraContrast != null) {
+                variants.add(new PreprocessVariant("ultra_contrast", ultraContrast));
+            }
+        }
+        
+        // Variant 6: Sharpened (for blurry camera images)
+        if (variants.size() < BuildConfig.MAX_VARIANTS) {
+            Bitmap sharpened = ImagePreprocessor.preprocessSharpened(bitmap);
+            if (sharpened != null) {
+                variants.add(new PreprocessVariant("sharpened", sharpened));
+            }
+        }
+        
+        // Variant 7: Adaptive histogram equalization (for uneven lighting)
+        if (variants.size() < BuildConfig.MAX_VARIANTS) {
+            Bitmap adaptive = ImagePreprocessor.preprocessAdaptiveHistogram(bitmap);
+            if (adaptive != null) {
+                variants.add(new PreprocessVariant("adaptive_histogram", adaptive));
+            }
+        }
+        
+        // Variant 8: Original image (no preprocessing, trust Vision API)
+        if (variants.size() < BuildConfig.MAX_VARIANTS) {
+            // Create a copy to maintain consistency
+            Bitmap original = bitmap.copy(bitmap.getConfig(), false);
+            if (original != null) {
+                variants.add(new PreprocessVariant("original", original));
+            }
+        }
+        
         if (variants.isEmpty()) {
             Log.e(TAG, "All preprocessing variants failed");
             return new HashMap<>();
         }
+        
+        Log.d(TAG, "Generated " + variants.size() + " preprocessing variants");
         
         // Process each variant and score
         PreprocessResult bestResult = null;
@@ -120,8 +155,9 @@ public class OcrProcessor {
         for (PreprocessVariant variant : variants) {
             variantIndex++;
             try {
-                // Compress to JPEG
-                byte[] jpegBytes = ImageUtil.resizeAndCompress(variant.bitmap, 1600);
+                // Compress to JPEG with higher quality (95% instead of 80%) and larger size (2048px instead of 1600px)
+                // This preserves more detail for poor quality images
+                byte[] jpegBytes = ImageUtil.resizeAndCompressHighQuality(variant.bitmap, 2048);
                 
                 // Call Vision API (DOCUMENT_TEXT_DETECTION)
                 String recognizedText = callVisionApi(jpegBytes);
@@ -148,7 +184,7 @@ public class OcrProcessor {
                     bestOcrText = recognizedText;
                 }
                 
-                // Early exit if we've met the threshold
+                // Early exit if we've met the threshold (now 70% instead of 90%)
                 if (fillRatio >= BuildConfig.EARLY_EXIT_FILLED_THRESHOLD) {
                     Log.d(TAG, "Early exit triggered at " + (fillRatio * 100) + "% filled (threshold: " + 
                             (BuildConfig.EARLY_EXIT_FILLED_THRESHOLD * 100) + "%)");

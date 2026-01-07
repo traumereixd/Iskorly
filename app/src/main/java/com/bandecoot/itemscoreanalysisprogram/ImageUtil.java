@@ -24,6 +24,27 @@ public final class ImageUtil {
     }
     
     /**
+     * High quality resize and compress for OCR.
+     * Uses higher JPEG quality (95%) and allows larger images (2048px).
+     * This preserves more detail for poor quality camera images.
+     * 
+     * @param src Source bitmap
+     * @param maxDim Maximum dimension (width or height)
+     * @return JPEG-compressed bytes at 95% quality
+     */
+    public static byte[] resizeAndCompressHighQuality(Bitmap src, int maxDim) {
+        if (src == null) return new byte[0];
+        int w = src.getWidth(), h = src.getHeight();
+        float scale = Math.min(1f, maxDim / (float)Math.max(w, h));
+        int nw = Math.round(w * scale), nh = Math.round(h * scale);
+        Bitmap scaled = (scale < 1f) ? Bitmap.createScaledBitmap(src, nw, nh, true) : src;
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        scaled.compress(Bitmap.CompressFormat.JPEG, 95, out); // 95% quality instead of 92%
+        if (scaled != src) scaled.recycle();
+        return out.toByteArray();
+    }
+    
+    /**
      * Feature #3: Enhance image for OCR - convert to grayscale and increase contrast
      * to improve handwriting recognition.
      * 

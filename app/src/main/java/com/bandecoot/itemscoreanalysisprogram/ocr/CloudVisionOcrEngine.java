@@ -49,15 +49,17 @@ public class CloudVisionOcrEngine implements OcrEngine {
                 }
                 Bitmap toSend = bitmap;
                 int maxDim = Math.max(bitmap.getWidth(), bitmap.getHeight());
-                if (maxDim > 1600) {
-                    double scale = 1600.0 / maxDim;
+                // Increased from 1600 to 2048 for better quality with poor cameras
+                if (maxDim > 2048) {
+                    double scale = 2048.0 / maxDim;
                     toSend = Bitmap.createScaledBitmap(bitmap,
                             (int) (bitmap.getWidth() * scale),
                             (int) (bitmap.getHeight() * scale),
                             true);
                 }
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                toSend.compress(Bitmap.CompressFormat.JPEG, 80, baos);
+                // Increased JPEG quality from 80 to 95 for better OCR results
+                toSend.compress(Bitmap.CompressFormat.JPEG, 95, baos);
                 String base64 = Base64.encodeToString(baos.toByteArray(), Base64.NO_WRAP);
 
                 JSONObject req = new JSONObject()
