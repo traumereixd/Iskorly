@@ -206,9 +206,85 @@ public class OcrProcessor {
         
         Log.d(TAG, "Selected best variant: '" + bestResult.variantName + "' with score " + bestScore);
         
-        // Check if we should call AI re-parser
+        // Check if we need a second pass with TEXT_DETECTION mode
         int filledCount = countFilledAnswers(bestResult.parsedAnswers);
         float fillRatio = answerKey.isEmpty() ? 0 : (float) filledCount / answerKey.size();
+        
+        // If we got less than 50% filled, try TEXT_DETECTION mode on best variant
+        if (fillRatio < 0.50f) {
+            Log.d(TAG, String.format("Fill ratio %.1f%% is low, attempting second pass with TEXT_DETECTION mode",
+                    fillRatio * 100));
+            
+            try {
+                // Try the top 2-3 variants with TEXT_DETECTION mode
+                int maxRetries = Math.min(3, variants.size());
+                PreprocessResult textDetectionBest = null;
+                int textDetectionBestScore = -1;
+                
+                // Sort variants by score (we need to recreate them since originals were recycled)
+                // For now, just retry the best variant type
+                Bitmap retryBitmap = null;
+                
+                // Recreate the best variant
+                switch (bestResult.variantName) {
+                    case "light":
+                        retryBitmap = ImagePreprocessor.preprocessLight(bitmap);
+                        break;
+                    case "classroom":
+                        retryBitmap = ImagePreprocessor.preprocessForClassroom(bitmap);
+                        break;
+                    case "ultra_contrast":
+                        retryBitmap = ImagePreprocessor.preprocessUltraHighContrast(bitmap);
+                        break;
+                    case "sharpened":
+                        retryBitmap = ImagePreprocessor.preprocessSharpened(bitmap);
+                        break;
+                    case "adaptive_histogram":
+                        retryBitmap = ImagePreprocessor.preprocessAdaptiveHistogram(bitmap);
+                        break;
+                    default:
+                        // Use original for standard/grayscale/original variants
+                        retryBitmap = bitmap.copy(bitmap.getConfig(), false);
+                        break;
+                }
+                
+                if (retryBitmap != null) {
+                    byte[] jpegBytes = ImageUtil.resizeAndCompressHighQuality(retryBitmap, 2048);
+                    
+                    // Call Vision API with TEXT_DETECTION mode
+                    String recognizedText = callVisionApi(jpegBytes, false);
+                    
+                    if (recognizedText != null && !recognizedText.isEmpty()) {
+                        HashMap<Integer, String> parsed = parseAndFilterSmart(recognizedText);
+                        int score = scoreVariant(parsed, recognizedText);
+                        int newFilledCount = countFilledAnswers(parsed);
+                        
+                        Log.d(TAG, String.format("TEXT_DETECTION mode: score=%d, filled=%d/%d (%.1f%%)",
+                                score, newFilledCount, answerKey.size(),
+                                (float) newFilledCount / answerKey.size() * 100));
+                        
+                        // Use TEXT_DETECTION result if it's better
+                        if (score > bestScore) {
+                            Log.d(TAG, "TEXT_DETECTION mode produced better result, using it");
+                            bestResult = new PreprocessResult(bestResult.variantName + "_text_detect",
+                                    parsed, recognizedText);
+                            bestOcrText = recognizedText;
+                            filledCount = newFilledCount;
+                            fillRatio = (float) filledCount / answerKey.size();
+                        }
+                    }
+                    
+                    retryBitmap.recycle();
+                }
+                
+            } catch (Exception e) {
+                Log.e(TAG, "Error in TEXT_DETECTION second pass", e);
+            }
+        }
+        
+        // Check if we should call AI re-parser
+        filledCount = countFilledAnswers(bestResult.parsedAnswers);
+        fillRatio = answerKey.isEmpty() ? 0 : (float) filledCount / answerKey.size();
         
         if (fillRatio < BuildConfig.REPARSE_MIN_FILLED_THRESHOLD && 
             !BuildConfig.REPARSE_ENDPOINT.isEmpty()) {
@@ -343,8 +419,13 @@ public class OcrProcessor {
     
     /**
      * Call Google Vision API for OCR.
+     * Supports both DOCUMENT_TEXT_DETECTION and TEXT_DETECTION modes.
+     * 
+     * @param jpegBytes Image bytes
+     * @param useDocumentMode If true, use DOCUMENT_TEXT_DETECTION; if false, use TEXT_DETECTION
+     * @return Recognized text or null on error
      */
-    private String callVisionApi(byte[] jpegBytes) {
+    private String callVisionApi(byte[] jpegBytes, boolean useDocumentMode) {
         if (visionApiKey == null || visionApiKey.trim().isEmpty()) {
             Log.d(TAG, "Vision API key not configured");
             return null;
@@ -360,7 +441,9 @@ public class OcrProcessor {
             image.put("content", base64Image);
             
             JSONObject feature = new JSONObject();
-            feature.put("type", "DOCUMENT_TEXT_DETECTION");
+            // Use DOCUMENT_TEXT_DETECTION for structured text, TEXT_DETECTION for general text
+            String detectionType = useDocumentMode ? "DOCUMENT_TEXT_DETECTION" : "TEXT_DETECTION";
+            feature.put("type", detectionType);
             feature.put("maxResults", 1);
             
             JSONObject request = new JSONObject();
@@ -400,6 +483,14 @@ public class OcrProcessor {
             Log.e(TAG, "Vision API call failed", e);
             return null;
         }
+    }
+    
+    /**
+     * Call Google Vision API for OCR (overload for backward compatibility).
+     * Defaults to DOCUMENT_TEXT_DETECTION mode.
+     */
+    private String callVisionApi(byte[] jpegBytes) {
+        return callVisionApi(jpegBytes, true);
     }
     
     // ========== Legacy OCR.Space stub methods (kept for backward compatibility) ==========
