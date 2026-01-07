@@ -289,25 +289,29 @@ public final class Parser {
     /**
      * Split a compressed line containing multiple items like "1.A2.B3.C" or "1.A  3.Z  5.C"
      * into individual segments.
+     * Uses a manual approach to ensure clean splits that preserve number-answer pairs.
      */
     private static java.util.List<String> splitCompressedLine(String line) {
         java.util.List<String> segments = new java.util.ArrayList<>();
         
-        // Enhanced pattern to detect boundaries between answer and next number
-        // Looks for: [answer][optional space/punct][number][optional punct]
-        // E.g., "A2.B" splits at boundary before "2"
-        Pattern boundary = Pattern.compile("(?<=[A-Za-z0-9])(?=[\\s.]*\\d{1,3}[.):)]?[\\s-:]*[A-Za-z])");
-        String[] parts = boundary.split(line);
+        // Pattern to find each number-answer pair
+        // Matches: optional whitespace, number, optional punct/space, answer
+        Pattern itemPattern = Pattern.compile("\\s*(\\d{1,3})\\s*[.):)]?\\s*[-:,]?\\s*([A-Za-z][A-Za-z0-9]{0,39})");
+        Matcher matcher = itemPattern.matcher(line);
         
-        if (parts.length > 1) {
-            // Successfully split
-            for (String part : parts) {
-                if (!part.trim().isEmpty()) {
-                    segments.add(part.trim());
-                }
-            }
-        } else {
-            // No split, return original
+        int lastEnd = 0;
+        boolean foundAny = false;
+        
+        while (matcher.find()) {
+            foundAny = true;
+            // Extract the matched segment
+            String segment = matcher.group().trim();
+            segments.add(segment);
+            lastEnd = matcher.end();
+        }
+        
+        if (!foundAny) {
+            // No number-answer pairs found, return original
             segments.add(line);
         }
         
