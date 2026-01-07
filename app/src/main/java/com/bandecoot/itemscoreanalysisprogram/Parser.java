@@ -16,10 +16,40 @@ public final class Parser {
     private static final int MAX_ANSWER_LENGTH = 40; // Maximum answer text length
     
     // Regex pattern to split lines containing multiple numbered items
-    // Matches: "answer_letter [optional punctuation/whitespace] question_number punctuation answer_letter"
-    // E.g., "A2.B" or "A. 2. B" to split "1. A2.B" into ["1. A", "2. B"]
-    // More restrictive to avoid splitting on vertically misaligned numbers without answers
-    private static final String MULTI_ITEM_SPLIT_PATTERN = "(?<=\\b[A-Za-z][\\s.]{0,2})\\s*(?=\\d{1,3}\\s*[.):)]\\s*[A-Za-z])";
+    // Updated to handle compressed sequences like "1.A2.B3.C" or "1.A  3.Z  5.C"
+    // Pattern breakdown:
+    // - (?<=[A-Za-z0-9]) : positive lookbehind for alphanumeric (end of previous answer)
+    // - (?=[\\s.]*\\d{1,3}[.):)]?[\\s-:]*[A-Za-z]) : positive lookahead for next number-answer pair
+    //   - [\\s.]* : optional whitespace or dots
+    //   - \\d{1,3} : 1-3 digit number
+    //   - [.):)]? : optional punctuation after number
+    //   - [\\s-:]* : optional separators
+    //   - [A-Za-z] : start of answer
+    private static final String MULTI_ITEM_SPLIT_PATTERN = "(?<=[A-Za-z0-9])(?=[\\s.]*\\d{1,3}[.):)]?[\\s-:]*[A-Za-z])";
+    
+    // Pre-compiled regex patterns for performance
+    // Number-first pattern: "1.A", "2)B", "3-C", etc.
+    // Consolidated separator group for clarity: [.):)\-:,]?
+    private static final Pattern NUMBER_FIRST_PATTERN = Pattern.compile(
+            "^\\s*(\\d{1,3})\\s*[.):)\\-:,]?\\s*([A-Za-z][A-Za-z0-9]{0,39})\\b");
+    
+    // Answer-first pattern: "True 1.", "A 1."
+    // Restrictive separator group to avoid matching unexpected characters
+    private static final Pattern ANSWER_FIRST_PATTERN = Pattern.compile(
+            "^\\s*([A-Za-z][A-Za-z0-9]{0,39})\\b[\\s.,;:!?\\-]{0,3}(\\d{1,3})[.):)]?\\s*$");
+    
+    // Number-only pattern: "5." or "7" (for cross-line linking)
+    private static final Pattern NUMBER_ONLY_PATTERN = Pattern.compile(
+            "^\\s*(\\d{1,3})\\s*[.):)]?\\s*$");
+    
+    // Pattern to extract number-answer pairs from compressed lines
+    // Consolidated separator group for consistency
+    private static final Pattern COMPRESSED_ITEM_PATTERN = Pattern.compile(
+            "\\s*(\\d{1,3})\\s*[.):)\\-:,]?\\s*([A-Za-z][A-Za-z0-9]{0,39})");
+    
+    // Pattern to extract first valid answer token
+    private static final Pattern ANSWER_TOKEN_PATTERN = Pattern.compile(
+            "\\b([A-Za-z][A-Za-z0-9]{0,39})\\b");
 
     private Parser() {}
 
@@ -188,13 +218,215 @@ public final class Parser {
     }
 
     /**
-     * Smart parser with fallback: tries number-aware parsing first, then falls back to order-only.
+     * Robust number-anchored parser that handles misalignment, compression, and out-of-order items.
+     * Strictly detects question numbers anywhere and pairs each with the nearest valid answer token.
+     * 
+     * Features:
+     * - Accepts multiple formats: 1.A, 1)B, 1-C, 1:D, 1 WORD, roman numerals, etc.
+     * - Handles compressed multi-item lines: "1.A2.B3.C" or "1.A  3.Z  5.C"
+     * - Supports cross-line linking: "5." on one line, "C" on next
+     * - Supports answer-first: "True 1." or "A 1."
+     * - Uses allowed-set for preference but doesn't reject candidates
+     * - Resolves duplicates by "first non-blank wins" unless later matches allowed-set
+     * 
+     * @param text OCR text to parse
+     * @param answerKey Answer key for validation and allowed-set building
+     * @return Parsed answers map
+     */
+    private static LinkedHashMap<Integer, String> parseNumberAnchoredRobust(
+            String text, java.util.Map<Integer, String> answerKey) {
+        
+        LinkedHashMap<Integer, String> map = new LinkedHashMap<>();
+        if (text == null || text.trim().isEmpty()) return map;
+        if (answerKey == null || answerKey.isEmpty()) return map;
+        
+        // Build allowed answer set from answer key
+        java.util.Set<String> allowedSet = buildAllowedSet(answerKey);
+        
+        // Normalize and convert roman numerals while preserving line structure
+        String normalized = normalizeTextPreserveLines(text);
+        String converted = convertRomanNumeralsPreserveLines(normalized);
+        
+        // Split into lines and process with cross-line linking
+        String[] lines = converted.split("\n");
+        Integer pendingNumber = null; // For cross-line number-only pairing
+        
+        for (int lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+            String line = lines[lineIdx].trim();
+            if (line.isEmpty()) continue;
+            
+            // First, try to split compressed multi-item lines like "1.A2.B3.C" or "1.A  3.Z  5.C"
+            java.util.List<String> segments = splitCompressedLine(line);
+            
+            for (String segment : segments) {
+                segment = segment.trim();
+                if (segment.isEmpty()) continue;
+                
+                // Pattern 1: Number-first with various separators
+                // Matches: "1.A", "1)B", "1-C", "1:D", "1 WORD", etc.
+                Matcher m1 = NUMBER_FIRST_PATTERN.matcher(segment);
+                if (m1.find()) {
+                    int q = safeInt(m1.group(1));
+                    String answer = m1.group(2).trim();
+                    if (q >= 1 && q <= MAX_QUESTION_NUMBER) {
+                        addAnswerWithPreference(map, q, answer, allowedSet);
+                        pendingNumber = null; // Clear pending
+                        continue;
+                    }
+                }
+                
+                // Pattern 2: Answer-first patterns like "True 1." or "A 1."
+                Matcher m2 = ANSWER_FIRST_PATTERN.matcher(segment);
+                if (m2.find()) {
+                    String answer = m2.group(1).trim();
+                    int q = safeInt(m2.group(2));
+                    if (q >= 1 && q <= MAX_QUESTION_NUMBER) {
+                        addAnswerWithPreference(map, q, answer, allowedSet);
+                        pendingNumber = null; // Clear pending
+                        continue;
+                    }
+                }
+                
+                // Pattern 3: Number-only (for cross-line linking)
+                Matcher m3 = NUMBER_ONLY_PATTERN.matcher(segment);
+                if (m3.find()) {
+                    int q = safeInt(m3.group(1));
+                    if (q >= 1 && q <= MAX_QUESTION_NUMBER) {
+                        pendingNumber = q;
+                        continue;
+                    }
+                }
+                
+                // Pattern 4: Answer-only (pair with pending number if available)
+                if (pendingNumber != null) {
+                    // Extract answer from this segment
+                    String answer = extractFirstValidAnswer(segment);
+                    if (!answer.isEmpty()) {
+                        addAnswerWithPreference(map, pendingNumber, answer, allowedSet);
+                        pendingNumber = null;
+                    }
+                }
+            }
+        }
+        
+        Log.d(TAG, "Number-anchored robust parser extracted " + map.size() + " answers");
+        return map;
+    }
+    
+    /**
+     * Split a compressed line containing multiple items like "1.A2.B3.C" or "1.A  3.Z  5.C"
+     * into individual segments.
+     * Uses a manual approach to ensure clean splits that preserve number-answer pairs.
+     */
+    private static java.util.List<String> splitCompressedLine(String line) {
+        java.util.List<String> segments = new java.util.ArrayList<>();
+        
+        // Use pre-compiled pattern to find each number-answer pair
+        Matcher matcher = COMPRESSED_ITEM_PATTERN.matcher(line);
+        
+        boolean foundAny = false;
+        
+        while (matcher.find()) {
+            foundAny = true;
+            // Extract the matched segment
+            String segment = matcher.group().trim();
+            segments.add(segment);
+        }
+        
+        if (!foundAny) {
+            // No number-answer pairs found, return original
+            segments.add(line);
+        }
+        
+        return segments;
+    }
+    
+    /**
+     * Extract the first valid answer token from text.
+     */
+    private static String extractFirstValidAnswer(String text) {
+        if (text == null || text.trim().isEmpty()) return "";
+        
+        // Use pre-compiled pattern to match answer token
+        Matcher m = ANSWER_TOKEN_PATTERN.matcher(text);
+        if (m.find()) {
+            String answer = m.group(1);
+            if (answer.length() > MAX_ANSWER_LENGTH) {
+                answer = answer.substring(0, MAX_ANSWER_LENGTH);
+            }
+            // Clean trailing punctuation
+            answer = answer.replaceAll("[.,;!?]+$", "");
+            
+            // Uppercase single letters
+            if (answer.length() == 1 && Character.isLetter(answer.charAt(0))) {
+                return answer.toUpperCase(Locale.US);
+            }
+            return answer;
+        }
+        return "";
+    }
+    
+    /**
+     * Add answer to map with allowed-set preference for duplicates.
+     * - If question not in map, add it (even if not in allowed set)
+     * - If question already in map:
+     *   - Keep existing if both are not in allowed set (first wins)
+     *   - Keep existing if existing is in allowed set
+     *   - Replace with new if new is in allowed set and existing isn't
+     */
+    private static void addAnswerWithPreference(
+            LinkedHashMap<Integer, String> map, 
+            int question, 
+            String answer, 
+            java.util.Set<String> allowedSet) {
+        
+        if (answer == null || answer.trim().isEmpty()) return;
+        
+        // Clean and normalize answer
+        String cleaned = answer.trim().replaceAll("[.,;!?]+$", "");
+        if (cleaned.isEmpty()) return;
+        
+        // Limit length
+        if (cleaned.length() > MAX_ANSWER_LENGTH) {
+            cleaned = cleaned.substring(0, MAX_ANSWER_LENGTH).trim();
+        }
+        
+        // Uppercase single letters
+        if (cleaned.length() == 1 && Character.isLetter(cleaned.charAt(0))) {
+            cleaned = cleaned.toUpperCase(Locale.US);
+        }
+        
+        String canonicalNew = canonical(cleaned);
+        boolean newInAllowedSet = allowedSet != null && allowedSet.contains(canonicalNew);
+        
+        if (!map.containsKey(question)) {
+            // First occurrence, add it
+            map.put(question, cleaned);
+        } else {
+            // Duplicate: prefer allowed-set match
+            String existing = map.get(question);
+            String canonicalExisting = canonical(existing);
+            boolean existingInAllowedSet = allowedSet != null && allowedSet.contains(canonicalExisting);
+            
+            if (newInAllowedSet && !existingInAllowedSet) {
+                // New answer is in allowed set but existing isn't - replace
+                map.put(question, cleaned);
+                Log.d(TAG, "Replaced Q" + question + ": '" + existing + "' -> '" + cleaned + "' (allowed-set preference)");
+            }
+            // Otherwise keep existing (first non-blank wins)
+        }
+    }
+
+    /**
+     * Smart parser with fallback: tries robust number-anchored first, then falls back to other strategies.
      * This is the main entry point for the new multi-pass OCR pipeline.
      * 
      * Strategy:
-     * 1. Try parsing with number-aware mode (looks for "1. A", "2) B", etc.)
-     * 2. If too few answers found, try order-only mode (map lines sequentially to answer key)
-     * 3. Return whichever yields more filled answers
+     * 1. Try robust number-anchored parsing (handles all formats, misalignment, compression)
+     * 2. Try gap-tolerant parsing (hybrid strategy)
+     * 3. Try number-aware parsing
+     * 4. If too few answers found, try order-only mode
+     * 5. Return whichever yields most filled answers
      * 
      * @param text OCR text to parse
      * @param answerKey Current answer key for validation and fallback mapping
@@ -206,17 +438,42 @@ public final class Parser {
         if (text == null || text.trim().isEmpty()) return new LinkedHashMap<>();
         if (answerKey == null || answerKey.isEmpty()) return new LinkedHashMap<>();
         
-        // Step 1: Try gap-tolerant parsing (hybrid strategy)
-        LinkedHashMap<Integer, String> gapTolerantResult = parseGapTolerant(text, answerKey);
+        // Step 1: Try robust number-anchored parsing
+        LinkedHashMap<Integer, String> robustResult = parseNumberAnchoredRobust(text, answerKey);
+        int robustFilledCount = countFilledAnswers(robustResult);
         
-        // Step 2: If result is sparse, try order-only fallback
-        int filledCount = countFilledAnswers(gapTolerantResult);
+        Log.d(TAG, "Robust number-anchored parsing found " + robustFilledCount + " filled answers");
+        
+        // Step 2: Try gap-tolerant parsing (hybrid strategy)
+        LinkedHashMap<Integer, String> gapTolerantResult = parseGapTolerant(text, answerKey);
+        int gapFilledCount = countFilledAnswers(gapTolerantResult);
+        
+        Log.d(TAG, "Gap-tolerant parsing found " + gapFilledCount + " filled answers");
+        
+        // Step 3: Try number-aware parsing
+        LinkedHashMap<Integer, String> numberAwareResult = parseNumberAware(text, answerKey);
+        int numberAwareFilledCount = countFilledAnswers(numberAwareResult);
+        
+        Log.d(TAG, "Number-aware parsing found " + numberAwareFilledCount + " filled answers");
+        
+        // Find the best result so far
+        LinkedHashMap<Integer, String> bestResult = robustResult;
+        int bestFilledCount = robustFilledCount;
+        
+        if (gapFilledCount > bestFilledCount) {
+            bestResult = gapTolerantResult;
+            bestFilledCount = gapFilledCount;
+        }
+        
+        if (numberAwareFilledCount > bestFilledCount) {
+            bestResult = numberAwareResult;
+            bestFilledCount = numberAwareFilledCount;
+        }
+        
+        // Step 4: If result is sparse, try order-only fallback
         int expectedCount = answerKey.size();
         
-        Log.d(TAG, "Gap-tolerant parsing found " + filledCount + " filled answers out of " + expectedCount);
-        
-        // If we got less than threshold of expected answers, try order-only mode
-        if (filledCount < expectedCount * ORDER_ONLY_FALLBACK_THRESHOLD) {
+        if (bestFilledCount < expectedCount * ORDER_ONLY_FALLBACK_THRESHOLD) {
             Log.d(TAG, "Trying order-only fallback (below " + (ORDER_ONLY_FALLBACK_THRESHOLD * 100) + "% threshold)");
             LinkedHashMap<Integer, String> orderOnlyResult = parseOrderOnly(text, answerKey);
             int orderFilledCount = countFilledAnswers(orderOnlyResult);
@@ -224,12 +481,12 @@ public final class Parser {
             Log.d(TAG, "Order-only parsing found " + orderFilledCount + " filled answers");
             
             // Use whichever got more filled answers
-            if (orderFilledCount > filledCount) {
+            if (orderFilledCount > bestFilledCount) {
                 return orderOnlyResult;
             }
         }
         
-        return gapTolerantResult;
+        return bestResult;
     }
     
     /**
@@ -336,10 +593,10 @@ public final class Parser {
     
     /**
      * Extract answer from text, accepting single letters (A-Z) or short words.
-     * Validates against allowed set if provided.
+     * Prefers answers in allowed set but doesn't reject others.
      * 
      * @param text Text to extract answer from
-     * @param allowedSet Set of allowed answers (canonical form)
+     * @param allowedSet Set of allowed answers (canonical form) - used for preference, not rejection
      * @return Extracted answer or empty string
      */
     private static String extractAnswer(String text, java.util.Set<String> allowedSet) {
@@ -361,11 +618,8 @@ public final class Parser {
         
         if (candidate.isEmpty()) return "";
         
-        // Check if it's in allowed set
-        String canonicalCandidate = canonical(candidate);
-        if (allowedSet != null && !allowedSet.isEmpty() && !allowedSet.contains(canonicalCandidate)) {
-            return "";
-        }
+        // NOTE: We no longer reject based on allowed set - it's used for preference in deduplication
+        // This allows capturing answers even if they don't match the answer key exactly
         
         // Return original case if single letter, otherwise keep as-is
         if (candidate.length() == 1 && Character.isLetter(candidate.charAt(0))) {
@@ -378,6 +632,7 @@ public final class Parser {
     /**
      * Number-aware parser: looks for numbered patterns like "1. A", "2) B", etc.
      * Strips leading numbers and extracts answers.
+     * Updated to prefer allowed-set matches but not reject others.
      */
     private static LinkedHashMap<Integer, String> parseNumberAware(
             String text, java.util.Map<Integer, String> answerKey) {
@@ -404,8 +659,8 @@ public final class Parser {
                 String answer = m.group(2).trim();
                 String canonical = canonical(answer);
                 
-                if (q >= 1 && q <= MAX_QUESTION_NUMBER && answerKey.containsKey(q) && 
-                    allowedSet.contains(canonical) && !map.containsKey(q)) {
+                if (q >= 1 && q <= MAX_QUESTION_NUMBER && answerKey.containsKey(q) && !map.containsKey(q)) {
+                    // Accept all answers, allowed-set or not (preference handled in deduplication elsewhere)
                     map.put(q, answer);
                 }
             }

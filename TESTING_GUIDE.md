@@ -98,12 +98,98 @@
 10. **VERIFY**: Names are: "SAHAGUN, JAYSON G", "BANDE, HEZEKIAH G", "SMITH, JOHN A", "JONES, MARY B"
 
 **Formats the Parser Handles:**
-- `1. NAME` → strips "1."
-- `2) NAME` → strips "2)"
-- `3- NAME` → strips "3-"
-- `NAME` → keeps as-is
+
+### Basic Number-First Formats
+All of these number-first formats are recognized and parsed correctly:
+- `1. NAME` → strips "1.", returns "NAME"
+- `2) NAME` → strips "2)", returns "NAME"
+- `3- NAME` → strips "3-", returns "NAME"
+- `4: NAME` → strips "4:", returns "NAME"
+- `5 NAME` → strips "5", returns "NAME"
+- `NAME` → keeps as-is (when no number present)
 - Blank lines → ignored
 - Trailing punctuation → removed
+
+### Answer Sheet Formats (OCR Parsing)
+The robust parser supports a wide variety of formats for answer sheets:
+
+#### Standard Formats
+- `1. A` → Q1: A
+- `2) B` → Q2: B
+- `3 - C` → Q3: C
+- `4: D` → Q4: D
+- `5. WORD` → Q5: WORD
+- `6.WORD` (no space) → Q6: WORD
+
+#### Compressed Multi-Item Lines
+Multiple items on one line are automatically split and parsed:
+- `1.A2.B3.C` → Q1: A, Q2: B, Q3: C
+- `1.A  3.Z   5.C` → Q1: A, Q3: Z, Q5: C (out-of-order OK)
+
+#### Cross-Line Pairing
+Number and answer can be on separate lines:
+```
+5.
+C
+```
+→ Q5: C
+
+```
+7
+D
+```
+→ Q7: D
+
+#### Answer-First Patterns
+Supports answers before question numbers:
+- `True 1.` → Q1: True
+- `False 2.` → Q2: False
+- `A 1.` → Q1: A
+- `B 2.` → Q2: B
+
+#### Roman Numerals
+Roman numerals I-XXX are automatically converted:
+- `I.A` → Q1: A
+- `II)B` → Q2: B
+- `V - C` → Q5: C
+- `X. WORD` → Q10: WORD
+
+#### Jumbled/Out-of-Order Sequences
+The parser maps by explicit number, not by line order:
+```
+5. E
+2. B
+1. A
+3. C
+4. D
+```
+→ Q1: A, Q2: B, Q3: C, Q4: D, Q5: E
+
+#### Duplicate Handling
+If the same question number appears multiple times:
+- First non-blank answer wins by default
+- BUT if a later occurrence matches the answer key and the earlier doesn't, the answer key match is preferred
+
+#### Special Cases
+- Single-letter answers (A-Z) are automatically uppercased
+- Word answers preserve their original case
+- Answers not in the answer key are still captured (not rejected)
+- Maximum answer length: 40 characters
+- Maximum question number: 200
+
+### Mixed Format Example
+All of these can appear in the same document:
+```
+1.A
+2) B
+3 - C
+D 4.
+5.
+E
+VI:F
+7.G8.H
+```
+→ Q1: A, Q2: B, Q3: C, Q4: D, Q5: E, Q6: F, Q7: G, Q8: H
 
 **Edge Cases to Test:**
 ```
