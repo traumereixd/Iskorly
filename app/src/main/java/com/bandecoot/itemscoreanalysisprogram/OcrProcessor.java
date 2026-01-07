@@ -54,11 +54,11 @@ public class OcrProcessor {
      * parses and scores each variant, then selects the best result.
      * 
      * Strategy:
-     * 1. Generate up to MAX_VARIANTS preprocessing variants
-     * 2. Run Vision OCR on each variant
+     * 1. Generate up to MAX_VARIANTS preprocessing variants (now 8)
+     * 2. Run Vision OCR on each variant with high quality settings
      * 3. Parse each result with smart parser
-     * 4. Score based on: filled answer count, numeric anchor presence
-     * 5. Early-exit if filled threshold is met (EARLY_EXIT_FILLED_THRESHOLD)
+     * 4. Score based on: filled answer count, numeric anchor presence, quality metrics
+     * 5. Early-exit if filled threshold is met (EARLY_EXIT_FILLED_THRESHOLD - now 70%)
      * 6. Optionally call AI re-parser if result is below REPARSE_MIN_FILLED_THRESHOLD
      * 7. Return the best scoring variant
      */
@@ -71,45 +71,62 @@ public class OcrProcessor {
         Log.d(TAG, "Starting multi-variant OCR processing (MAX_VARIANTS=" + 
                 BuildConfig.MAX_VARIANTS + ", EARLY_EXIT=" + BuildConfig.EARLY_EXIT_FILLED_THRESHOLD + ")");
         
-        // Generate preprocessing variants
+        // Phase 3: Analyze image quality to guide preprocessing selection
+        ImagePreprocessor.ImageQuality quality = ImagePreprocessor.analyzeImageQuality(bitmap);
+        Log.d(TAG, "Adaptive preprocessing based on: " + quality);
+        
+        // Generate preprocessing variants (prioritized based on image quality)
         List<PreprocessVariant> variants = new ArrayList<>();
         
-        // Variant 1: Light preprocessing (grayscale + contrast)
-        if (variants.size() < BuildConfig.MAX_VARIANTS) {
-            Bitmap light = ImagePreprocessor.preprocessLight(bitmap);
-            if (light != null) {
-                variants.add(new PreprocessVariant("light", light));
-            }
+        // Adaptive variant selection based on image quality
+        if (quality.isBlurry) {
+            // Prioritize sharpening for blurry images
+            Log.d(TAG, "Image is blurry - prioritizing sharpening variants");
+            addVariant(variants, "sharpened", ImagePreprocessor.preprocessSharpened(bitmap));
+            addVariant(variants, "classroom", ImagePreprocessor.preprocessForClassroom(bitmap));
+            addVariant(variants, "ultra_contrast", ImagePreprocessor.preprocessUltraHighContrast(bitmap));
+        } else if (quality.isLowLight || quality.contrast < 0.15f) {
+            // Prioritize contrast enhancement for low-light/low-contrast images
+            Log.d(TAG, "Image has low light/contrast - prioritizing contrast variants");
+            addVariant(variants, "ultra_contrast", ImagePreprocessor.preprocessUltraHighContrast(bitmap));
+            addVariant(variants, "adaptive_histogram", ImagePreprocessor.preprocessAdaptiveHistogram(bitmap));
+            addVariant(variants, "classroom", ImagePreprocessor.preprocessForClassroom(bitmap));
+        } else if (quality.isHighLight) {
+            // Prioritize adaptive methods for overexposed images
+            Log.d(TAG, "Image is overexposed - prioritizing adaptive variants");
+            addVariant(variants, "adaptive_histogram", ImagePreprocessor.preprocessAdaptiveHistogram(bitmap));
+            addVariant(variants, "classroom", ImagePreprocessor.preprocessForClassroom(bitmap));
+            addVariant(variants, "light", ImagePreprocessor.preprocessLight(bitmap));
+        } else if (quality.brightness > 100 && quality.brightness < 180 && quality.contrast > 0.20f) {
+            // Good quality image - use lighter preprocessing first
+            Log.d(TAG, "Image quality is good - using lighter preprocessing");
+            addVariant(variants, "light", ImagePreprocessor.preprocessLight(bitmap));
+            addVariant(variants, "original", bitmap.copy(bitmap.getConfig(), false));
+            addVariant(variants, "standard", ImageUtil.enhanceForOcr(bitmap));
+        } else {
+            // Default: try classroom preprocessing first
+            Log.d(TAG, "Using default preprocessing priority");
+            addVariant(variants, "classroom", ImagePreprocessor.preprocessForClassroom(bitmap));
+            addVariant(variants, "light", ImagePreprocessor.preprocessLight(bitmap));
+            addVariant(variants, "adaptive_histogram", ImagePreprocessor.preprocessAdaptiveHistogram(bitmap));
         }
         
-        // Variant 2: Classroom preprocessing (de-yellow + grayscale + contrast + Otsu)
-        if (variants.size() < BuildConfig.MAX_VARIANTS) {
-            Bitmap classroom = ImagePreprocessor.preprocessForClassroom(bitmap);
-            if (classroom != null) {
-                variants.add(new PreprocessVariant("classroom", classroom));
-            }
-        }
-        
-        // Variant 3: Standard enhancement (existing method)
-        if (variants.size() < BuildConfig.MAX_VARIANTS) {
-            Bitmap standard = ImageUtil.enhanceForOcr(bitmap);
-            if (standard != null) {
-                variants.add(new PreprocessVariant("standard", standard));
-            }
-        }
-        
-        // Variant 4: Grayscale only (minimal processing)
-        if (variants.size() < BuildConfig.MAX_VARIANTS) {
-            Bitmap grayscale = ImagePreprocessor.toGrayscale(bitmap);
-            if (grayscale != null) {
-                variants.add(new PreprocessVariant("grayscale", grayscale));
-            }
-        }
+        // Fill remaining slots with other variants (up to MAX_VARIANTS)
+        addVariant(variants, "standard", ImageUtil.enhanceForOcr(bitmap));
+        addVariant(variants, "grayscale", ImagePreprocessor.toGrayscale(bitmap));
+        addVariant(variants, "sharpened", ImagePreprocessor.preprocessSharpened(bitmap));
+        addVariant(variants, "ultra_contrast", ImagePreprocessor.preprocessUltraHighContrast(bitmap));
+        addVariant(variants, "adaptive_histogram", ImagePreprocessor.preprocessAdaptiveHistogram(bitmap));
+        addVariant(variants, "light", ImagePreprocessor.preprocessLight(bitmap));
+        addVariant(variants, "classroom", ImagePreprocessor.preprocessForClassroom(bitmap));
+        addVariant(variants, "original", bitmap.copy(bitmap.getConfig(), false));
         
         if (variants.isEmpty()) {
             Log.e(TAG, "All preprocessing variants failed");
             return new HashMap<>();
         }
+        
+        Log.d(TAG, "Generated " + variants.size() + " preprocessing variants (adaptive prioritization)");
         
         // Process each variant and score
         PreprocessResult bestResult = null;
@@ -120,8 +137,9 @@ public class OcrProcessor {
         for (PreprocessVariant variant : variants) {
             variantIndex++;
             try {
-                // Compress to JPEG
-                byte[] jpegBytes = ImageUtil.resizeAndCompress(variant.bitmap, 1600);
+                // Compress to JPEG with higher quality (95% instead of 80%) and larger size (2048px instead of 1600px)
+                // This preserves more detail for poor quality images
+                byte[] jpegBytes = ImageUtil.resizeAndCompressHighQuality(variant.bitmap, 2048);
                 
                 // Call Vision API (DOCUMENT_TEXT_DETECTION)
                 String recognizedText = callVisionApi(jpegBytes);
@@ -148,7 +166,7 @@ public class OcrProcessor {
                     bestOcrText = recognizedText;
                 }
                 
-                // Early exit if we've met the threshold
+                // Early exit if we've met the threshold (now 70% instead of 90%)
                 if (fillRatio >= BuildConfig.EARLY_EXIT_FILLED_THRESHOLD) {
                     Log.d(TAG, "Early exit triggered at " + (fillRatio * 100) + "% filled (threshold: " + 
                             (BuildConfig.EARLY_EXIT_FILLED_THRESHOLD * 100) + "%)");
@@ -170,9 +188,85 @@ public class OcrProcessor {
         
         Log.d(TAG, "Selected best variant: '" + bestResult.variantName + "' with score " + bestScore);
         
-        // Check if we should call AI re-parser
+        // Check if we need a second pass with TEXT_DETECTION mode
         int filledCount = countFilledAnswers(bestResult.parsedAnswers);
         float fillRatio = answerKey.isEmpty() ? 0 : (float) filledCount / answerKey.size();
+        
+        // If we got less than 50% filled, try TEXT_DETECTION mode on best variant
+        if (fillRatio < 0.50f) {
+            Log.d(TAG, String.format("Fill ratio %.1f%% is low, attempting second pass with TEXT_DETECTION mode",
+                    fillRatio * 100));
+            
+            try {
+                // Try the top 2-3 variants with TEXT_DETECTION mode
+                int maxRetries = Math.min(3, variants.size());
+                PreprocessResult textDetectionBest = null;
+                int textDetectionBestScore = -1;
+                
+                // Sort variants by score (we need to recreate them since originals were recycled)
+                // For now, just retry the best variant type
+                Bitmap retryBitmap = null;
+                
+                // Recreate the best variant
+                switch (bestResult.variantName) {
+                    case "light":
+                        retryBitmap = ImagePreprocessor.preprocessLight(bitmap);
+                        break;
+                    case "classroom":
+                        retryBitmap = ImagePreprocessor.preprocessForClassroom(bitmap);
+                        break;
+                    case "ultra_contrast":
+                        retryBitmap = ImagePreprocessor.preprocessUltraHighContrast(bitmap);
+                        break;
+                    case "sharpened":
+                        retryBitmap = ImagePreprocessor.preprocessSharpened(bitmap);
+                        break;
+                    case "adaptive_histogram":
+                        retryBitmap = ImagePreprocessor.preprocessAdaptiveHistogram(bitmap);
+                        break;
+                    default:
+                        // Use original for standard/grayscale/original variants
+                        retryBitmap = bitmap.copy(bitmap.getConfig(), false);
+                        break;
+                }
+                
+                if (retryBitmap != null) {
+                    byte[] jpegBytes = ImageUtil.resizeAndCompressHighQuality(retryBitmap, 2048);
+                    
+                    // Call Vision API with TEXT_DETECTION mode
+                    String recognizedText = callVisionApi(jpegBytes, false);
+                    
+                    if (recognizedText != null && !recognizedText.isEmpty()) {
+                        HashMap<Integer, String> parsed = parseAndFilterSmart(recognizedText);
+                        int score = scoreVariant(parsed, recognizedText);
+                        int newFilledCount = countFilledAnswers(parsed);
+                        
+                        Log.d(TAG, String.format("TEXT_DETECTION mode: score=%d, filled=%d/%d (%.1f%%)",
+                                score, newFilledCount, answerKey.size(),
+                                (float) newFilledCount / answerKey.size() * 100));
+                        
+                        // Use TEXT_DETECTION result if it's better
+                        if (score > bestScore) {
+                            Log.d(TAG, "TEXT_DETECTION mode produced better result, using it");
+                            bestResult = new PreprocessResult(bestResult.variantName + "_text_detect",
+                                    parsed, recognizedText);
+                            bestOcrText = recognizedText;
+                            filledCount = newFilledCount;
+                            fillRatio = (float) filledCount / answerKey.size();
+                        }
+                    }
+                    
+                    retryBitmap.recycle();
+                }
+                
+            } catch (Exception e) {
+                Log.e(TAG, "Error in TEXT_DETECTION second pass", e);
+            }
+        }
+        
+        // Check if we should call AI re-parser
+        filledCount = countFilledAnswers(bestResult.parsedAnswers);
+        fillRatio = answerKey.isEmpty() ? 0 : (float) filledCount / answerKey.size();
         
         if (fillRatio < BuildConfig.REPARSE_MIN_FILLED_THRESHOLD && 
             !BuildConfig.REPARSE_ENDPOINT.isEmpty()) {
@@ -202,6 +296,32 @@ public class OcrProcessor {
         }
         
         return bestResult.parsedAnswers;
+    }
+    
+    /**
+     * Helper method to add a variant to the list if not already present and within limit.
+     * 
+     * @param variants List of variants
+     * @param name Variant name
+     * @param bitmap Preprocessed bitmap
+     */
+    private void addVariant(List<PreprocessVariant> variants, String name, Bitmap bitmap) {
+        if (variants.size() >= BuildConfig.MAX_VARIANTS) {
+            if (bitmap != null) bitmap.recycle();
+            return;
+        }
+        
+        // Check if variant with this name already exists
+        for (PreprocessVariant v : variants) {
+            if (v.name.equals(name)) {
+                if (bitmap != null) bitmap.recycle();
+                return;
+            }
+        }
+        
+        if (bitmap != null) {
+            variants.add(new PreprocessVariant(name, bitmap));
+        }
     }
     
     /**
@@ -307,8 +427,13 @@ public class OcrProcessor {
     
     /**
      * Call Google Vision API for OCR.
+     * Supports both DOCUMENT_TEXT_DETECTION and TEXT_DETECTION modes.
+     * 
+     * @param jpegBytes Image bytes
+     * @param useDocumentMode If true, use DOCUMENT_TEXT_DETECTION; if false, use TEXT_DETECTION
+     * @return Recognized text or null on error
      */
-    private String callVisionApi(byte[] jpegBytes) {
+    private String callVisionApi(byte[] jpegBytes, boolean useDocumentMode) {
         if (visionApiKey == null || visionApiKey.trim().isEmpty()) {
             Log.d(TAG, "Vision API key not configured");
             return null;
@@ -324,7 +449,9 @@ public class OcrProcessor {
             image.put("content", base64Image);
             
             JSONObject feature = new JSONObject();
-            feature.put("type", "DOCUMENT_TEXT_DETECTION");
+            // Use DOCUMENT_TEXT_DETECTION for structured text, TEXT_DETECTION for general text
+            String detectionType = useDocumentMode ? "DOCUMENT_TEXT_DETECTION" : "TEXT_DETECTION";
+            feature.put("type", detectionType);
             feature.put("maxResults", 1);
             
             JSONObject request = new JSONObject();
@@ -364,6 +491,14 @@ public class OcrProcessor {
             Log.e(TAG, "Vision API call failed", e);
             return null;
         }
+    }
+    
+    /**
+     * Call Google Vision API for OCR (overload for backward compatibility).
+     * Defaults to DOCUMENT_TEXT_DETECTION mode.
+     */
+    private String callVisionApi(byte[] jpegBytes) {
+        return callVisionApi(jpegBytes, true);
     }
     
     // ========== Legacy OCR.Space stub methods (kept for backward compatibility) ==========
