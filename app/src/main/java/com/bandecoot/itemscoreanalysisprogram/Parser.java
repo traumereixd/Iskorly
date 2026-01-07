@@ -17,9 +17,36 @@ public final class Parser {
     
     // Regex pattern to split lines containing multiple numbered items
     // Updated to handle compressed sequences like "1.A2.B3.C" or "1.A  3.Z  5.C"
-    // Matches: answer_letter [optional space/punct] number [optional punct/space] answer_letter
-    // Looks behind for alphanumeric character, looks ahead for number followed by answer
+    // Pattern breakdown:
+    // - (?<=[A-Za-z0-9]) : positive lookbehind for alphanumeric (end of previous answer)
+    // - (?=[\\s.]*\\d{1,3}[.):)]?[\\s-:]*[A-Za-z]) : positive lookahead for next number-answer pair
+    //   - [\\s.]* : optional whitespace or dots
+    //   - \\d{1,3} : 1-3 digit number
+    //   - [.):)]? : optional punctuation after number
+    //   - [\\s-:]* : optional separators
+    //   - [A-Za-z] : start of answer
     private static final String MULTI_ITEM_SPLIT_PATTERN = "(?<=[A-Za-z0-9])(?=[\\s.]*\\d{1,3}[.):)]?[\\s-:]*[A-Za-z])";
+    
+    // Pre-compiled regex patterns for performance
+    // Number-first pattern: "1.A", "2)B", "3-C", etc.
+    private static final Pattern NUMBER_FIRST_PATTERN = Pattern.compile(
+            "^\\s*(\\d{1,3})\\s*[.):)]?\\s*[-:,]?\\s*([A-Za-z][A-Za-z0-9]{0,39})\\b");
+    
+    // Answer-first pattern: "True 1.", "A 1."
+    private static final Pattern ANSWER_FIRST_PATTERN = Pattern.compile(
+            "^\\s*([A-Za-z][A-Za-z0-9]{0,39})\\b[\\s\\W]{0,3}(\\d{1,3})[.):)]?\\s*$");
+    
+    // Number-only pattern: "5." or "7" (for cross-line linking)
+    private static final Pattern NUMBER_ONLY_PATTERN = Pattern.compile(
+            "^\\s*(\\d{1,3})\\s*[.):)]?\\s*$");
+    
+    // Pattern to extract number-answer pairs from compressed lines
+    private static final Pattern COMPRESSED_ITEM_PATTERN = Pattern.compile(
+            "\\s*(\\d{1,3})\\s*[.):)]?\\s*[-:,]?\\s*([A-Za-z][A-Za-z0-9]{0,39})");
+    
+    // Pattern to extract first valid answer token
+    private static final Pattern ANSWER_TOKEN_PATTERN = Pattern.compile(
+            "\\b([A-Za-z][A-Za-z0-9]{0,39})\\b");
 
     private Parser() {}
 
@@ -234,8 +261,7 @@ public final class Parser {
                 
                 // Pattern 1: Number-first with various separators
                 // Matches: "1.A", "1)B", "1-C", "1:D", "1 WORD", etc.
-                Pattern numFirst = Pattern.compile("^\\s*(\\d{1,3})\\s*[.):)]?\\s*[-:,]?\\s*([A-Za-z][A-Za-z0-9]{0,39})\\b");
-                Matcher m1 = numFirst.matcher(segment);
+                Matcher m1 = NUMBER_FIRST_PATTERN.matcher(segment);
                 if (m1.find()) {
                     int q = safeInt(m1.group(1));
                     String answer = m1.group(2).trim();
@@ -247,8 +273,7 @@ public final class Parser {
                 }
                 
                 // Pattern 2: Answer-first patterns like "True 1." or "A 1."
-                Pattern ansFirst = Pattern.compile("^\\s*([A-Za-z][A-Za-z0-9]{0,39})\\b[\\s\\W]{0,3}(\\d{1,3})[.):)]?\\s*$");
-                Matcher m2 = ansFirst.matcher(segment);
+                Matcher m2 = ANSWER_FIRST_PATTERN.matcher(segment);
                 if (m2.find()) {
                     String answer = m2.group(1).trim();
                     int q = safeInt(m2.group(2));
@@ -260,8 +285,7 @@ public final class Parser {
                 }
                 
                 // Pattern 3: Number-only (for cross-line linking)
-                Pattern numOnly = Pattern.compile("^\\s*(\\d{1,3})\\s*[.):)]?\\s*$");
-                Matcher m3 = numOnly.matcher(segment);
+                Matcher m3 = NUMBER_ONLY_PATTERN.matcher(segment);
                 if (m3.find()) {
                     int q = safeInt(m3.group(1));
                     if (q >= 1 && q <= MAX_QUESTION_NUMBER) {
@@ -294,12 +318,9 @@ public final class Parser {
     private static java.util.List<String> splitCompressedLine(String line) {
         java.util.List<String> segments = new java.util.ArrayList<>();
         
-        // Pattern to find each number-answer pair
-        // Matches: optional whitespace, number, optional punct/space, answer
-        Pattern itemPattern = Pattern.compile("\\s*(\\d{1,3})\\s*[.):)]?\\s*[-:,]?\\s*([A-Za-z][A-Za-z0-9]{0,39})");
-        Matcher matcher = itemPattern.matcher(line);
+        // Use pre-compiled pattern to find each number-answer pair
+        Matcher matcher = COMPRESSED_ITEM_PATTERN.matcher(line);
         
-        int lastEnd = 0;
         boolean foundAny = false;
         
         while (matcher.find()) {
@@ -307,7 +328,6 @@ public final class Parser {
             // Extract the matched segment
             String segment = matcher.group().trim();
             segments.add(segment);
-            lastEnd = matcher.end();
         }
         
         if (!foundAny) {
@@ -324,9 +344,8 @@ public final class Parser {
     private static String extractFirstValidAnswer(String text) {
         if (text == null || text.trim().isEmpty()) return "";
         
-        // Match answer pattern: word starting with letter
-        Pattern ansPattern = Pattern.compile("\\b([A-Za-z][A-Za-z0-9]{0,39})\\b");
-        Matcher m = ansPattern.matcher(text);
+        // Use pre-compiled pattern to match answer token
+        Matcher m = ANSWER_TOKEN_PATTERN.matcher(text);
         if (m.find()) {
             String answer = m.group(1);
             if (answer.length() > MAX_ANSWER_LENGTH) {

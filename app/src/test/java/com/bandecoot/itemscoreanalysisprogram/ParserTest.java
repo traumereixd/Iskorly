@@ -230,7 +230,9 @@ public class ParserTest {
         assertEquals("Cherry", parsed.get(3));
     }
     
-    // Test that non-allowed answers are still captured
+    // Test that student answers differing from answer key are still captured
+    // This is crucial for grading - we need to capture what the student actually wrote,
+    // not just answers that match the key
     @Test
     public void parseNumberAnchoredRobust_capturesNonAllowedAnswers() {
         String text = "1. A\n2. X\n3. C";
