@@ -16,9 +16,10 @@ public final class Parser {
     private static final int MAX_ANSWER_LENGTH = 40; // Maximum answer text length
     
     // Regex pattern to split lines containing multiple numbered items
-    // Matches: "answer_letter whitespace question_number punctuation"
-    // E.g., "A 2." or "B 3)" to split "1. A 2. B" into ["1. A", "2. B"]
-    private static final String MULTI_ITEM_SPLIT_PATTERN = "(?<=\\b[A-Za-z]\\b)\\s+(?=\\d{1,3}\\s*[.):)])";
+    // Matches: "answer_letter whitespace question_number punctuation answer_letter"
+    // E.g., "A 2. B" to split "1. A 2. B" into ["1. A", "2. B"]
+    // More restrictive to avoid splitting on vertically misaligned numbers without answers
+    private static final String MULTI_ITEM_SPLIT_PATTERN = "(?<=\\b[A-Za-z]\\b)\\s+(?=\\d{1,3}\\s*[.):)]\\s*[A-Za-z])";
 
     private Parser() {}
 
