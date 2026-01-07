@@ -237,13 +237,13 @@ public class ParserTest {
         
         Map<Integer, String> answerKey = new HashMap<>();
         answerKey.put(1, "A");
-        answerKey.put(2, "B"); // Answer key says B, but OCR says X
+        answerKey.put(2, "B"); // Correct answer in key is B, but OCR parsed X from student sheet
         answerKey.put(3, "C");
         
         LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
         
         assertEquals("A", parsed.get(1));
-        assertEquals("X", parsed.get(2)); // Should still capture X even though not in allowed set
+        assertEquals("X", parsed.get(2)); // Should still capture X even though it doesn't match the answer key
         assertEquals("C", parsed.get(3));
     }
     

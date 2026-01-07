@@ -638,13 +638,8 @@ public final class Parser {
                 String canonical = canonical(answer);
                 
                 if (q >= 1 && q <= MAX_QUESTION_NUMBER && answerKey.containsKey(q) && !map.containsKey(q)) {
-                    // Prefer allowed-set matches but don't reject others
-                    if (allowedSet.contains(canonical)) {
-                        map.put(q, answer);
-                    } else if (!map.containsKey(q)) {
-                        // Accept non-allowed-set answers if we don't have a better option
-                        map.put(q, answer);
-                    }
+                    // Accept all answers, allowed-set or not (preference handled in deduplication elsewhere)
+                    map.put(q, answer);
                 }
             }
         }
