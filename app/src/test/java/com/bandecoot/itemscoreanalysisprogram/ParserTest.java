@@ -231,21 +231,21 @@ public class ParserTest {
     }
     
     // Test that student answers differing from answer key are still captured
-    // This is crucial for grading - we need to capture what the student actually wrote,
-    // not just answers that match the key
+    // This is crucial for grading - we need to capture what the student actually wrote
+    // (even if incorrect) so it can be compared against the answer key for scoring
     @Test
     public void parseNumberAnchoredRobust_capturesNonAllowedAnswers() {
         String text = "1. A\n2. X\n3. C";
         
         Map<Integer, String> answerKey = new HashMap<>();
         answerKey.put(1, "A");
-        answerKey.put(2, "B"); // Correct answer in key is B, but OCR parsed X from student sheet
+        answerKey.put(2, "B"); // Correct answer in key is B, but student answered X
         answerKey.put(3, "C");
         
         LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
         
         assertEquals("A", parsed.get(1));
-        assertEquals("X", parsed.get(2)); // Should still capture X even though it doesn't match the answer key
+        assertEquals("X", parsed.get(2)); // Should capture incorrect answer X for grading
         assertEquals("C", parsed.get(3));
     }
     

@@ -29,20 +29,23 @@ public final class Parser {
     
     // Pre-compiled regex patterns for performance
     // Number-first pattern: "1.A", "2)B", "3-C", etc.
+    // Consolidated separator group for clarity: [.):)\-:,]?
     private static final Pattern NUMBER_FIRST_PATTERN = Pattern.compile(
-            "^\\s*(\\d{1,3})\\s*[.):)]?\\s*[-:,]?\\s*([A-Za-z][A-Za-z0-9]{0,39})\\b");
+            "^\\s*(\\d{1,3})\\s*[.):)\\-:,]?\\s*([A-Za-z][A-Za-z0-9]{0,39})\\b");
     
     // Answer-first pattern: "True 1.", "A 1."
+    // Restrictive separator group to avoid matching unexpected characters
     private static final Pattern ANSWER_FIRST_PATTERN = Pattern.compile(
-            "^\\s*([A-Za-z][A-Za-z0-9]{0,39})\\b[\\s\\W]{0,3}(\\d{1,3})[.):)]?\\s*$");
+            "^\\s*([A-Za-z][A-Za-z0-9]{0,39})\\b[\\s.,;:!?\\-]{0,3}(\\d{1,3})[.):)]?\\s*$");
     
     // Number-only pattern: "5." or "7" (for cross-line linking)
     private static final Pattern NUMBER_ONLY_PATTERN = Pattern.compile(
             "^\\s*(\\d{1,3})\\s*[.):)]?\\s*$");
     
     // Pattern to extract number-answer pairs from compressed lines
+    // Consolidated separator group for consistency
     private static final Pattern COMPRESSED_ITEM_PATTERN = Pattern.compile(
-            "\\s*(\\d{1,3})\\s*[.):)]?\\s*[-:,]?\\s*([A-Za-z][A-Za-z0-9]{0,39})");
+            "\\s*(\\d{1,3})\\s*[.):)\\-:,]?\\s*([A-Za-z][A-Za-z0-9]{0,39})");
     
     // Pattern to extract first valid answer token
     private static final Pattern ANSWER_TOKEN_PATTERN = Pattern.compile(
