@@ -110,7 +110,7 @@ public class MainActivity extends AppCompatActivity {
     private Button startScanButton, setupButton, viewHistoryButton;
     private Button saveAnswerButton, removeAnswerButton, clearButton, backButton;
     private Button historyBackButton, tryAgainButton, captureResultButton, cancelScanButton;
-    private Button confirmParsedButton, importPhotosButton, masterlistButton, masterlistBackButton, exportCsvButton;
+    private Button confirmParsedButton, saveResultInlineButton, importPhotosButton, masterlistButton, masterlistBackButton, exportCsvButton;
     private Button manageAutocompleteButton, exportMasterlistCsvButton, masterlistResetAllButton;
     private Button masterlistBySectionButton, masterlistAllButton, btnSlotSaveSet;
     private Button buttonSettings, buttonSettingsClose;
@@ -181,6 +181,7 @@ public class MainActivity extends AppCompatActivity {
     private int lastCapturedJpegOrientation = 0;
     private volatile boolean cameraSessionReady = false; // Camera session readiness flag
     private boolean inScanSession = false; // Track if we're in an active scan session for back navigation
+    private boolean hasConfirmedOnce = false; // Per-session flag: true after first successful confirm in current scan
     
     // OCR Processor
     private OcrProcessor ocrProcessor;
@@ -985,7 +986,7 @@ public class MainActivity extends AppCompatActivity {
         parsedLabel = findViewById(R.id.textView_parsed_label);
         parsedAnswersContainer = findViewById(R.id.parsed_answers_container);
         confirmParsedButton = findViewById(R.id.button_confirm_parsed);
-        Button saveResultInlineButton = findViewById(R.id.button_save_result);
+        saveResultInlineButton = findViewById(R.id.button_save_result);
 
         // Load answer key and display
         updateAnswerKeyDisplay();
@@ -1069,6 +1070,11 @@ public class MainActivity extends AppCompatActivity {
             if (parsedAnswersContainer != null) parsedAnswersContainer.removeAllViews();
             parsedEditors.clear();
             lastDetectedAnswers = new HashMap<>();
+            // Reset per-session flag and hide quick save button
+            hasConfirmedOnce = false;
+            if (saveResultInlineButton != null) {
+                saveResultInlineButton.setVisibility(View.GONE);
+            }
         });
 
         // Bottom button always captures a new photo
@@ -1198,6 +1204,7 @@ public class MainActivity extends AppCompatActivity {
         scanSessionActive = true;
         inScanSession = true; // Set flag for back navigation
         cameraSessionReady = false; // Reset readiness flag
+        hasConfirmedOnce = false; // Reset per-session flag
         toggleView("scan");
         sessionScoreTextView.setText(getString(R.string.live_score_placeholder));
         if (resultsCard != null) resultsCard.setVisibility(View.GONE);
@@ -1205,6 +1212,9 @@ public class MainActivity extends AppCompatActivity {
             captureResultButton.setVisibility(View.VISIBLE);
             captureResultButton.setText("Opening...");
             captureResultButton.setEnabled(false); // Disable until session is ready
+        }
+        if (saveResultInlineButton != null) {
+            saveResultInlineButton.setVisibility(View.GONE); // Hide until first confirm
         }
         Log.d(CAMERA_FLOW, "Starting scan session, button disabled until camera ready");
         
@@ -2692,6 +2702,12 @@ public class MainActivity extends AppCompatActivity {
         // keep last computed numbers if you later want to save
         lastConfirmedScore = correct;
         lastConfirmedTotal = total;
+
+        // Show quick save button after first successful confirm
+        hasConfirmedOnce = true;
+        if (saveResultInlineButton != null) {
+            saveResultInlineButton.setVisibility(View.VISIBLE);
+        }
 
         Toast.makeText(this, "Scored. Tap Save to add to history.", Toast.LENGTH_SHORT).show();
     }
