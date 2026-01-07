@@ -450,10 +450,18 @@ public final class ImagePreprocessor {
         if (gray == null) return null;
         
         Bitmap sharpened = applySharpen(gray);
+        
+        if (sharpened == null) {
+            // If sharpening failed, return grayscale without recycling
+            Log.d(TAG, "Sharpening failed, using grayscale");
+            Bitmap contrasted = enhanceContrast(gray);
+            gray.recycle();
+            Log.d(TAG, "Sharpened preprocessing complete (grayscale fallback)");
+            return contrasted;
+        }
+        
+        // Sharpening succeeded, recycle grayscale and continue
         gray.recycle();
-        
-        if (sharpened == null) return gray;
-        
         Bitmap contrasted = enhanceContrast(sharpened);
         sharpened.recycle();
         
@@ -544,10 +552,18 @@ public final class ImagePreprocessor {
         if (gray == null) return null;
         
         Bitmap equalized = applyHistogramEqualization(gray);
+        
+        if (equalized == null) {
+            // If equalization failed, return grayscale without recycling
+            Log.d(TAG, "Histogram equalization failed, using grayscale");
+            Bitmap contrasted = enhanceContrast(gray);
+            gray.recycle();
+            Log.d(TAG, "Adaptive histogram preprocessing complete (grayscale fallback)");
+            return contrasted;
+        }
+        
+        // Equalization succeeded, recycle grayscale and continue
         gray.recycle();
-        
-        if (equalized == null) return gray;
-        
         Bitmap contrasted = enhanceContrast(equalized);
         equalized.recycle();
         
