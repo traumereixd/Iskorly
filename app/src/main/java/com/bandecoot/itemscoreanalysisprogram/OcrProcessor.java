@@ -71,80 +71,62 @@ public class OcrProcessor {
         Log.d(TAG, "Starting multi-variant OCR processing (MAX_VARIANTS=" + 
                 BuildConfig.MAX_VARIANTS + ", EARLY_EXIT=" + BuildConfig.EARLY_EXIT_FILLED_THRESHOLD + ")");
         
-        // Generate preprocessing variants (expanded to 8 variants for poor camera quality)
+        // Phase 3: Analyze image quality to guide preprocessing selection
+        ImagePreprocessor.ImageQuality quality = ImagePreprocessor.analyzeImageQuality(bitmap);
+        Log.d(TAG, "Adaptive preprocessing based on: " + quality);
+        
+        // Generate preprocessing variants (prioritized based on image quality)
         List<PreprocessVariant> variants = new ArrayList<>();
         
-        // Variant 1: Light preprocessing (grayscale + contrast) - good for clear images
-        if (variants.size() < BuildConfig.MAX_VARIANTS) {
-            Bitmap light = ImagePreprocessor.preprocessLight(bitmap);
-            if (light != null) {
-                variants.add(new PreprocessVariant("light", light));
-            }
+        // Adaptive variant selection based on image quality
+        if (quality.isBlurry) {
+            // Prioritize sharpening for blurry images
+            Log.d(TAG, "Image is blurry - prioritizing sharpening variants");
+            addVariant(variants, "sharpened", ImagePreprocessor.preprocessSharpened(bitmap));
+            addVariant(variants, "classroom", ImagePreprocessor.preprocessForClassroom(bitmap));
+            addVariant(variants, "ultra_contrast", ImagePreprocessor.preprocessUltraHighContrast(bitmap));
+        } else if (quality.isLowLight || quality.contrast < 0.15f) {
+            // Prioritize contrast enhancement for low-light/low-contrast images
+            Log.d(TAG, "Image has low light/contrast - prioritizing contrast variants");
+            addVariant(variants, "ultra_contrast", ImagePreprocessor.preprocessUltraHighContrast(bitmap));
+            addVariant(variants, "adaptive_histogram", ImagePreprocessor.preprocessAdaptiveHistogram(bitmap));
+            addVariant(variants, "classroom", ImagePreprocessor.preprocessForClassroom(bitmap));
+        } else if (quality.isHighLight) {
+            // Prioritize adaptive methods for overexposed images
+            Log.d(TAG, "Image is overexposed - prioritizing adaptive variants");
+            addVariant(variants, "adaptive_histogram", ImagePreprocessor.preprocessAdaptiveHistogram(bitmap));
+            addVariant(variants, "classroom", ImagePreprocessor.preprocessForClassroom(bitmap));
+            addVariant(variants, "light", ImagePreprocessor.preprocessLight(bitmap));
+        } else if (quality.brightness > 100 && quality.brightness < 180 && quality.contrast > 0.20f) {
+            // Good quality image - use lighter preprocessing first
+            Log.d(TAG, "Image quality is good - using lighter preprocessing");
+            addVariant(variants, "light", ImagePreprocessor.preprocessLight(bitmap));
+            addVariant(variants, "original", bitmap.copy(bitmap.getConfig(), false));
+            addVariant(variants, "standard", ImageUtil.enhanceForOcr(bitmap));
+        } else {
+            // Default: try classroom preprocessing first
+            Log.d(TAG, "Using default preprocessing priority");
+            addVariant(variants, "classroom", ImagePreprocessor.preprocessForClassroom(bitmap));
+            addVariant(variants, "light", ImagePreprocessor.preprocessLight(bitmap));
+            addVariant(variants, "adaptive_histogram", ImagePreprocessor.preprocessAdaptiveHistogram(bitmap));
         }
         
-        // Variant 2: Classroom preprocessing (de-yellow + grayscale + contrast + Otsu)
-        if (variants.size() < BuildConfig.MAX_VARIANTS) {
-            Bitmap classroom = ImagePreprocessor.preprocessForClassroom(bitmap);
-            if (classroom != null) {
-                variants.add(new PreprocessVariant("classroom", classroom));
-            }
-        }
-        
-        // Variant 3: Standard enhancement (existing method)
-        if (variants.size() < BuildConfig.MAX_VARIANTS) {
-            Bitmap standard = ImageUtil.enhanceForOcr(bitmap);
-            if (standard != null) {
-                variants.add(new PreprocessVariant("standard", standard));
-            }
-        }
-        
-        // Variant 4: Grayscale only (minimal processing)
-        if (variants.size() < BuildConfig.MAX_VARIANTS) {
-            Bitmap grayscale = ImagePreprocessor.toGrayscale(bitmap);
-            if (grayscale != null) {
-                variants.add(new PreprocessVariant("grayscale", grayscale));
-            }
-        }
-        
-        // Variant 5: Ultra-high contrast (for faded text on poor cameras)
-        if (variants.size() < BuildConfig.MAX_VARIANTS) {
-            Bitmap ultraContrast = ImagePreprocessor.preprocessUltraHighContrast(bitmap);
-            if (ultraContrast != null) {
-                variants.add(new PreprocessVariant("ultra_contrast", ultraContrast));
-            }
-        }
-        
-        // Variant 6: Sharpened (for blurry camera images)
-        if (variants.size() < BuildConfig.MAX_VARIANTS) {
-            Bitmap sharpened = ImagePreprocessor.preprocessSharpened(bitmap);
-            if (sharpened != null) {
-                variants.add(new PreprocessVariant("sharpened", sharpened));
-            }
-        }
-        
-        // Variant 7: Adaptive histogram equalization (for uneven lighting)
-        if (variants.size() < BuildConfig.MAX_VARIANTS) {
-            Bitmap adaptive = ImagePreprocessor.preprocessAdaptiveHistogram(bitmap);
-            if (adaptive != null) {
-                variants.add(new PreprocessVariant("adaptive_histogram", adaptive));
-            }
-        }
-        
-        // Variant 8: Original image (no preprocessing, trust Vision API)
-        if (variants.size() < BuildConfig.MAX_VARIANTS) {
-            // Create a copy to maintain consistency
-            Bitmap original = bitmap.copy(bitmap.getConfig(), false);
-            if (original != null) {
-                variants.add(new PreprocessVariant("original", original));
-            }
-        }
+        // Fill remaining slots with other variants (up to MAX_VARIANTS)
+        addVariant(variants, "standard", ImageUtil.enhanceForOcr(bitmap));
+        addVariant(variants, "grayscale", ImagePreprocessor.toGrayscale(bitmap));
+        addVariant(variants, "sharpened", ImagePreprocessor.preprocessSharpened(bitmap));
+        addVariant(variants, "ultra_contrast", ImagePreprocessor.preprocessUltraHighContrast(bitmap));
+        addVariant(variants, "adaptive_histogram", ImagePreprocessor.preprocessAdaptiveHistogram(bitmap));
+        addVariant(variants, "light", ImagePreprocessor.preprocessLight(bitmap));
+        addVariant(variants, "classroom", ImagePreprocessor.preprocessForClassroom(bitmap));
+        addVariant(variants, "original", bitmap.copy(bitmap.getConfig(), false));
         
         if (variants.isEmpty()) {
             Log.e(TAG, "All preprocessing variants failed");
             return new HashMap<>();
         }
         
-        Log.d(TAG, "Generated " + variants.size() + " preprocessing variants");
+        Log.d(TAG, "Generated " + variants.size() + " preprocessing variants (adaptive prioritization)");
         
         // Process each variant and score
         PreprocessResult bestResult = null;
@@ -314,6 +296,32 @@ public class OcrProcessor {
         }
         
         return bestResult.parsedAnswers;
+    }
+    
+    /**
+     * Helper method to add a variant to the list if not already present and within limit.
+     * 
+     * @param variants List of variants
+     * @param name Variant name
+     * @param bitmap Preprocessed bitmap
+     */
+    private void addVariant(List<PreprocessVariant> variants, String name, Bitmap bitmap) {
+        if (variants.size() >= BuildConfig.MAX_VARIANTS) {
+            if (bitmap != null) bitmap.recycle();
+            return;
+        }
+        
+        // Check if variant with this name already exists
+        for (PreprocessVariant v : variants) {
+            if (v.name.equals(name)) {
+                if (bitmap != null) bitmap.recycle();
+                return;
+            }
+        }
+        
+        if (bitmap != null) {
+            variants.add(new PreprocessVariant(name, bitmap));
+        }
     }
     
     /**

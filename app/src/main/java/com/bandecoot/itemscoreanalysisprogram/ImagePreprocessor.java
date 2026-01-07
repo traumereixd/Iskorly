@@ -11,11 +11,152 @@ import android.util.Log;
 /**
  * Image preprocessing utilities for OCR optimization.
  * Provides de-yellowing, grayscale conversion, contrast enhancement, and Otsu binarization.
+ * Includes adaptive preprocessing based on image quality analysis.
  */
 public final class ImagePreprocessor {
     private static final String TAG = "ImagePreprocessor";
     
     private ImagePreprocessor() {}
+    
+    /**
+     * Image quality metrics for adaptive preprocessing.
+     */
+    public static class ImageQuality {
+        public final float brightness;      // 0-255, average brightness
+        public final float contrast;        // 0-1, standard deviation of brightness
+        public final boolean isBlurry;      // True if image appears blurry
+        public final boolean isLowLight;    // True if image is underexposed
+        public final boolean isHighLight;   // True if image is overexposed
+        
+        public ImageQuality(float brightness, float contrast, boolean isBlurry,
+                          boolean isLowLight, boolean isHighLight) {
+            this.brightness = brightness;
+            this.contrast = contrast;
+            this.isBlurry = isBlurry;
+            this.isLowLight = isLowLight;
+            this.isHighLight = isHighLight;
+        }
+        
+        @Override
+        public String toString() {
+            return String.format("ImageQuality[bright=%.1f, contrast=%.3f, blur=%b, lowLight=%b, highLight=%b]",
+                    brightness, contrast, isBlurry, isLowLight, isHighLight);
+        }
+    }
+    
+    /**
+     * Analyze image quality to determine optimal preprocessing.
+     * 
+     * @param src Source bitmap
+     * @return ImageQuality metrics
+     */
+    public static ImageQuality analyzeImageQuality(Bitmap src) {
+        if (src == null) {
+            return new ImageQuality(128, 0.5f, false, false, false);
+        }
+        
+        int width = src.getWidth();
+        int height = src.getHeight();
+        
+        // Sample pixels (don't process entire image for speed)
+        int sampleStep = Math.max(1, width / 100); // Sample ~100 pixels wide
+        int[] pixels = new int[(width / sampleStep) * (height / sampleStep)];
+        int pixelIndex = 0;
+        
+        for (int y = 0; y < height; y += sampleStep) {
+            for (int x = 0; x < width; x += sampleStep) {
+                pixels[pixelIndex++] = src.getPixel(x, y);
+            }
+        }
+        
+        // Calculate brightness statistics
+        float sumBrightness = 0;
+        float[] brightnesses = new float[pixelIndex];
+        
+        for (int i = 0; i < pixelIndex; i++) {
+            int pixel = pixels[i];
+            int r = (pixel >> 16) & 0xFF;
+            int g = (pixel >> 8) & 0xFF;
+            int b = pixel & 0xFF;
+            float brightness = (float)(0.299 * r + 0.587 * g + 0.114 * b);
+            brightnesses[i] = brightness;
+            sumBrightness += brightness;
+        }
+        
+        float avgBrightness = sumBrightness / pixelIndex;
+        
+        // Calculate contrast (standard deviation)
+        float sumSquaredDiff = 0;
+        for (int i = 0; i < pixelIndex; i++) {
+            float diff = brightnesses[i] - avgBrightness;
+            sumSquaredDiff += diff * diff;
+        }
+        float contrast = (float) Math.sqrt(sumSquaredDiff / pixelIndex) / 255f;
+        
+        // Detect blur using edge detection (simplified Laplacian)
+        boolean isBlurry = detectBlur(src, sampleStep);
+        
+        // Detect lighting conditions
+        boolean isLowLight = avgBrightness < 80;
+        boolean isHighLight = avgBrightness > 200;
+        
+        ImageQuality quality = new ImageQuality(avgBrightness, contrast, isBlurry, isLowLight, isHighLight);
+        Log.d(TAG, "Image quality: " + quality);
+        
+        return quality;
+    }
+    
+    /**
+     * Detect if image is blurry using simplified edge detection.
+     * 
+     * @param src Source bitmap
+     * @param sampleStep Sampling step for performance
+     * @return True if image appears blurry
+     */
+    private static boolean detectBlur(Bitmap src, int sampleStep) {
+        int width = src.getWidth();
+        int height = src.getHeight();
+        
+        // Sample edge strength
+        float sumEdgeStrength = 0;
+        int edgeCount = 0;
+        
+        for (int y = sampleStep; y < height - sampleStep; y += sampleStep * 2) {
+            for (int x = sampleStep; x < width - sampleStep; x += sampleStep * 2) {
+                int center = src.getPixel(x, y);
+                int right = src.getPixel(x + sampleStep, y);
+                int bottom = src.getPixel(x, y + sampleStep);
+                
+                // Calculate brightness
+                int cBright = getBrightness(center);
+                int rBright = getBrightness(right);
+                int bBright = getBrightness(bottom);
+                
+                // Edge strength (horizontal + vertical gradients)
+                float edgeStrength = Math.abs(cBright - rBright) + Math.abs(cBright - bBright);
+                sumEdgeStrength += edgeStrength;
+                edgeCount++;
+            }
+        }
+        
+        float avgEdgeStrength = sumEdgeStrength / edgeCount;
+        
+        // Low average edge strength indicates blur
+        boolean isBlurry = avgEdgeStrength < 20;
+        
+        Log.d(TAG, "Edge strength: " + avgEdgeStrength + " (blurry: " + isBlurry + ")");
+        return isBlurry;
+    }
+    
+    /**
+     * Get brightness of a pixel.
+     */
+    private static int getBrightness(int pixel) {
+        int r = (pixel >> 16) & 0xFF;
+        int g = (pixel >> 8) & 0xFF;
+        int b = pixel & 0xFF;
+        return (int)(0.299 * r + 0.587 * g + 0.114 * b);
+    }
     
     /**
      * Apply de-yellow filter to neutralize yellow pad backgrounds.
