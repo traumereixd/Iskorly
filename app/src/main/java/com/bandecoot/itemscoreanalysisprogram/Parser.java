@@ -2,8 +2,16 @@ package com.bandecoot.itemscoreanalysisprogram;
 
 import android.util.Log;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -14,6 +22,9 @@ public final class Parser {
     private static final float ORDER_ONLY_FALLBACK_THRESHOLD = 0.3f; // Switch to order-only below 30% filled
     private static final int MAX_QUESTION_NUMBER = 200; // Maximum valid question number
     private static final int MAX_ANSWER_LENGTH = 40; // Maximum answer text length
+    
+    // Range hints for type-specific parsing
+    private static Map<Integer, RangeHint.QuestionType> rangeHintsMap = null;
     
     // Regex pattern to split lines containing multiple numbered items
     // Updated to handle compressed sequences like "1.A2.B3.C" or "1.A  3.Z  5.C"
@@ -56,6 +67,108 @@ public final class Parser {
             "\\b([\\p{L}][\\p{L}\\p{N}''\\-]{0,39})\\b");
 
     private Parser() {}
+    
+    /**
+     * Load range hints from JSON string and build question-to-type map.
+     * 
+     * @param hintsJson JSON array of range hints
+     * @return Map from question number to question type
+     */
+    public static Map<Integer, RangeHint.QuestionType> loadRangeHints(String hintsJson) {
+        Map<Integer, RangeHint.QuestionType> hintsMap = new HashMap<>();
+        
+        if (hintsJson == null || hintsJson.trim().isEmpty()) {
+            Log.d(TAG, "No range hints JSON provided - hints disabled");
+            return hintsMap;
+        }
+        
+        try {
+            JSONArray hintsArray = new JSONArray(hintsJson);
+            List<RangeHint> hints = new ArrayList<>();
+            
+            for (int i = 0; i < hintsArray.length(); i++) {
+                JSONObject hintObj = hintsArray.getJSONObject(i);
+                int start = hintObj.getInt("start");
+                int end = hintObj.getInt("end");
+                String typeStr = hintObj.getString("type");
+                RangeHint.QuestionType type = RangeHint.QuestionType.fromDisplayName(typeStr);
+                
+                hints.add(new RangeHint(start, end, type));
+            }
+            
+            // Build question-to-type map from ranges
+            for (RangeHint hint : hints) {
+                for (int q = hint.getStartQuestion(); q <= hint.getEndQuestion(); q++) {
+                    if (q >= 1 && q <= MAX_QUESTION_NUMBER) {
+                        hintsMap.put(q, hint.getType());
+                    }
+                }
+            }
+            
+            Log.d(TAG, "Loaded " + hints.size() + " range hints covering " + hintsMap.size() + " questions");
+        } catch (JSONException e) {
+            Log.e(TAG, "Error parsing range hints JSON", e);
+        }
+        
+        return hintsMap;
+    }
+    
+    /**
+     * Set the range hints map to use for parsing.
+     * 
+     * @param hintsJson JSON string of range hints
+     */
+    public static void setRangeHints(String hintsJson) {
+        rangeHintsMap = loadRangeHints(hintsJson);
+    }
+    
+    /**
+     * Set the range hints map directly (for testing).
+     * 
+     * @param hintsMap Map from question number to question type
+     */
+    public static void setRangeHintsMap(Map<Integer, RangeHint.QuestionType> hintsMap) {
+        rangeHintsMap = hintsMap;
+    }
+    
+    /**
+     * Set range hints from a list of RangeHint objects (for testing).
+     * 
+     * @param hints List of range hints
+     */
+    public static void setRangeHintsList(List<RangeHint> hints) {
+        Map<Integer, RangeHint.QuestionType> hintsMap = new HashMap<>();
+        
+        for (RangeHint hint : hints) {
+            for (int q = hint.getStartQuestion(); q <= hint.getEndQuestion(); q++) {
+                if (q >= 1 && q <= MAX_QUESTION_NUMBER) {
+                    hintsMap.put(q, hint.getType());
+                }
+            }
+        }
+        
+        rangeHintsMap = hintsMap;
+    }
+    
+    /**
+     * Clear range hints (disable hint-based parsing).
+     */
+    public static void clearRangeHints() {
+        rangeHintsMap = null;
+    }
+    
+    /**
+     * Get the question type for a specific question number.
+     * 
+     * @param questionNumber The question number
+     * @return The question type, or null if no hint for this question
+     */
+    private static RangeHint.QuestionType getQuestionType(int questionNumber) {
+        if (rangeHintsMap == null || rangeHintsMap.isEmpty()) {
+            return null;
+        }
+        return rangeHintsMap.get(questionNumber);
+    }
 
     // Header/Instruction skipping patterns
     private static final Pattern HEADER_PATTERN = Pattern.compile(
@@ -400,7 +513,7 @@ public final class Parser {
                 // Pattern 4: Answer-only (pair with pending number if available)
                 if (pendingNumber != null) {
                     // Extract answer from this segment
-                    String answer = extractFirstValidAnswer(segment);
+                    String answer = extractFirstValidAnswer(segment, pendingNumber);
                     if (!answer.isEmpty()) {
                         addAnswerWithPreference(map, pendingNumber, answer, allowedSet);
                         pendingNumber = null;
@@ -443,9 +556,16 @@ public final class Parser {
     
     /**
      * Extract the first valid answer token from text.
+     * If a question number is provided and a hint exists, applies type-specific extraction.
+     * 
+     * @param text Text to extract answer from
+     * @param questionNumber Question number (0 if unknown)
+     * @return Extracted answer or empty string
      */
-    private static String extractFirstValidAnswer(String text) {
+    private static String extractFirstValidAnswer(String text, int questionNumber) {
         if (text == null || text.trim().isEmpty()) return "";
+        
+        RangeHint.QuestionType type = getQuestionType(questionNumber);
         
         // Use pre-compiled pattern to match answer token
         Matcher m = ANSWER_TOKEN_PATTERN.matcher(text);
@@ -457,13 +577,85 @@ public final class Parser {
             // Clean trailing punctuation
             answer = answer.replaceAll("[.,;!?]+$", "");
             
-            // Uppercase single letters
-            if (answer.length() == 1 && Character.isLetter(answer.charAt(0))) {
-                return answer.toUpperCase(Locale.US);
+            // Apply type-specific handling if hint is available
+            if (type != null) {
+                answer = applyTypeHint(answer, type);
+            } else {
+                // Default behavior: uppercase single letters
+                if (answer.length() == 1 && Character.isLetter(answer.charAt(0))) {
+                    return answer.toUpperCase(Locale.US);
+                }
             }
             return answer;
         }
         return "";
+    }
+    
+    /**
+     * Overload for backward compatibility
+     */
+    private static String extractFirstValidAnswer(String text) {
+        return extractFirstValidAnswer(text, 0);
+    }
+    
+    /**
+     * Apply type-specific transformations to an answer based on the hint.
+     * 
+     * @param answer The raw answer text
+     * @param type The question type from hint
+     * @return Transformed answer
+     */
+    private static String applyTypeHint(String answer, RangeHint.QuestionType type) {
+        if (answer == null || answer.isEmpty()) return answer;
+        
+        switch (type) {
+            case MULTIPLE_CHOICE:
+            case MATCHING:
+                // Prefer single letters A-Z, uppercase
+                if (answer.length() == 1 && Character.isLetter(answer.charAt(0))) {
+                    return answer.toUpperCase(Locale.US);
+                }
+                // If longer, only accept if it's clearly a letter choice (A-Z word)
+                if (answer.length() <= 3 && answer.matches("^[A-Za-z]+$")) {
+                    return answer.toUpperCase(Locale.US);
+                }
+                // Otherwise keep as-is (fallback for unexpected formats)
+                return answer;
+                
+            case TRUE_FALSE:
+                // Canonicalize to TRUE/FALSE
+                String upper = answer.toUpperCase(Locale.US).trim();
+                if (upper.equals("T") || upper.equals("TRUE")) {
+                    return "TRUE";
+                } else if (upper.equals("F") || upper.equals("FALSE")) {
+                    return "FALSE";
+                } else if (upper.equals("Y") || upper.equals("YES")) {
+                    return "TRUE"; // Accept Y as TRUE
+                } else if (upper.equals("N") || upper.equals("NO")) {
+                    return "FALSE"; // Accept N as FALSE
+                }
+                // Keep original if not recognized
+                return answer;
+                
+            case IDENTIFICATION:
+                // Prefer short words (up to 40 chars), allow hyphen/apostrophe
+                // De-emphasize single letters unless necessary
+                if (answer.length() <= MAX_ANSWER_LENGTH) {
+                    return answer; // Keep original case for identification answers
+                }
+                return answer.substring(0, MAX_ANSWER_LENGTH);
+                
+            case ENUMERATION:
+                // For enumeration, keep as-is (comma-separated handling done at higher level)
+                return answer;
+                
+            default:
+                // No hint or unknown type: default behavior
+                if (answer.length() == 1 && Character.isLetter(answer.charAt(0))) {
+                    return answer.toUpperCase(Locale.US);
+                }
+                return answer;
+        }
     }
     
     /**
@@ -491,9 +683,15 @@ public final class Parser {
             cleaned = cleaned.substring(0, MAX_ANSWER_LENGTH).trim();
         }
         
-        // Uppercase single letters
-        if (cleaned.length() == 1 && Character.isLetter(cleaned.charAt(0))) {
-            cleaned = cleaned.toUpperCase(Locale.US);
+        // Apply type hint if available
+        RangeHint.QuestionType type = getQuestionType(question);
+        if (type != null) {
+            cleaned = applyTypeHint(cleaned, type);
+        } else {
+            // Default behavior: uppercase single letters
+            if (cleaned.length() == 1 && Character.isLetter(cleaned.charAt(0))) {
+                cleaned = cleaned.toUpperCase(Locale.US);
+            }
         }
         
         String canonicalNew = canonical(cleaned);
@@ -653,7 +851,7 @@ public final class Parser {
                 String answerPart = matcher.group(2).trim();
                 
                 // Extract answer (single letter or short text)
-                String answer = extractAnswer(answerPart, allowedSet);
+                String answer = extractAnswer(answerPart, allowedSet, q);
                 
                 if (q >= 1 && q <= MAX_QUESTION_NUMBER && answerKey.containsKey(q) && !answer.isEmpty() && !byNumber.containsKey(q)) {
                     byNumber.put(q, answer);
@@ -663,7 +861,7 @@ public final class Parser {
                 }
             } else {
                 // No number found, try to extract answer only
-                String answer = extractAnswer(line, allowedSet);
+                String answer = extractAnswer(line, allowedSet, 0);
                 if (!answer.isEmpty()) {
                     orphanLines.add(answer);
                 }
@@ -699,12 +897,14 @@ public final class Parser {
     /**
      * Extract answer from text, accepting single letters (A-Z) or short words.
      * Prefers answers in allowed set but doesn't reject others.
+     * Applies type-specific extraction if hint is available.
      * 
      * @param text Text to extract answer from
      * @param allowedSet Set of allowed answers (canonical form) - used for preference, not rejection
+     * @param questionNumber Question number for hint lookup (0 if unknown)
      * @return Extracted answer or empty string
      */
-    private static String extractAnswer(String text, java.util.Set<String> allowedSet) {
+    private static String extractAnswer(String text, java.util.Set<String> allowedSet, int questionNumber) {
         if (text == null || text.trim().isEmpty()) return "";
         
         // Trim and take first word
@@ -723,15 +923,25 @@ public final class Parser {
         
         if (candidate.isEmpty()) return "";
         
-        // NOTE: We no longer reject based on allowed set - it's used for preference in deduplication
-        // This allows capturing answers even if they don't match the answer key exactly
+        // Apply type hint if available
+        RangeHint.QuestionType type = getQuestionType(questionNumber);
+        if (type != null) {
+            return applyTypeHint(candidate, type);
+        }
         
-        // Return original case if single letter, otherwise keep as-is
+        // Default behavior: uppercase single letters
         if (candidate.length() == 1 && Character.isLetter(candidate.charAt(0))) {
             return candidate.toUpperCase(Locale.US);
         }
         
         return candidate;
+    }
+    
+    /**
+     * Overload for backward compatibility (no question number)
+     */
+    private static String extractAnswer(String text, java.util.Set<String> allowedSet) {
+        return extractAnswer(text, allowedSet, 0);
     }
     
     /**

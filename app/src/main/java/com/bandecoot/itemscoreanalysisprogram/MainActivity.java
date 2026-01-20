@@ -116,6 +116,13 @@ public class MainActivity extends AppCompatActivity {
     private Button buttonSettings, buttonSettingsClose;
     private com.google.android.material.materialswitch.MaterialSwitch switchOcrTwoColumn, switchOcrHighContrast;
     private TextView currentKeyTextView, sessionScoreTextView, parsedLabel, masterlistInfoTextView;
+    
+    // Type Hints UI components
+    private EditText hintStartInput, hintEndInput;
+    private MaterialAutoCompleteTextView hintTypeDropdown;
+    private Button btnAddHintRange, btnClearHints, btnSaveHints;
+    private LinearLayout hintsListContainer;
+    private List<RangeHint> currentHints = new ArrayList<>();
     private MaterialCardView resultsCard;
     private LinearLayout testHistoryList, parsedAnswersContainer, masterlistContent;
     private TextureView cameraPreviewTextureView;
@@ -149,6 +156,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String PREF_RECENT_EXAMS = "recent_exams";
     private static final String PREF_OCR_TWO_COLUMN = "ocr_two_column_enabled";
     private static final String PREF_OCR_HIGH_CONTRAST = "ocr_high_contrast_enabled";
+    private static final String PREF_RANGE_HINTS = "range_hints";
     private static final int MAX_RECENTS = 50;
     private String currentSlotId = "default";
     private final HashMap<String, SlotData> slots = new HashMap<>();
@@ -967,6 +975,43 @@ public class MainActivity extends AppCompatActivity {
             switchOcrHighContrast.setOnCheckedChangeListener((buttonView, isChecked) -> {
                 appPreferences.edit().putBoolean(PREF_OCR_HIGH_CONTRAST, isChecked).apply();
                 Log.d(TAG, "High-contrast OCR " + (isChecked ? "enabled" : "disabled"));
+            });
+        }
+        
+        // Type Hints UI
+        hintStartInput = findViewById(R.id.editText_hint_start);
+        hintEndInput = findViewById(R.id.editText_hint_end);
+        hintTypeDropdown = findViewById(R.id.dropdown_hint_type);
+        btnAddHintRange = findViewById(R.id.btn_add_hint_range);
+        btnClearHints = findViewById(R.id.btn_clear_hints);
+        btnSaveHints = findViewById(R.id.btn_save_hints);
+        hintsListContainer = findViewById(R.id.hints_list_container);
+        
+        // Setup type dropdown
+        setupTypeHintsDropdown();
+        
+        // Load saved hints
+        loadTypeHints();
+        
+        // Type Hints button listeners
+        if (btnAddHintRange != null) {
+            btnAddHintRange.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                addHintRange();
+            });
+        }
+        
+        if (btnClearHints != null) {
+            btnClearHints.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                clearAllHints();
+            });
+        }
+        
+        if (btnSaveHints != null) {
+            btnSaveHints.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                saveTypeHints();
             });
         }
 
@@ -5061,6 +5106,207 @@ public class MainActivity extends AppCompatActivity {
     private void hideSettings() {
         if (settingsLayout != null) {
             settingsLayout.setVisibility(View.GONE);
+        }
+    }
+    
+    // ---------------------------
+    // Type Hints Methods
+    // ---------------------------
+    
+    /**
+     * Setup the type dropdown with available question types.
+     */
+    private void setupTypeHintsDropdown() {
+        if (hintTypeDropdown == null) return;
+        
+        String[] types = new String[]{
+            "Multiple Choice",
+            "Matching",
+            "Identification",
+            "True/False",
+            "Enumeration"
+        };
+        
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_dropdown_item_1line, types);
+        hintTypeDropdown.setAdapter(adapter);
+        hintTypeDropdown.setThreshold(Integer.MAX_VALUE); // Don't auto-show
+    }
+    
+    /**
+     * Add a new hint range to the list.
+     */
+    private void addHintRange() {
+        if (hintStartInput == null || hintEndInput == null || hintTypeDropdown == null) return;
+        
+        String startStr = hintStartInput.getText().toString().trim();
+        String endStr = hintEndInput.getText().toString().trim();
+        String typeStr = hintTypeDropdown.getText().toString().trim();
+        
+        if (startStr.isEmpty() || endStr.isEmpty() || typeStr.isEmpty()) {
+            Toast.makeText(this, "Please fill all fields", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        try {
+            int start = Integer.parseInt(startStr);
+            int end = Integer.parseInt(endStr);
+            
+            if (start > end || start < 1 || end > 200) {
+                Toast.makeText(this, getString(R.string.type_hints_error), Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
+            RangeHint.QuestionType type = RangeHint.QuestionType.fromDisplayName(typeStr);
+            RangeHint hint = new RangeHint(start, end, type);
+            currentHints.add(hint);
+            
+            // Clear inputs
+            hintStartInput.setText("");
+            hintEndInput.setText("");
+            hintTypeDropdown.setText("", false);
+            
+            // Refresh UI
+            displayHintsList();
+            
+            Log.d(TAG, "Added hint range: Q" + start + "-" + end + " (" + typeStr + ")");
+        } catch (NumberFormatException e) {
+            Toast.makeText(this, "Invalid number format", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    /**
+     * Display the list of current hints.
+     */
+    private void displayHintsList() {
+        if (hintsListContainer == null) return;
+        
+        hintsListContainer.removeAllViews();
+        
+        if (currentHints.isEmpty()) {
+            TextView emptyText = new TextView(this);
+            emptyText.setText("No type hints defined");
+            emptyText.setTextColor(getResources().getColor(R.color.brand_brown, getTheme()));
+            emptyText.setTextSize(12);
+            emptyText.setPadding(dp(8), dp(8), dp(8), dp(8));
+            hintsListContainer.addView(emptyText);
+            return;
+        }
+        
+        for (int i = 0; i < currentHints.size(); i++) {
+            RangeHint hint = currentHints.get(i);
+            final int index = i;
+            
+            // Create hint row
+            LinearLayout hintRow = new LinearLayout(this);
+            hintRow.setOrientation(LinearLayout.HORIZONTAL);
+            hintRow.setPadding(dp(8), dp(4), dp(8), dp(4));
+            hintRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            
+            // Hint text
+            TextView hintText = new TextView(this);
+            hintText.setText(String.format(Locale.US, "Q%d-%d: %s", 
+                    hint.getStartQuestion(), hint.getEndQuestion(), 
+                    hint.getType().getDisplayName()));
+            hintText.setTextColor(0xFF000000); // Black for visibility
+            hintText.setTextSize(14);
+            LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+            hintText.setLayoutParams(textParams);
+            hintRow.addView(hintText);
+            
+            // Delete button
+            ImageButton deleteBtn = new ImageButton(this);
+            deleteBtn.setImageResource(android.R.drawable.ic_delete);
+            deleteBtn.setBackgroundColor(Color.TRANSPARENT);
+            deleteBtn.setOnClickListener(v -> {
+                currentHints.remove(index);
+                displayHintsList();
+                Log.d(TAG, "Removed hint range at index " + index);
+            });
+            LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
+                    dp(32), dp(32));
+            deleteBtn.setLayoutParams(btnParams);
+            hintRow.addView(deleteBtn);
+            
+            hintsListContainer.addView(hintRow);
+        }
+    }
+    
+    /**
+     * Clear all hint ranges.
+     */
+    private void clearAllHints() {
+        currentHints.clear();
+        displayHintsList();
+        Toast.makeText(this, getString(R.string.type_hints_cleared), Toast.LENGTH_SHORT).show();
+        Log.d(TAG, "Cleared all hint ranges");
+    }
+    
+    /**
+     * Save type hints to SharedPreferences and apply to Parser.
+     */
+    private void saveTypeHints() {
+        try {
+            JSONArray hintsArray = new JSONArray();
+            
+            for (RangeHint hint : currentHints) {
+                JSONObject hintObj = new JSONObject();
+                hintObj.put("start", hint.getStartQuestion());
+                hintObj.put("end", hint.getEndQuestion());
+                hintObj.put("type", hint.getType().getDisplayName());
+                hintsArray.put(hintObj);
+            }
+            
+            String hintsJson = hintsArray.toString();
+            appPreferences.edit().putString(PREF_RANGE_HINTS, hintsJson).apply();
+            
+            // Apply to Parser
+            Parser.setRangeHints(hintsJson);
+            
+            Toast.makeText(this, getString(R.string.type_hints_saved), Toast.LENGTH_SHORT).show();
+            Log.d(TAG, "Saved " + currentHints.size() + " hint ranges to preferences");
+        } catch (JSONException e) {
+            Log.e(TAG, "Error saving type hints", e);
+            Toast.makeText(this, "Error saving hints: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+    
+    /**
+     * Load type hints from SharedPreferences.
+     */
+    private void loadTypeHints() {
+        currentHints.clear();
+        
+        String hintsJson = appPreferences.getString(PREF_RANGE_HINTS, "");
+        
+        if (hintsJson.isEmpty()) {
+            displayHintsList();
+            return;
+        }
+        
+        try {
+            JSONArray hintsArray = new JSONArray(hintsJson);
+            
+            for (int i = 0; i < hintsArray.length(); i++) {
+                JSONObject hintObj = hintsArray.getJSONObject(i);
+                int start = hintObj.getInt("start");
+                int end = hintObj.getInt("end");
+                String typeStr = hintObj.getString("type");
+                RangeHint.QuestionType type = RangeHint.QuestionType.fromDisplayName(typeStr);
+                
+                currentHints.add(new RangeHint(start, end, type));
+            }
+            
+            // Apply to Parser
+            Parser.setRangeHints(hintsJson);
+            
+            displayHintsList();
+            Log.d(TAG, "Loaded " + currentHints.size() + " hint ranges from preferences");
+        } catch (JSONException e) {
+            Log.e(TAG, "Error loading type hints", e);
+            currentHints.clear();
+            displayHintsList();
         }
     }
 }
