@@ -142,4 +142,17 @@ Tips:\n
     <string name="settings_two_column_desc">Splits image into left/right halves for better accuracy on 1–60 two-column forms.</string>
     <string name="settings_high_contrast_label">High-contrast OCR</string>
     <string name="settings_high_contrast_desc">Applies adaptive thresholding to improve faint handwriting (may degrade clean prints).</string>
+    
+    <!-- Type Hints -->
+    <string name="type_hints_title">Type Hints per Question Range</string>
+    <string name="type_hints_desc">Define question ranges with specific types to improve parser accuracy (optional, disabled by default).</string>
+    <string name="hint_start_question">Start #</string>
+    <string name="hint_end_question">End #</string>
+    <string name="hint_question_type">Question Type</string>
+    <string name="btn_add_range">Add Range</string>
+    <string name="btn_clear_hints">Clear All Hints</string>
+    <string name="btn_save_hints">Save Hints</string>
+    <string name="type_hints_saved">Type hints saved successfully</string>
+    <string name="type_hints_cleared">Type hints cleared</string>
+    <string name="type_hints_error">Invalid range: Start must be less than or equal to End</string>
 </resources>

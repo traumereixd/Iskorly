@@ -3,8 +3,10 @@ package com.bandecoot.itemscoreanalysisprogram;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.Test;
@@ -470,5 +472,138 @@ public class ParserTest {
         LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
         
         assertEquals("O'Brien-Smith", parsed.get(33));
+    }
+    
+    // Tests for Type Hints per Question Range feature
+    
+    @Test
+    public void rangeHints_multipleChoiceRangePrefersLetters() {
+        List<RangeHint> hints = new ArrayList<>();
+        hints.add(new RangeHint(1, 10, RangeHint.QuestionType.MULTIPLE_CHOICE));
+        Parser.setRangeHintsList(hints);
+        
+        String text = "1. A\n2. B\n3. C";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(1, "A");
+        answerKey.put(2, "B");
+        answerKey.put(3, "C");
+        
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
+        
+        assertEquals("A", parsed.get(1));
+        assertEquals("B", parsed.get(2));
+        assertEquals("C", parsed.get(3));
+        
+        Parser.clearRangeHints();
+    }
+    
+    @Test
+    public void rangeHints_identificationRangeAllowsWords() {
+        List<RangeHint> hints = new ArrayList<>();
+        hints.add(new RangeHint(31, 40, RangeHint.QuestionType.IDENTIFICATION));
+        Parser.setRangeHintsList(hints);
+        
+        String text = "31. Apple\n32. Banana\n33. Cherry";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(31, "Apple");
+        answerKey.put(32, "Banana");
+        answerKey.put(33, "Cherry");
+        
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
+        
+        assertEquals("Apple", parsed.get(31));
+        assertEquals("Banana", parsed.get(32));
+        assertEquals("Cherry", parsed.get(33));
+        
+        Parser.clearRangeHints();
+    }
+    
+    @Test
+    public void rangeHints_trueFalseRangeCanonicalizesToTrueFalse() {
+        List<RangeHint> hints = new ArrayList<>();
+        hints.add(new RangeHint(21, 30, RangeHint.QuestionType.TRUE_FALSE));
+        Parser.setRangeHintsList(hints);
+        
+        String text = "21. T\n22. F\n23. True\n24. False";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(21, "TRUE");
+        answerKey.put(22, "FALSE");
+        answerKey.put(23, "TRUE");
+        answerKey.put(24, "FALSE");
+        
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
+        
+        assertEquals("TRUE", parsed.get(21));
+        assertEquals("FALSE", parsed.get(22));
+        assertEquals("TRUE", parsed.get(23));
+        assertEquals("FALSE", parsed.get(24));
+        
+        Parser.clearRangeHints();
+    }
+    
+    @Test
+    public void rangeHints_mixedRangesApplyCorrectly() {
+        List<RangeHint> hints = new ArrayList<>();
+        hints.add(new RangeHint(1, 10, RangeHint.QuestionType.MULTIPLE_CHOICE));
+        hints.add(new RangeHint(11, 20, RangeHint.QuestionType.TRUE_FALSE));
+        hints.add(new RangeHint(21, 30, RangeHint.QuestionType.IDENTIFICATION));
+        Parser.setRangeHintsList(hints);
+        
+        String text = "1. A\n11. T\n21. Apple";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(1, "A");
+        answerKey.put(11, "TRUE");
+        answerKey.put(21, "Apple");
+        
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
+        
+        assertEquals("A", parsed.get(1));      // MC: letter
+        assertEquals("TRUE", parsed.get(11));  // T/F: canonicalized
+        assertEquals("Apple", parsed.get(21)); // ID: word
+        
+        Parser.clearRangeHints();
+    }
+    
+    @Test
+    public void rangeHints_noHintsUsesDefaultBehavior() {
+        // No hints set
+        Parser.clearRangeHints();
+        
+        String text = "1. A\n2. B\n3. C";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(1, "A");
+        answerKey.put(2, "B");
+        answerKey.put(3, "C");
+        
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
+        
+        // Default behavior: uppercase single letters
+        assertEquals("A", parsed.get(1));
+        assertEquals("B", parsed.get(2));
+        assertEquals("C", parsed.get(3));
+    }
+    
+    @Test
+    public void rangeHints_emptyHintsJsonDisablesHints() {
+        Parser.setRangeHintsList(new ArrayList<RangeHint>());
+        
+        String text = "1. A\n2. B";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(1, "A");
+        answerKey.put(2, "B");
+        
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
+        
+        // Should work with default behavior
+        assertEquals("A", parsed.get(1));
+        assertEquals("B", parsed.get(2));
+        
+        Parser.clearRangeHints();
     }
 }

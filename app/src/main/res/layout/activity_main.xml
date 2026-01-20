@@ -1346,6 +1346,143 @@
                             android:paddingEnd="4dp"
                             android:paddingBottom="16dp" />
 
+                        <!-- Type Hints Section -->
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/type_hints_title"
+                            android:textColor="?attr/colorOnSurface"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:paddingTop="8dp"
+                            android:paddingBottom="4dp" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/type_hints_desc"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="12sp"
+                            android:paddingStart="4dp"
+                            android:paddingEnd="4dp"
+                            android:paddingBottom="12dp" />
+
+                        <!-- Type Hints Input Card -->
+                        <com.google.android.material.card.MaterialCardView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="12dp"
+                            app:cardElevation="2dp"
+                            app:cardCornerRadius="8dp"
+                            app:strokeWidth="1dp"
+                            app:strokeColor="?attr/colorOutlineVariant">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical"
+                                android:padding="12dp">
+
+                                <!-- Input Row -->
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical">
+
+                                    <EditText
+                                        android:id="@+id/editText_hint_start"
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:hint="@string/hint_start_question"
+                                        android:inputType="number"
+                                        android:maxLength="3"
+                                        android:textColor="#000000"
+                                        android:textSize="14sp"
+                                        android:padding="8dp" />
+
+                                    <EditText
+                                        android:id="@+id/editText_hint_end"
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:layout_marginStart="8dp"
+                                        android:hint="@string/hint_end_question"
+                                        android:inputType="number"
+                                        android:maxLength="3"
+                                        android:textColor="#000000"
+                                        android:textSize="14sp"
+                                        android:padding="8dp" />
+
+                                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                                        android:id="@+id/dropdown_hint_type"
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="2"
+                                        android:layout_marginStart="8dp"
+                                        android:hint="@string/hint_question_type"
+                                        android:textColor="#000000"
+                                        android:textSize="14sp"
+                                        android:padding="8dp"
+                                        android:inputType="none" />
+                                </LinearLayout>
+
+                                <!-- Buttons Row -->
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:layout_marginTop="8dp"
+                                    android:gravity="end">
+
+                                    <com.google.android.material.button.MaterialButton
+                                        android:id="@+id/btn_add_hint_range"
+                                        style="@style/Widget.Material3.Button.TextButton"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="@string/btn_add_range"
+                                        android:textSize="12sp" />
+                                </LinearLayout>
+                            </LinearLayout>
+                        </com.google.android.material.card.MaterialCardView>
+
+                        <!-- Hints List -->
+                        <LinearLayout
+                            android:id="@+id/hints_list_container"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:paddingBottom="12dp" />
+
+                        <!-- Hints Actions -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="end"
+                            android:paddingBottom="16dp">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_clear_hints"
+                                style="@style/Widget.Material3.Button.TextButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/btn_clear_hints"
+                                android:textSize="14sp" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_save_hints"
+                                style="@style/Widget.Material3.Button"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:text="@string/btn_save_hints"
+                                android:textSize="14sp"
+                                app:backgroundTint="@color/brand_brown"
+                                android:textColor="@color/on_primary" />
+                        </LinearLayout>
+
                         <!-- Close Button -->
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/button_settings_close"
