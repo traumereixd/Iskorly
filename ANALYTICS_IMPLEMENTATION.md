@@ -107,6 +107,15 @@ This document summarizes the comprehensive analytics and robustness upgrades imp
 - Proper error handling and logging
 - Compatible with existing answer key filtering
 
+**AI Re-Parser (Optional):**
+- Optional AI-powered re-parser endpoint for low-confidence OCR results
+- Activates when fill ratio < 50% and REPARSE_ENDPOINT is configured
+- Self-hostable Express server (Node.js 18+) in `server/reparse/`
+- Uses OpenAI API to intelligently parse noisy OCR text
+- Handles Lyceum-style formats, compressed inline items, answer-first formats
+- No images or PII sent to endpoint (text only)
+- See `server/reparse/README.md` for setup instructions
+
 ### Phase 8: CI/Packaging ✅
 
 #### Release Workflow
