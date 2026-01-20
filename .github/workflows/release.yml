@@ -1,110 +1,91 @@
-name: Build Release APK/AAB
+name: Android Release
 
 on:
-  workflow_dispatch:         # manual trigger
-    inputs:
-      version_name:
-        description: 'Version name (e.g., 1.3.0)'
-        required: true
-        default: '1.3.0'
   push:
     tags:
-      - 'v*'                 # trigger on version tags (e.g., v1.3.0)
+      - 'v*'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build-release:
+  build:
     runs-on: ubuntu-latest
-    
-    # Only run if signing secrets are configured
-    if: ${{ secrets.KEYSTORE_FILE != '' }}
+    timeout-minutes: 45
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: 17
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
 
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v3
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
-    - name: Create local.properties for API keys
-      run: |
-        echo "GCLOUD_VISION_API_KEY=${{ secrets.GCLOUD_VISION_API_KEY }}" >> local.properties
-        echo "OCR_SPACE_API_KEY=${{ secrets.OCR_SPACE_API_KEY }}" >> local.properties
+      - name: Install Android SDK components
+        run: |
+          sdkmanager --install "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+          yes | sdkmanager --licenses
 
-    - name: Decode Keystore
-      if: ${{ secrets.KEYSTORE_FILE != '' }}
-      run: |
-        echo "${{ secrets.KEYSTORE_FILE }}" | base64 -d > release-keystore.jks
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
 
-    - name: Grant Gradlew execute permission
-      run: chmod +x ./gradlew
+      - name: Build release artifacts (APK + AAB)
+        run: ./gradlew --stacktrace --no-daemon :app:assembleRelease :app:bundleRelease
 
-    - name: Build release APK
-      if: ${{ secrets.KEYSTORE_FILE != '' }}
-      env:
-        KEYSTORE_FILE: release-keystore.jks
-        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-      run: |
-        ./gradlew assembleRelease \
-          -Pandroid.injected.signing.store.file=$KEYSTORE_FILE \
-          -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
-          -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
-          -Pandroid.injected.signing.key.password=$KEY_PASSWORD
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            app/build/outputs/apk/release/*.apk
+            app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
 
-    - name: Build release AAB (Bundle)
-      if: ${{ secrets.KEYSTORE_FILE != '' }}
-      env:
-        KEYSTORE_FILE: release-keystore.jks
-        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-      run: |
-        ./gradlew bundleRelease \
-          -Pandroid.injected.signing.store.file=$KEYSTORE_FILE \
-          -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
-          -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
-          -Pandroid.injected.signing.key.password=$KEY_PASSWORD
+  sign-and-publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
 
-    - name: Generate Changelog from PR Body
-      id: changelog
-      run: |
-        # Extract changelog from recent commits or use a default
-        echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
-        echo "## Release ${{ github.ref_name }}" >> $GITHUB_OUTPUT
-        echo "" >> $GITHUB_OUTPUT
-        echo "### Changes" >> $GITHUB_OUTPUT
-        git log --pretty=format:"- %s" -10 >> $GITHUB_OUTPUT
-        echo "" >> $GITHUB_OUTPUT
-        echo "EOF" >> $GITHUB_OUTPUT
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-artifacts
+          path: dist/
 
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-release-apk
-        path: app/build/outputs/apk/release/app-release.apk
+      # Decode keystore only if it exists
+      - name: Decode keystore
+        if: ${{ secrets.KEYSTORE_FILE != '' }}
+        run: echo "${{ secrets.KEYSTORE_FILE }}" | base64 --decode > keystore.jks
 
-    - name: Upload AAB artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-release-aab
-        path: app/build/outputs/bundle/release/app-release.aab
+      # Optional: sign artifacts if secrets are present
+      # Adjust signing commands to your project setup (Gradle signing config or jarsigner)
+      - name: Sign APK (example using jarsigner)
+        if: ${{ secrets.KEYSTORE_FILE != '' && secrets.KEYSTORE_PASSWORD != '' && secrets.KEY_ALIAS != '' && secrets.KEY_PASSWORD != '' }}
+        run: |
+          if ls dist/*.apk >/dev/null 2>&1; then
+            for apk in dist/*.apk; do
+              jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
+                -keystore keystore.jks \
+                -storepass "${{ secrets.KEYSTORE_PASSWORD }}" \
+                -keypass "${{ secrets.KEY_PASSWORD }}" \
+                "$apk" "${{ secrets.KEY_ALIAS }}"
+            done
+          fi
 
-    - name: Create Release
-      if: startsWith(github.ref, 'refs/tags/')
-      uses: softprops/action-gh-release@v1
-      with:
-        files: |
-          app/build/outputs/apk/release/app-release.apk
-          app/build/outputs/bundle/release/app-release.aab
-        body: ${{ steps.changelog.outputs.CHANGELOG }}
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Create GitHub Release when running on a tag
+      - name: Create GitHub Release
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/**
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
