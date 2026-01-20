@@ -7,6 +7,7 @@ const PORT = process.env.PORT || 3000;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 // Middleware
+app.set('trust proxy', true); // Enable proper IP detection behind proxies
 app.use(express.json({ limit: '10mb' }));
 
 // Simple rate limiting (in-memory)
@@ -15,7 +16,7 @@ const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
 const RATE_LIMIT_MAX_REQUESTS = 30; // 30 requests per minute
 
 function checkRateLimit(req, res, next) {
-  const ip = req.ip || req.connection.remoteAddress;
+  const ip = req.ip || req.socket.remoteAddress;
   const now = Date.now();
   
   if (!requestCounts.has(ip)) {
@@ -115,8 +116,6 @@ app.post('/reparse', checkRateLimit, async (req, res) => {
 
 // Call OpenAI API
 async function callOpenAI(text, contextInfo) {
-  const fetch = (await import('node-fetch')).default;
-  
   const messages = [
     {
       role: 'system',
