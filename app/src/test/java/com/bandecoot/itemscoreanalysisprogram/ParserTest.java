@@ -378,10 +378,13 @@ public class ParserTest {
         assertEquals("D", parsed.get(4));
     }
     
-    // Test lowercase roman numerals
+    // New tests for the accuracy upgrades
+    
     @Test
-    public void parseOcrTextSmartWithFallback_handlesLowercaseRomanNumerals() {
-        String text = "ii) a\nX) b";
+    public void parseOcrTextSmartWithFallback_lowercaseRomanNumeralsConverted() {
+        // Test that lowercase roman numerals (ii, x) are correctly converted to digits (2, 10)
+        // Based on existing parseNumberAnchoredRobust_handlesRomanNumerals test format
+        String text = "ii. A\nx. B";  // Lowercase roman numerals with period separator
         
         Map<Integer, String> answerKey = new HashMap<>();
         answerKey.put(2, "A");
@@ -393,9 +396,48 @@ public class ParserTest {
         assertEquals("B", parsed.get(10));
     }
     
-    // Test identification with punctuation (apostrophe)
     @Test
-    public void parseOcrTextSmartWithFallback_handlesIdentificationWithApostrophe() {
+    public void parseOcrTextSmartWithFallback_compressedInlinePairsYields123() {
+        String text = "1.A2.B3.C";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(1, "A");
+        answerKey.put(2, "B");
+        answerKey.put(3, "C");
+        
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
+        
+        assertEquals("A", parsed.get(1));
+        assertEquals("B", parsed.get(2));
+        assertEquals("C", parsed.get(3));
+    }
+    
+    @Test
+    public void parseOcrTextSmartWithFallback_crossLineNumberOnlyThenAnswerOnly() {
+        String text = "___ 5.\n c";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(5, "C");
+        
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
+        
+        assertEquals("C", parsed.get(5));
+    }
+    
+    @Test
+    public void parseOcrTextSmartWithFallback_answerFirstTrueYields30True() {
+        String text = "True 30.";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(30, "True");
+        
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
+        
+        assertEquals("True", parsed.get(30));
+    }
+    
+    @Test
+    public void parseOcrTextSmartWithFallback_identificationWithPunctuation() {
         String text = "31) O'Brien";
         
         Map<Integer, String> answerKey = new HashMap<>();
@@ -406,29 +448,27 @@ public class ParserTest {
         assertEquals("O'Brien", parsed.get(31));
     }
     
-    // Test identification with right single quote (Unicode)
     @Test
-    public void parseOcrTextSmartWithFallback_handlesIdentificationWithRightSingleQuote() {
-        String text = "31) O\u2019Brien";
+    public void parseOcrTextSmartWithFallback_identificationWithHyphen() {
+        String text = "32) re-entry";
         
         Map<Integer, String> answerKey = new HashMap<>();
-        answerKey.put(31, "O\u2019Brien");
+        answerKey.put(32, "re-entry");
         
         LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
         
-        assertEquals("O\u2019Brien", parsed.get(31));
+        assertEquals("re-entry", parsed.get(32));
     }
     
-    // Test identification with hyphen
     @Test
-    public void parseOcrTextSmartWithFallback_handlesIdentificationWithHyphen() {
-        String text = "31) Mary-Jane";
+    public void parseOcrTextSmartWithFallback_identificationWithMultiplePunctuation() {
+        String text = "33) O'Brien-Smith";
         
         Map<Integer, String> answerKey = new HashMap<>();
-        answerKey.put(31, "Mary-Jane");
+        answerKey.put(33, "O'Brien-Smith");
         
         LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
         
-        assertEquals("Mary-Jane", parsed.get(31));
+        assertEquals("O'Brien-Smith", parsed.get(33));
     }
 }

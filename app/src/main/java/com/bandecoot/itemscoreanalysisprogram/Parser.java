@@ -18,27 +18,27 @@ public final class Parser {
     // Regex pattern to split lines containing multiple numbered items
     // Updated to handle compressed sequences like "1.A2.B3.C" or "1.A  3.Z  5.C"
     // Pattern breakdown:
-    // - (?<=[A-Za-z0-9]) : positive lookbehind for alphanumeric (end of previous answer)
-    // - (?=[\\s.]*\\d{1,3}[.):)]?[\\s-:]*[A-Za-z]) : positive lookahead for next number-answer pair
+    // - (?<=[\p{L}\p{N}''\\-]) : positive lookbehind for letter/digit/apostrophe/hyphen (end of previous answer)
+    // - (?=[\\s.]*\\d{1,3}[.):)]?[\\s-:]*[\\p{L}]) : positive lookahead for next number-answer pair
     //   - [\\s.]* : optional whitespace or dots
     //   - \\d{1,3} : 1-3 digit number
     //   - [.):)]? : optional punctuation after number
     //   - [\\s-:]* : optional separators
-    //   - [A-Za-z] : start of answer
-    private static final String MULTI_ITEM_SPLIT_PATTERN = "(?<=[A-Za-z0-9])(?=[\\s.]*\\d{1,3}[.):)]?[\\s-:]*[A-Za-z])";
+    //   - [\\p{L}] : start of answer (Unicode letter)
+    private static final String MULTI_ITEM_SPLIT_PATTERN = "(?<=[\\p{L}\\p{N}''\\-])(?=[\\s.]*\\d{1,3}[.):)]?[\\s-:]*[\\p{L}])";
     
     // Pre-compiled regex patterns for performance
     // Number-first pattern: "1.A", "2)B", "3-C", etc.
     // Consolidated separator group for clarity: [.):)\-:,]?
-    // Broadened answer capture to support Unicode letters, apostrophes, right single quotes, and hyphens
+    // Answer pattern updated to support Unicode letters, digits, apostrophes, and hyphens
     private static final Pattern NUMBER_FIRST_PATTERN = Pattern.compile(
-            "^\\s*(\\d{1,3})\\s*[.):)\\-:,]?\\s*([\\p{L}\\p{N}''\u2019\\-]{1,40})\\b");
+            "^\\s*(\\d{1,3})\\s*[.):)\\-:,]?\\s*([\\p{L}][\\p{L}\\p{N}''\\-]{0,39})\\b");
     
     // Answer-first pattern: "True 1.", "A 1."
     // Restrictive separator group to avoid matching unexpected characters
-    // Broadened answer capture to support Unicode letters, apostrophes, right single quotes, and hyphens
+    // Answer pattern updated to support Unicode letters, digits, apostrophes, and hyphens
     private static final Pattern ANSWER_FIRST_PATTERN = Pattern.compile(
-            "^\\s*([\\p{L}\\p{N}''\u2019\\-]{1,40})\\b[\\s.,;:!?\\-]{0,3}(\\d{1,3})[.):)]?\\s*$");
+            "^\\s*([\\p{L}][\\p{L}\\p{N}''\\-]{0,39})\\b[\\s.,;:!?\\-]{0,3}(\\d{1,3})[.):)]?\\s*$");
     
     // Number-only pattern: "5." or "7" (for cross-line linking)
     private static final Pattern NUMBER_ONLY_PATTERN = Pattern.compile(
@@ -46,14 +46,14 @@ public final class Parser {
     
     // Pattern to extract number-answer pairs from compressed lines
     // Consolidated separator group for consistency
-    // Broadened answer capture to support Unicode letters, apostrophes, right single quotes, and hyphens
+    // Answer pattern updated to support Unicode letters, digits, apostrophes, and hyphens
     private static final Pattern COMPRESSED_ITEM_PATTERN = Pattern.compile(
-            "\\s*(\\d{1,3})\\s*[.):)\\-:,]?\\s*([\\p{L}\\p{N}''\u2019\\-]{1,40})");
+            "\\s*(\\d{1,3})\\s*[.):)\\-:,]?\\s*([\\p{L}][\\p{L}\\p{N}''\\-]{0,39})");
     
     // Pattern to extract first valid answer token
-    // Broadened to support Unicode letters, apostrophes, right single quotes, and hyphens
+    // Updated to support Unicode letters, digits, apostrophes, and hyphens
     private static final Pattern ANSWER_TOKEN_PATTERN = Pattern.compile(
-            "\\b([\\p{L}\\p{N}''\u2019\\-]{1,40})\\b");
+            "\\b([\\p{L}][\\p{L}\\p{N}''\\-]{0,39})\\b");
 
     private Parser() {}
 
@@ -64,10 +64,10 @@ public final class Parser {
             "(?i)^(name|strand|section|date|teacher|score|grade|year|level|subject)\\b.*");
     private static final Pattern INSTRUCTION_PATTERN = Pattern.compile(
             "(?i)^\\s*(instruction|direction|note|reminder).*");
-    // Matches number-first patterns (1. A, I. B, ii. c) or answer-first patterns (True 1., A 1.)
-    // Case-insensitive for roman numerals
+    // Matches number-first patterns (1. A, I. B) or answer-first patterns (True 1., A 1.)
+    // Updated to support Unicode letters, digits, apostrophes, and hyphens in answers
     private static final Pattern NUMERIC_ANCHOR_PATTERN = Pattern.compile(
-            "^\\s*(?:[_\\s]*(?:[IVXivx]+|\\d{1,3})\\s*[.):)]?.*|[A-Za-z][A-Za-z0-9]{0,39}\\b[\\s.,;:!?\\-]{0,3}\\d{1,3}[.):)]?.*)");
+            "^\\s*(?:[_\\s]*(?:[IVX]+|\\d{1,3})\\s*[.):)]?.*|[\\p{L}][\\p{L}\\p{N}''\\-]{0,39}\\b[\\s.,;:!?\\-]{0,3}\\d{1,3}[.):)]?.*)");
 
 
     // Roman numeral to digit conversion map
@@ -144,14 +144,14 @@ public final class Parser {
             // We'll only start keeping lines once we see the first numeric anchor
         }
         
-        String resultStr = result.toString();
-        // Safety net: if no lines remain after stripping, fall back to original input
-        if (resultStr.trim().isEmpty()) {
-            Log.d(TAG, "Header stripping removed all content, falling back to original text");
+        // Safety net: if nothing remains after stripping (no anchors found), fall back to original text
+        String strippedResult = result.toString().trim();
+        if (strippedResult.isEmpty()) {
+            Log.d(TAG, "Header stripping yielded empty result, falling back to original text");
             return text;
         }
         
-        return resultStr;
+        return strippedResult + "\n";
     }
 
     // Parses OCR text into Q->Answer map with enhanced patterns and roman numeral support
@@ -191,8 +191,8 @@ public final class Parser {
         String result = text;
         
         // Convert roman numerals at the start of lines followed by punctuation/space
-        // Case-insensitive to accept i/v/x as well as I/V/X
-        Pattern romanPattern = Pattern.compile("(?:^|\\n)\\s*([IVXivx]+)\\s*[.):)]?\\s*", Pattern.MULTILINE | Pattern.CASE_INSENSITIVE);
+        // Case-insensitive to accept lowercase i/v/x
+        Pattern romanPattern = Pattern.compile("(?i)(?:^|\\n)\\s*([ivx]+)\\s*[.):)]?\\s*", Pattern.MULTILINE);
         Matcher matcher = romanPattern.matcher(result);
         
         StringBuffer sb = new StringBuffer();
@@ -201,7 +201,7 @@ public final class Parser {
             String romanUpper = roman.toUpperCase();
             int digit = romanToDigit(romanUpper);
             if (digit > 0) {
-                String replacement = matcher.group().replaceFirst(roman, String.valueOf(digit));
+                String replacement = matcher.group().replaceFirst("(?i)" + matcher.group(1), String.valueOf(digit));
                 matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
             } else {
                 matcher.appendReplacement(sb, Matcher.quoteReplacement(matcher.group()));
@@ -224,13 +224,12 @@ public final class Parser {
     private static void extractAnswersWithPatterns(String text, LinkedHashMap<Integer, String> map) {
         // Pattern 1: Multi-line format "number [punctuation] answer"
         // Supports: "1 A", "1. B", "1) C", "1 - D", "1: E"
-        // Broadened answer capture to support Unicode letters, apostrophes, right single quotes, and hyphens
-        Pattern p1 = Pattern.compile("^\\s*(\\d{1,3})\\s*[.):)]?\\s*[-:]?\\s*([\\p{L}\\p{N}''\u2019\\-]{1,40})\\b", Pattern.MULTILINE);
+        // Updated to support Unicode letters, digits, apostrophes, and hyphens
+        Pattern p1 = Pattern.compile("^\\s*(\\d{1,3})\\s*[.):)]?\\s*[-:]?\\s*([\\p{L}][\\p{L}\\p{N}''\\-]{0,39})\\b", Pattern.MULTILINE);
         extractWithPattern(p1, text, map);
 
         // Pattern 2: Inline pairs "number punctuation answer"  
-        // Broadened answer capture to support Unicode letters, apostrophes, right single quotes, and hyphens
-        Pattern p2 = Pattern.compile("(\\d{1,3})\\s*[.):)]\\s*[-:]?\\s*([\\p{L}\\p{N}''\u2019\\-]{1,40})");
+        Pattern p2 = Pattern.compile("(\\d{1,3})\\s*[.):)]\\s*[-:]?\\s*([\\p{L}][\\p{L}\\p{N}''\\-]{0,39})");
         extractWithPattern(p2, text, map);
 
         // Pattern 3: Simple number-letter pairs
@@ -759,9 +758,9 @@ public final class Parser {
             if (line.trim().isEmpty()) continue;
             
             // Try patterns: "1. A", "1) B", "1 A", "1- A", "1: A"
-            // Broadened answer capture to support Unicode letters, apostrophes, right single quotes, and hyphens
+            // Updated to support Unicode letters, digits, apostrophes, and hyphens
             java.util.regex.Pattern p = java.util.regex.Pattern.compile(
-                    "^\\s*(\\d{1,3})\\s*[.):)]?\\s*[-:]?\\s*([\\p{L}\\p{N}''\u2019\\-]{1,40})\\b");
+                    "^\\s*(\\d{1,3})\\s*[.):)]?\\s*[-:]?\\s*([\\p{L}][\\p{L}\\p{N}''\\-]{0,39})\\b");
             java.util.regex.Matcher m = p.matcher(line);
             
             if (m.find()) {
@@ -892,8 +891,8 @@ public final class Parser {
             if (line.trim().isEmpty()) continue;
             
             // Try number-first pattern: "1. A" or "1 ) B"
-            // Broadened answer capture to support Unicode letters, apostrophes, right single quotes, and hyphens
-            Pattern p1 = Pattern.compile("^\\s*(\\d{1,3})\\s*[.):)]?\\s*[-:]?\\s*([\\p{L}\\p{N}''\u2019\\-]{1,40})\\b");
+            // Updated to support Unicode letters, digits, apostrophes, and hyphens
+            Pattern p1 = Pattern.compile("^\\s*(\\d{1,3})\\s*[.):)]?\\s*[-:]?\\s*([\\p{L}][\\p{L}\\p{N}''\\-]{0,39})\\b");
             Matcher m1 = p1.matcher(line);
             if (m1.find()) {
                 int q = safeInt(m1.group(1));
@@ -907,8 +906,7 @@ public final class Parser {
             }
             
             // Try answer-first pattern: "True 1." or "FALSE 2)"
-            // Broadened answer capture to support Unicode letters, apostrophes, right single quotes, and hyphens
-            Pattern p2 = Pattern.compile("^\\s*([\\p{L}\\p{N}''\u2019\\-]{1,40})\\s+(\\d{1,3})\\s*[.):)]?");
+            Pattern p2 = Pattern.compile("^\\s*([\\p{L}][\\p{L}\\p{N}''\\-]{0,39})\\s+(\\d{1,3})\\s*[.):)]?");
             Matcher m2 = p2.matcher(line);
             if (m2.find()) {
                 String answer = m2.group(1).trim();
@@ -939,8 +937,8 @@ public final class Parser {
      */
     private static String convertRomanNumeralsPreserveLines(String text) {
         String result = text;
-        // Case-insensitive to accept i/v/x as well as I/V/X
-        Pattern romanPattern = Pattern.compile("(?:^|\\n)\\s*([IVXivx]+)\\s*[.):)]?\\s*", Pattern.CASE_INSENSITIVE);
+        // Case-insensitive to accept lowercase i/v/x
+        Pattern romanPattern = Pattern.compile("(?i)(?:^|\\n)\\s*([ivx]+)\\s*[.):)]?\\s*");
         Matcher matcher = romanPattern.matcher(result);
         
         StringBuffer sb = new StringBuffer();
@@ -949,7 +947,7 @@ public final class Parser {
             String romanUpper = roman.toUpperCase();
             int digit = romanToDigit(romanUpper);
             if (digit > 0) {
-                String replacement = matcher.group().replaceFirst(roman, String.valueOf(digit));
+                String replacement = matcher.group().replaceFirst("(?i)" + matcher.group(1), String.valueOf(digit));
                 matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
             } else {
                 matcher.appendReplacement(sb, Matcher.quoteReplacement(matcher.group()));

@@ -1699,7 +1699,7 @@ public class MainActivity extends AppCompatActivity {
     private HashMap<Integer, String> parseAnswersFromText(String text) {
         if (text == null) return new HashMap<>();
         
-        // Use the multi-pass fallback pipeline with robust number-anchored parser
+        // Use the multi-pass fallback parser for best accuracy
         LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, currentAnswerKey);
         
         // Filter to answer key order
