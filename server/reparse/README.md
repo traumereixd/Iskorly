@@ -150,7 +150,7 @@ The server includes simple in-memory rate limiting:
   - HTTPS/TLS
   - More sophisticated rate limiting (e.g., Redis-based)
   - Input sanitization and validation
-- The server does NOT receive images or personally identifiable information (PII)
+- The server does **not** receive images or personally identifiable information (PII)
 - Only raw OCR text is sent to the endpoint
 
 ## Deployment Options

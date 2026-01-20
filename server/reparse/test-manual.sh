@@ -54,7 +54,11 @@ echo "curl -X POST http://localhost:3000/reparse -H 'Content-Type: application/j
 echo ""
 
 echo "=== How to Run Tests ==="
-echo "1. Start the server: cd server/reparse && OPENAI_API_KEY=your-key npm start"
+echo "1. Start the server with environment variable:"
+echo "   cd server/reparse"
+echo "   OPENAI_API_KEY=your-key npm start"
+echo "   OR use .env file (recommended for security):"
+echo "   echo 'OPENAI_API_KEY=your-key' > .env && npm install dotenv && npm start"
 echo "2. In another terminal, run the curl commands above"
 echo "3. For full testing with real API, set a valid OPENAI_API_KEY"
 echo ""
