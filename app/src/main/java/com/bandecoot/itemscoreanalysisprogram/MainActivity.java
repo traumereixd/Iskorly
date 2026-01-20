@@ -1699,8 +1699,8 @@ public class MainActivity extends AppCompatActivity {
     private HashMap<Integer, String> parseAnswersFromText(String text) {
         if (text == null) return new HashMap<>();
         
-        // Use the SMART parser that handles answer-first lines and restricts to answer key
-        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextToAnswersSmart(text, currentAnswerKey);
+        // Use the multi-pass fallback parser for best accuracy
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, currentAnswerKey);
         
         // Filter to answer key order (smart parser already validates, but ensure ordering)
         LinkedHashMap<Integer, String> filtered = Parser.filterToAnswerKey(parsed, currentAnswerKey);
