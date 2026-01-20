@@ -5186,7 +5186,7 @@ public class MainActivity extends AppCompatActivity {
         if (currentHints.isEmpty()) {
             TextView emptyText = new TextView(this);
             emptyText.setText("No type hints defined");
-            emptyText.setTextColor(0xFF757575);
+            emptyText.setTextColor(getResources().getColor(R.color.brand_brown, getTheme()));
             emptyText.setTextSize(12);
             emptyText.setPadding(dp(8), dp(8), dp(8), dp(8));
             hintsListContainer.addView(emptyText);
@@ -5208,7 +5208,7 @@ public class MainActivity extends AppCompatActivity {
             hintText.setText(String.format(Locale.US, "Q%d-%d: %s", 
                     hint.getStartQuestion(), hint.getEndQuestion(), 
                     hint.getType().getDisplayName()));
-            hintText.setTextColor(Color.BLACK);
+            hintText.setTextColor(0xFF000000); // Black for visibility
             hintText.setTextSize(14);
             LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(
                     0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
