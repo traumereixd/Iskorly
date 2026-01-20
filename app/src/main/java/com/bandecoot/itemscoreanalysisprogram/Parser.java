@@ -25,7 +25,7 @@ public final class Parser {
     //   - [.):)]? : optional punctuation after number
     //   - [\\s-:]* : optional separators
     //   - [\\p{L}] : start of answer (Unicode letter)
-    private static final String MULTI_ITEM_SPLIT_PATTERN = "(?<=[\p{L}\p{N}''\\-])(?=[\\s.]*\\d{1,3}[.):)]?[\\s-:]*[\\p{L}])";
+    private static final String MULTI_ITEM_SPLIT_PATTERN = "(?<=[\\p{L}\\p{N}''\\-])(?=[\\s.]*\\d{1,3}[.):)]?[\\s-:]*[\\p{L}])";
     
     // Pre-compiled regex patterns for performance
     // Number-first pattern: "1.A", "2)B", "3-C", etc.
@@ -192,7 +192,7 @@ public final class Parser {
         
         // Convert roman numerals at the start of lines followed by punctuation/space
         // Case-insensitive to accept lowercase i/v/x
-        Pattern romanPattern = Pattern.compile("(?:^|\\n)\\s*(?i)([ivx]+)\\s*[.):)]?\\s*", Pattern.MULTILINE);
+        Pattern romanPattern = Pattern.compile("(?i)(?:^|\\n)\\s*([ivx]+)\\s*[.):)]?\\s*", Pattern.MULTILINE);
         Matcher matcher = romanPattern.matcher(result);
         
         StringBuffer sb = new StringBuffer();
@@ -200,7 +200,7 @@ public final class Parser {
             String roman = matcher.group(1).toUpperCase();
             int digit = romanToDigit(roman);
             if (digit > 0) {
-                String replacement = matcher.group().replaceFirst(roman, String.valueOf(digit));
+                String replacement = matcher.group().replaceFirst("(?i)" + matcher.group(1), String.valueOf(digit));
                 matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
             } else {
                 matcher.appendReplacement(sb, Matcher.quoteReplacement(matcher.group()));
@@ -937,7 +937,7 @@ public final class Parser {
     private static String convertRomanNumeralsPreserveLines(String text) {
         String result = text;
         // Case-insensitive to accept lowercase i/v/x
-        Pattern romanPattern = Pattern.compile("(?:^|\\n)\\s*(?i)([ivx]+)\\s*[.):)]?\\s*");
+        Pattern romanPattern = Pattern.compile("(?i)(?:^|\\n)\\s*([ivx]+)\\s*[.):)]?\\s*");
         Matcher matcher = romanPattern.matcher(result);
         
         StringBuffer sb = new StringBuffer();
@@ -945,7 +945,7 @@ public final class Parser {
             String roman = matcher.group(1).toUpperCase();
             int digit = romanToDigit(roman);
             if (digit > 0) {
-                String replacement = matcher.group().replaceFirst(roman, String.valueOf(digit));
+                String replacement = matcher.group().replaceFirst("(?i)" + matcher.group(1), String.valueOf(digit));
                 matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
             } else {
                 matcher.appendReplacement(sb, Matcher.quoteReplacement(matcher.group()));
