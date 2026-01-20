@@ -377,4 +377,58 @@ public class ParserTest {
         assertEquals("C", parsed.get(3));
         assertEquals("D", parsed.get(4));
     }
+    
+    // Test lowercase roman numerals
+    @Test
+    public void parseOcrTextSmartWithFallback_handlesLowercaseRomanNumerals() {
+        String text = "ii) a\nX) b";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(2, "A");
+        answerKey.put(10, "B");
+        
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
+        
+        assertEquals("A", parsed.get(2));
+        assertEquals("B", parsed.get(10));
+    }
+    
+    // Test identification with punctuation (apostrophe)
+    @Test
+    public void parseOcrTextSmartWithFallback_handlesIdentificationWithApostrophe() {
+        String text = "31) O'Brien";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(31, "O'Brien");
+        
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
+        
+        assertEquals("O'Brien", parsed.get(31));
+    }
+    
+    // Test identification with right single quote (Unicode)
+    @Test
+    public void parseOcrTextSmartWithFallback_handlesIdentificationWithRightSingleQuote() {
+        String text = "31) O\u2019Brien";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(31, "O\u2019Brien");
+        
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
+        
+        assertEquals("O\u2019Brien", parsed.get(31));
+    }
+    
+    // Test identification with hyphen
+    @Test
+    public void parseOcrTextSmartWithFallback_handlesIdentificationWithHyphen() {
+        String text = "31) Mary-Jane";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(31, "Mary-Jane");
+        
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
+        
+        assertEquals("Mary-Jane", parsed.get(31));
+    }
 }
