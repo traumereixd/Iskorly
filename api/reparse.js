@@ -23,13 +23,28 @@ You are a strict JSON generator. Extract answers from OCR text that may look lik
 1. Apple
 2) A
 3 - B
-Ignore the leading numbering and map to question numbers.
+4: TRUE
+C 5.
+II) B
+
+Important formats to handle:
+- Headers and instructions: Ignore school name/address lines, NAME/SECTION/DATE/TEACHER fields, and INSTRUCTIONS blocks. Start parsing from the first numbered item.
+- Number-first patterns: 1.A, 1)B, 1-C, 1:D, 1 WORD
+- Answer-first patterns: "True 30.", "A 1.", "Apple 2)"
+- Compressed multi-items: "1.A2.B3.C" or "1.A  3.Z  5.C" (split and map each)
+- Cross-line linking: Number on one line ("___ 5."), answer on next ("C")
+- Roman numerals: Convert I->1, II->2, III->3, IV->4, V->5, etc.
+- Matching type: Blank line with letter answer nearby (e.g., "___23. C" -> 23:C)
+- Identification words: Single words as answers (e.g., "31) Apple" -> 31:Apple)
+- True/False variants: Normalize T->TRUE, F->FALSE, Y->YES, N->NO
+
 Rules:
 - Output ONLY JSON with shape: {"answers":{"1":"...", "2":"..."}}
-- Accept single letters (A..Z) and short text (words/numbers).
-- Do not invent questions not present; if unsure, omit.
-- Preserve case for words; uppercase single letters.
-- If lines have no numbers, map in order they appear starting from 1.
+- Accept single letters (A..Z) and short text (words/numbers), max 40 chars
+- Do not invent questions not present; if unsure, omit
+- Preserve case for words; uppercase single letters
+- If lines have no numbers, map in order they appear starting from 1
+- Remove trailing punctuation from answers
 
 OCR TEXT:
 ${cleaned}

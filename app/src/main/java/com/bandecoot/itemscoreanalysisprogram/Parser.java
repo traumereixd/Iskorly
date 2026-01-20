@@ -53,12 +53,94 @@ public final class Parser {
 
     private Parser() {}
 
+    // Header/Instruction skipping patterns
+    private static final Pattern HEADER_PATTERN = Pattern.compile(
+            "(?i).*(LYCEUM|ALABANG|BASIC EDUCATION|SENIOR HIGH|COLLEGE|EMAIL|TEL|PHONE|ADDRESS).*");
+    private static final Pattern FIELD_PATTERN = Pattern.compile(
+            "(?i)^(name|strand|section|date|teacher|score|grade|year|level|subject)\\b.*");
+    private static final Pattern INSTRUCTION_PATTERN = Pattern.compile(
+            "(?i)^\\s*(instruction|direction|note|reminder).*");
+    // Matches number-first patterns (1. A, I. B) or answer-first patterns (True 1., A 1.)
+    private static final Pattern NUMERIC_ANCHOR_PATTERN = Pattern.compile(
+            "^\\s*(?:[_\\s]*(?:[IVX]+|\\d{1,3})\\s*[.):)]?.*|[A-Za-z][A-Za-z0-9]{0,39}\\b[\\s.,;:!?\\-]{0,3}\\d{1,3}[.):)]?.*)");
+
+
     // Roman numeral to digit conversion map
     private static final String[] ROMAN_NUMERALS = {
         "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X",
         "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX", "XX",
         "XXI", "XXII", "XXIII", "XXIV", "XXV", "XXVI", "XXVII", "XXVIII", "XXIX", "XXX"
     };
+
+    /**
+     * Strip header text and instructions, preserving lines from the first numeric anchor onward.
+     * 
+     * Skips:
+     * - School header lines (LYCEUM, ALABANG, BASIC EDUCATION, etc.)
+     * - Field labels (NAME, SECTION, DATE, TEACHER, etc.)
+     * - INSTRUCTIONS blocks until the first numeric anchor appears
+     * 
+     * @param text Raw OCR text
+     * @return Cleaned text starting from first numbered item
+     */
+    private static String stripHeadersAndInstructionsPreserveLines(String text) {
+        if (text == null || text.trim().isEmpty()) return text;
+        
+        String[] lines = text.split("\n");
+        StringBuilder result = new StringBuilder();
+        boolean foundFirstAnchor = false;
+        boolean inInstructionBlock = false;
+        
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty()) continue;
+            
+            // If we've found the first anchor, keep all subsequent lines
+            if (foundFirstAnchor) {
+                result.append(line).append("\n");
+                continue;
+            }
+            
+            // Check if this is a header line
+            if (HEADER_PATTERN.matcher(trimmed).matches()) {
+                Log.d(TAG, "Skipping header line: " + trimmed.substring(0, Math.min(50, trimmed.length())));
+                continue;
+            }
+            
+            // Check if this is a field label line
+            if (FIELD_PATTERN.matcher(trimmed).matches()) {
+                Log.d(TAG, "Skipping field line: " + trimmed.substring(0, Math.min(50, trimmed.length())));
+                continue;
+            }
+            
+            // Check if this starts an instruction block
+            if (INSTRUCTION_PATTERN.matcher(trimmed).matches()) {
+                Log.d(TAG, "Entering instruction block");
+                inInstructionBlock = true;
+                continue;
+            }
+            
+            // Check if this line has a numeric anchor (first numbered item)
+            if (NUMERIC_ANCHOR_PATTERN.matcher(trimmed).matches()) {
+                Log.d(TAG, "Found first numeric anchor, keeping remaining text");
+                foundFirstAnchor = true;
+                inInstructionBlock = false;
+                result.append(line).append("\n");
+                continue;
+            }
+            
+            // If in instruction block, skip until we find a numeric anchor
+            if (inInstructionBlock) {
+                Log.d(TAG, "Skipping instruction text: " + trimmed.substring(0, Math.min(50, trimmed.length())));
+                continue;
+            }
+            
+            // If we're not sure yet, skip it (conservative approach)
+            // We'll only start keeping lines once we see the first numeric anchor
+        }
+        
+        return result.toString();
+    }
 
     // Parses OCR text into Q->Answer map with enhanced patterns and roman numeral support
     public static LinkedHashMap<Integer, String> parseOcrTextToAnswers(String text) {
@@ -243,8 +325,11 @@ public final class Parser {
         // Build allowed answer set from answer key
         java.util.Set<String> allowedSet = buildAllowedSet(answerKey);
         
+        // Strip headers and instructions first
+        String stripped = stripHeadersAndInstructionsPreserveLines(text);
+        
         // Normalize and convert roman numerals while preserving line structure
-        String normalized = normalizeTextPreserveLines(text);
+        String normalized = normalizeTextPreserveLines(stripped);
         String converted = convertRomanNumeralsPreserveLines(normalized);
         
         // Split into lines and process with cross-line linking
@@ -397,7 +482,8 @@ public final class Parser {
         }
         
         String canonicalNew = canonical(cleaned);
-        boolean newInAllowedSet = allowedSet != null && allowedSet.contains(canonicalNew);
+        boolean newInAllowedSet = allowedSet != null && 
+            (allowedSet.contains(canonicalNew) || allowedSet.contains(cleaned));
         
         if (!map.containsKey(question)) {
             // First occurrence, add it
@@ -406,7 +492,8 @@ public final class Parser {
             // Duplicate: prefer allowed-set match
             String existing = map.get(question);
             String canonicalExisting = canonical(existing);
-            boolean existingInAllowedSet = allowedSet != null && allowedSet.contains(canonicalExisting);
+            boolean existingInAllowedSet = allowedSet != null && 
+                (allowedSet.contains(canonicalExisting) || allowedSet.contains(existing));
             
             if (newInAllowedSet && !existingInAllowedSet) {
                 // New answer is in allowed set but existing isn't - replace
@@ -509,12 +596,15 @@ public final class Parser {
         // Build allowed answer set from answer key
         java.util.Set<String> allowedSet = buildAllowedSet(answerKey);
         
+        // Strip headers and instructions first
+        String stripped = stripHeadersAndInstructionsPreserveLines(text);
+        
         // Get sorted list of answer key questions
         java.util.List<Integer> keyQuestions = new java.util.ArrayList<>(answerKey.keySet());
         java.util.Collections.sort(keyQuestions);
         
         // Normalize and convert roman numerals
-        String normalized = normalizeTextPreserveLines(text);
+        String normalized = normalizeTextPreserveLines(stripped);
         String converted = convertRomanNumeralsPreserveLines(normalized);
         
         // Split lines that accidentally contain multiple numbered items
@@ -640,8 +730,11 @@ public final class Parser {
         LinkedHashMap<Integer, String> map = new LinkedHashMap<>();
         java.util.Set<String> allowedSet = buildAllowedSet(answerKey);
         
+        // Strip headers and instructions first
+        String stripped = stripHeadersAndInstructionsPreserveLines(text);
+        
         // Normalize and convert roman numerals
-        String normalized = normalizeTextPreserveLines(text);
+        String normalized = normalizeTextPreserveLines(stripped);
         String converted = convertRomanNumeralsPreserveLines(normalized);
         
         // Parse line by line
@@ -683,8 +776,11 @@ public final class Parser {
         java.util.List<Integer> keyQuestions = new java.util.ArrayList<>(answerKey.keySet());
         java.util.Collections.sort(keyQuestions);
         
+        // Strip headers and instructions first
+        String stripped = stripHeadersAndInstructionsPreserveLines(text);
+        
         // Normalize text
-        String normalized = normalizeTextPreserveLines(text);
+        String normalized = normalizeTextPreserveLines(stripped);
         String converted = convertRomanNumeralsPreserveLines(normalized);
         
         // Extract candidate answers (lines that look like answers)
@@ -764,8 +860,11 @@ public final class Parser {
         java.util.Set<String> allowedSet = buildAllowedSet(answerKey);
         Log.d(TAG, "Smart parser allowed set: " + allowedSet);
 
+        // Strip headers and instructions first
+        String stripped = stripHeadersAndInstructionsPreserveLines(text);
+
         // Normalize text but preserve line breaks
-        String normalized = normalizeTextPreserveLines(text);
+        String normalized = normalizeTextPreserveLines(stripped);
         
         // Convert roman numerals to digits
         String converted = convertRomanNumeralsPreserveLines(normalized);
@@ -869,7 +968,10 @@ public final class Parser {
             String canonical = canonical(ans);
             allowed.add(canonical);
             
-            // Add original too if different
+            // Add original trimmed version (preserves case)
+            allowed.add(ans.trim());
+            
+            // Add original uppercase if different from canonical
             String upper = ans.toUpperCase(Locale.US).trim();
             if (!upper.equals(canonical)) {
                 allowed.add(upper);
@@ -879,15 +981,23 @@ public final class Parser {
             if (canonical.equals("TRUE")) {
                 allowed.add("T");
                 allowed.add("TRUE");
+                allowed.add("True");
+                allowed.add("true");
             } else if (canonical.equals("FALSE")) {
                 allowed.add("F");
                 allowed.add("FALSE");
+                allowed.add("False");
+                allowed.add("false");
             } else if (canonical.equals("YES")) {
                 allowed.add("Y");
                 allowed.add("YES");
+                allowed.add("Yes");
+                allowed.add("yes");
             } else if (canonical.equals("NO")) {
                 allowed.add("N");
                 allowed.add("NO");
+                allowed.add("No");
+                allowed.add("no");
             }
         }
         
