@@ -80,15 +80,16 @@ public class OcrProcessor {
         
         // Adaptive variant selection based on image quality
         if (quality.isBlurry) {
-            // Prioritize sharpening for blurry images
-            Log.d(TAG, "Image is blurry - prioritizing sharpening variants");
+            // Prioritize sharpening and ultra-contrast for blurry images (common with handwriting)
+            Log.d(TAG, "Image is blurry - prioritizing sharpening and ultra-contrast variants for handwriting");
+            addVariant(variants, "ultra_contrast", ImagePreprocessor.preprocessUltraHighContrast(bitmap));
             addVariant(variants, "sharpened", ImagePreprocessor.preprocessSharpened(bitmap));
             addVariant(variants, "classroom", ImagePreprocessor.preprocessForClassroom(bitmap));
-            addVariant(variants, "ultra_contrast", ImagePreprocessor.preprocessUltraHighContrast(bitmap));
         } else if (quality.isLowLight || quality.contrast < 0.15f) {
-            // Prioritize contrast enhancement for low-light/low-contrast images
-            Log.d(TAG, "Image has low light/contrast - prioritizing contrast variants");
+            // Prioritize contrast enhancement for low-light/low-contrast images (handwriting-friendly)
+            Log.d(TAG, "Image has low light/contrast - prioritizing contrast variants for handwriting");
             addVariant(variants, "ultra_contrast", ImagePreprocessor.preprocessUltraHighContrast(bitmap));
+            addVariant(variants, "sharpened", ImagePreprocessor.preprocessSharpened(bitmap));
             addVariant(variants, "adaptive_histogram", ImagePreprocessor.preprocessAdaptiveHistogram(bitmap));
             addVariant(variants, "classroom", ImagePreprocessor.preprocessForClassroom(bitmap));
         } else if (quality.isHighLight) {

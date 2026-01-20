@@ -272,4 +272,109 @@ public class ParserTest {
         assertNotNull(parsed);
         assertEquals(0, parsed.size());
     }
+    
+    // New tests for header/instruction skipping and improved formats
+    
+    @Test
+    public void parseOcrTextSmartWithFallback_ignoresHeadersAndInstructions() {
+        String text = "LYCEUM OF ALABANG - BASIC EDUCATION\n" +
+                     "Address: Somewhere St.\n" +
+                     "EMAIL: test@test.com TEL: 123-4567\n" +
+                     "NAME: ________________\n" +
+                     "SECTION: ________________\n" +
+                     "DATE: ________________\n" +
+                     "TEACHER: ________________\n" +
+                     "INSTRUCTIONS: Choose the best answer.\n" +
+                     "Read each question carefully.\n" +
+                     "1. A\n" +
+                     "2. B\n" +
+                     "3. C";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(1, "A");
+        answerKey.put(2, "B");
+        answerKey.put(3, "C");
+        
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
+        
+        assertEquals("A", parsed.get(1));
+        assertEquals("B", parsed.get(2));
+        assertEquals("C", parsed.get(3));
+    }
+    
+    @Test
+    public void parseOcrTextSmartWithFallback_handlesCompressedInlinePairs() {
+        String text = "1. A 2.B3.C";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(1, "A");
+        answerKey.put(2, "B");
+        answerKey.put(3, "C");
+        
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
+        
+        assertEquals("A", parsed.get(1));
+        assertEquals("B", parsed.get(2));
+        assertEquals("C", parsed.get(3));
+    }
+    
+    @Test
+    public void parseOcrTextSmartWithFallback_handlesCrossLineNumberAndAnswer() {
+        String text = "___ 5.\nC\n7\nD";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(5, "C");
+        answerKey.put(7, "D");
+        
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
+        
+        assertEquals("C", parsed.get(5));
+        assertEquals("D", parsed.get(7));
+    }
+    
+    @Test
+    public void parseOcrTextSmartWithFallback_handlesAnswerFirst() {
+        String text = "True 30.\nFalse 31.";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(30, "True");
+        answerKey.put(31, "False");
+        
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
+        
+        assertEquals("True", parsed.get(30));
+        assertEquals("False", parsed.get(31));
+    }
+    
+    @Test
+    public void parseOcrTextSmartWithFallback_handlesIdentificationWords() {
+        String text = "31) Apple\n32. Banana\n33: Cherry";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(31, "Apple");
+        answerKey.put(32, "Banana");
+        answerKey.put(33, "Cherry");
+        
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
+        
+        assertEquals("Apple", parsed.get(31));
+        assertEquals("Banana", parsed.get(32));
+        assertEquals("Cherry", parsed.get(33));
+    }
+    
+    @Test
+    public void parseOcrTextSmartWithFallback_handlesRomanNumeralsVariousPunctuation() {
+        String text = "II) B\nIII. C\nIV: D";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(2, "B");
+        answerKey.put(3, "C");
+        answerKey.put(4, "D");
+        
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
+        
+        assertEquals("B", parsed.get(2));
+        assertEquals("C", parsed.get(3));
+        assertEquals("D", parsed.get(4));
+    }
 }
