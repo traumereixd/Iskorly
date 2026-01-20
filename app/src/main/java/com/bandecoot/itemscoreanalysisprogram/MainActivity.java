@@ -1702,7 +1702,7 @@ public class MainActivity extends AppCompatActivity {
         // Use the multi-pass fallback parser for best accuracy
         LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, currentAnswerKey);
         
-        // Filter to answer key order (smart parser already validates, but ensure ordering)
+        // Filter to answer key order
         LinkedHashMap<Integer, String> filtered = Parser.filterToAnswerKey(parsed, currentAnswerKey);
         
         // Convert LinkedHashMap to HashMap for compatibility

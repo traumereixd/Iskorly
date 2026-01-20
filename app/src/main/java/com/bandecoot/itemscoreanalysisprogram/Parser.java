@@ -197,8 +197,9 @@ public final class Parser {
         
         StringBuffer sb = new StringBuffer();
         while (matcher.find()) {
-            String roman = matcher.group(1).toUpperCase();
-            int digit = romanToDigit(roman);
+            String roman = matcher.group(1);
+            String romanUpper = roman.toUpperCase();
+            int digit = romanToDigit(romanUpper);
             if (digit > 0) {
                 String replacement = matcher.group().replaceFirst("(?i)" + matcher.group(1), String.valueOf(digit));
                 matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
@@ -942,8 +943,9 @@ public final class Parser {
         
         StringBuffer sb = new StringBuffer();
         while (matcher.find()) {
-            String roman = matcher.group(1).toUpperCase();
-            int digit = romanToDigit(roman);
+            String roman = matcher.group(1);
+            String romanUpper = roman.toUpperCase();
+            int digit = romanToDigit(romanUpper);
             if (digit > 0) {
                 String replacement = matcher.group().replaceFirst("(?i)" + matcher.group(1), String.valueOf(digit));
                 matcher.appendReplacement(sb, Matcher.quoteReplacement(replacement));
