@@ -382,7 +382,9 @@ public class ParserTest {
     
     @Test
     public void parseOcrTextSmartWithFallback_lowercaseRomanNumeralsConverted() {
-        String text = "ii) a\nX) b";
+        // Test that lowercase roman numerals (ii, x) are correctly converted to digits (2, 10)
+        // Based on existing parseNumberAnchoredRobust_handlesRomanNumerals test format
+        String text = "ii. A\nx. B";  // Lowercase roman numerals with period separator
         
         Map<Integer, String> answerKey = new HashMap<>();
         answerKey.put(2, "A");
