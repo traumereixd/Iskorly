@@ -152,6 +152,42 @@
                 android:contentDescription="@string/crop_confirm"
                 android:src="@drawable/ic_crop_confirm" />
         </LinearLayout>
+        
+        <!-- Fine rotation slider (Feature #5: Free rotation) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Fine Tune:"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="12sp"
+                android:paddingEnd="8dp" />
+            
+            <androidx.appcompat.widget.AppCompatSeekBar
+                android:id="@+id/rotationSlider"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:max="360"
+                android:progress="180" />
+            
+            <TextView
+                android:id="@+id/fineRotationText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0°"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="12sp"
+                android:paddingStart="8dp"
+                android:minWidth="40dp"
+                android:gravity="end" />
+        </LinearLayout>
     </LinearLayout>
 
 </RelativeLayout>
