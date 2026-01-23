@@ -80,6 +80,7 @@ import okhttp3.Response;
 
 import android.content.res.ColorStateList;
 
+import com.yalantis.ucrop.UCrop;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -3225,14 +3226,34 @@ public class MainActivity extends AppCompatActivity {
     }
     
     /**
-     * Handle crop result from SimpleCropActivity.
+     * Handle crop result from UCrop or SimpleCropActivity (fallback).
+     * Tries UCrop.getOutput() first, then falls back to data.getData() for SimpleCropActivity.
      */
     private void onCropResult(androidx.activity.result.ActivityResult result) {
         cropInProgress = false;
         if (result.getResultCode() == RESULT_OK && result.getData() != null) {
-            android.net.Uri croppedUri = result.getData().getData();
+            android.net.Uri croppedUri = null;
+            
+            // Try UCrop output first (may throw if data doesn't contain UCrop extras)
+            try {
+                croppedUri = UCrop.getOutput(result.getData());
+                if (croppedUri != null) {
+                    Log.d(CROP_FLOW, "UCrop succeeded, processing cropped image: " + croppedUri);
+                }
+            } catch (Exception e) {
+                // Not a UCrop result or UCrop result parsing failed - will try SimpleCropActivity format
+                Log.d(CROP_FLOW, "Not a UCrop result, trying SimpleCropActivity format");
+            }
+            
+            // If UCrop output is null or failed, try SimpleCropActivity result format
+            if (croppedUri == null) {
+                croppedUri = result.getData().getData();
+                if (croppedUri != null) {
+                    Log.d(CROP_FLOW, "SimpleCropActivity succeeded (fallback), processing cropped image: " + croppedUri);
+                }
+            }
+            
             if (croppedUri != null) {
-                Log.d(CROP_FLOW, "SimpleCropActivity succeeded with robust rotation, processing cropped image: " + croppedUri);
                 // Ensure OCR ready (was stopped if previous code paused it)
                 if (ocrProcessor == null) {
                     Log.w(OCR_FLOW, "ocrProcessor null on crop result - reinitializing");
@@ -3309,11 +3330,8 @@ public class MainActivity extends AppCompatActivity {
     }
     /**
      * Start crop activity for the captured image.
-     * Uses SimpleCropActivity which provides uCrop-equivalent functionality:
-     * - Free-style crop with robust arbitrary rotation
-     * - Rotation controls (90° increments + fine-grained slider)
-     * - JPEG quality ~90, max output size ~2048
-     * - EXIF preservation where possible
+     * Primary: UCrop with free-style crop, bottom controls, quality=90, maxSize=2048
+     * Fallback: SimpleCropActivity if UCrop fails on device
      */
     private void startCropActivity(android.net.Uri sourceUri) {
         try {
@@ -3331,16 +3349,38 @@ public class MainActivity extends AppCompatActivity {
             java.io.File outFile = new java.io.File(getCacheDir(), "cropped_" + System.currentTimeMillis() + ".jpg");
             android.net.Uri outputUri = android.net.Uri.fromFile(outFile);
             
-            Log.d(CROP_FLOW, "Launching SimpleCropActivity with robust rotation support\n  source=" + sourceUri +
+            Log.d(CROP_FLOW, "Launching UCrop with free-style crop\n  source=" + sourceUri +
                     "\n  output=" + outputUri +
                     "\n  capturedSize=" + (lastCapturedFile != null ? lastCapturedFile.length() : -1) +
                     "\n  orientationHint=" + lastCapturedJpegOrientation);
             
-            // SimpleCropActivity uses CanHub CropImageView which provides uCrop-equivalent features
-            Intent cropIntent = SimpleCropActivity
-                    .createIntent(this, sourceUri, outputUri)
-                    .putExtra("EXTRA_JPEG_ORIENTATION", lastCapturedJpegOrientation);
-            cropLauncher.launch(cropIntent);
+            try {
+                // Use UCrop with free-style crop, bottom controls visible, compression quality 90, max size 2048
+                UCrop.Options options = new UCrop.Options();
+                options.setFreeStyleCropEnabled(true);
+                options.setShowCropFrame(true);
+                options.setShowCropGrid(true);
+                options.setCompressionQuality(90);
+                options.setHideBottomControls(false);
+                
+                Intent ucropIntent = UCrop.of(sourceUri, outputUri)
+                        .withMaxResultSize(2048, 2048)
+                        .withOptions(options)
+                        .getIntent(this);
+                
+                cropLauncher.launch(ucropIntent);
+                Log.d(CROP_FLOW, "UCrop launched successfully");
+            } catch (Exception ucropException) {
+                // Fallback to SimpleCropActivity if UCrop fails
+                Log.w(CROP_FLOW, "UCrop unavailable, falling back to SimpleCropActivity", ucropException);
+                
+                // SimpleCropActivity uses CanHub CropImageView which provides uCrop-equivalent features
+                Intent cropIntent = SimpleCropActivity
+                        .createIntent(this, sourceUri, outputUri)
+                        .putExtra("EXTRA_JPEG_ORIENTATION", lastCapturedJpegOrientation);
+                cropLauncher.launch(cropIntent);
+                Log.d(CROP_FLOW, "SimpleCropActivity fallback launched");
+            }
         } catch (Exception e) {
             cropInProgress = false;
             Log.e(CROP_FIX, "startCropActivity exception", e);
