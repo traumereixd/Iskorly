@@ -3353,10 +3353,10 @@ public class MainActivity extends AppCompatActivity {
                 options.setShowCropFrame(true);
                 options.setShowCropGrid(true);
                 options.setCompressionQuality(90);
-                options.withMaxResultSize(2048, 2048);
                 options.setHideBottomControls(false);
                 
                 Intent ucropIntent = UCrop.of(sourceUri, outputUri)
+                        .withMaxResultSize(2048, 2048)
                         .withOptions(options)
                         .getIntent(this);
                 
