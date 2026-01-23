@@ -2347,14 +2347,14 @@ public class MainActivity extends AppCompatActivity {
             try {
                 JSONObject rec = history.getJSONObject(i);
                 String ts = rec.optString("ts", "");
-                String student = rec.optString("student", "Unknown");
+                String exam = rec.optString("exam", "Untitled Quiz");
                 int score = rec.optInt("score", 0);
                 int total = rec.optInt("total", 0);
                 double pct = rec.optDouble("percent", 0.0);
                 
-                // Format: [timestamp] student — score/total (%)
+                // Format: [timestamp] [Subgroup 2 (Exam)] — score/total (%)
                 String label = String.format(Locale.US, "[%s] %s — %d/%d (%.1f%%)", 
-                        ts, student, score, total, pct);
+                        ts, exam, score, total, pct);
                 recordLabels.add(label);
                 recordTimestamps.add(ts);
             } catch (Exception ignored) {
@@ -3312,7 +3312,12 @@ public class MainActivity extends AppCompatActivity {
         }
     }
     /**
-     * Start crop activity for the captured image using SimpleCropActivity.
+     * Start crop activity for the captured image.
+     * Uses SimpleCropActivity which provides uCrop-equivalent functionality:
+     * - Free-style crop with robust arbitrary rotation
+     * - Rotation controls (90° increments + fine-grained slider)
+     * - JPEG quality ~90, max output size ~2048
+     * - EXIF preservation where possible
      */
     private void startCropActivity(android.net.Uri sourceUri) {
         try {
@@ -3335,7 +3340,7 @@ public class MainActivity extends AppCompatActivity {
                     "\n  capturedSize=" + (lastCapturedFile != null ? lastCapturedFile.length() : -1) +
                     "\n  orientationHint=" + lastCapturedJpegOrientation);
             
-            // SimpleCropActivity uses CanHub CropImageView which provides robust rotation controls
+            // SimpleCropActivity uses CanHub CropImageView which provides uCrop-equivalent features
             Intent cropIntent = SimpleCropActivity
                     .createIntent(this, sourceUri, outputUri)
                     .putExtra("EXTRA_JPEG_ORIENTATION", lastCapturedJpegOrientation);
