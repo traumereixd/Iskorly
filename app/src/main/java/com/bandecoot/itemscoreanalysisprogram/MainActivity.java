@@ -3232,17 +3232,25 @@ public class MainActivity extends AppCompatActivity {
     private void onCropResult(androidx.activity.result.ActivityResult result) {
         cropInProgress = false;
         if (result.getResultCode() == RESULT_OK && result.getData() != null) {
-            // Try UCrop output first
-            android.net.Uri croppedUri = UCrop.getOutput(result.getData());
+            android.net.Uri croppedUri = null;
             
-            // If UCrop output is null, try SimpleCropActivity result format
+            // Try UCrop output first (may throw if data doesn't contain UCrop extras)
+            try {
+                croppedUri = UCrop.getOutput(result.getData());
+                if (croppedUri != null) {
+                    Log.d(CROP_FLOW, "UCrop succeeded, processing cropped image: " + croppedUri);
+                }
+            } catch (Exception e) {
+                // Not a UCrop result or UCrop result parsing failed - will try SimpleCropActivity format
+                Log.d(CROP_FLOW, "Not a UCrop result, trying SimpleCropActivity format");
+            }
+            
+            // If UCrop output is null or failed, try SimpleCropActivity result format
             if (croppedUri == null) {
                 croppedUri = result.getData().getData();
                 if (croppedUri != null) {
                     Log.d(CROP_FLOW, "SimpleCropActivity succeeded (fallback), processing cropped image: " + croppedUri);
                 }
-            } else {
-                Log.d(CROP_FLOW, "UCrop succeeded, processing cropped image: " + croppedUri);
             }
             
             if (croppedUri != null) {
