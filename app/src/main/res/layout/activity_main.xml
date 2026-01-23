@@ -166,7 +166,7 @@
                                 android:text="@string/btn_manage_autocomplete"
                                 app:backgroundTint="@color/brand_brown"
                                 android:textColor="@color/on_primary"
-                                android:textSize="12sp" />
+                                android:textSize="14sp" />
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/button_back_to_menu"
@@ -175,7 +175,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
                                 android:text="Back to Main Menu"
-                                android:textSize="12sp"
+                                android:textSize="14sp"
                                 app:backgroundTint="@color/brand_brown"
                                 android:textColor="@color/on_primary" />
                         </LinearLayout>
@@ -264,7 +264,7 @@
                                 android:layout_marginEnd="4dp"
                                 android:text="@string/btn_import_all"
                                 android:textColor="#000000"
-                                android:textSize="12sp" />
+                                android:textSize="14sp" />
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/button_autocomplete_export_all"
@@ -276,7 +276,7 @@
                                 android:layout_marginEnd="4dp"
                                 android:text="@string/btn_export_all"
                                 android:textColor="#000000"
-                                android:textSize="12sp" />
+                                android:textSize="14sp" />
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/button_autocomplete_clear_all"
@@ -289,7 +289,7 @@
                                 android:text="@string/btn_clear_all_words"
 
                                 android:textColor="@android:color/white"
-                                android:textSize="12sp" />
+                                android:textSize="14sp" />
                         </LinearLayout>
 
                         <!-- Divider -->
@@ -346,7 +346,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:text="@string/btn_add"
-                                android:textSize="12sp" />
+                                android:textSize="14sp" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -364,7 +364,7 @@
                                 android:layout_marginEnd="4dp"
                                 android:textColor="#000000"
                                 android:text="@string/btn_import_json"
-                                android:textSize="12sp" />
+                                android:textSize="14sp" />
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/button_export_students_json"
@@ -375,7 +375,7 @@
                                 android:layout_marginStart="4dp"
                                 android:textColor="#000000"
                                 android:text="@string/btn_export_json"
-                                android:textSize="12sp" />
+                                android:textSize="14sp" />
                         </LinearLayout>
 
                         <!-- Divider -->
@@ -432,7 +432,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:text="@string/btn_add"
-                                android:textSize="12sp" />
+                                android:textSize="14sp" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -450,7 +450,7 @@
                                 android:layout_marginEnd="4dp"
                                 android:textColor="#000000"
                                 android:text="@string/btn_import_json"
-                                android:textSize="12sp" />
+                                android:textSize="14sp" />
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/button_export_sections_json"
@@ -461,7 +461,7 @@
                                 android:layout_marginStart="4dp"
                                 android:text="@string/btn_export_json"
                                 android:textColor="#000000"
-                                android:textSize="12sp" />
+                                android:textSize="14sp" />
                         </LinearLayout>
 
                         <!-- Divider -->
@@ -518,7 +518,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:text="@string/btn_add"
-                                android:textSize="12sp" />
+                                android:textSize="14sp" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -535,7 +535,7 @@
                                 android:layout_weight="1"
                                 android:layout_marginEnd="4dp"
                                 android:text="@string/btn_import_json"
-                                android:textSize="12sp"
+                                android:textSize="14sp"
                                 android:textColor="#000000"/>
 
                             <com.google.android.material.button.MaterialButton
@@ -546,7 +546,7 @@
                                 android:layout_weight="1"
                                 android:layout_marginStart="4dp"
                                 android:text="@string/btn_export_json"
-                                android:textSize="12sp"
+                                android:textSize="14sp"
                                 android:textColor="#000000"/>
                         </LinearLayout>
 
@@ -861,7 +861,7 @@
                                 android:layout_height="wrap_content"
                                 android:inputType="none"
                                 android:textColor="#000000"
-                                android:textSize="12sp"
+                                android:textSize="14sp"
                                 android:paddingStart="8dp"
                                 android:paddingEnd="8dp" />
                         </com.google.android.material.textfield.TextInputLayout>
@@ -881,7 +881,7 @@
                                 android:layout_height="wrap_content"
                                 android:inputType="none"
                                 android:textColor="#000000"
-                                android:textSize="12sp"
+                                android:textSize="14sp"
                                 android:paddingStart="8dp"
                                 android:paddingEnd="8dp" />
                         </com.google.android.material.textfield.TextInputLayout>
@@ -1319,7 +1319,7 @@
                             android:layout_height="wrap_content"
                             android:text="@string/settings_two_column_desc"
                             android:textColor="?attr/colorOnSurfaceVariant"
-                            android:textSize="12sp"
+                            android:textSize="14sp"
                             android:paddingStart="4dp"
                             android:paddingEnd="4dp"
                             android:paddingBottom="16dp" />
@@ -1341,7 +1341,7 @@
                             android:layout_height="wrap_content"
                             android:text="@string/settings_high_contrast_desc"
                             android:textColor="?attr/colorOnSurfaceVariant"
-                            android:textSize="12sp"
+                            android:textSize="14sp"
                             android:paddingStart="4dp"
                             android:paddingEnd="4dp"
                             android:paddingBottom="16dp" />
@@ -1369,7 +1369,7 @@
                             android:layout_height="wrap_content"
                             android:text="Options to improve readability for older users"
                             android:textColor="?attr/colorOnSurfaceVariant"
-                            android:textSize="12sp"
+                            android:textSize="14sp"
                             android:paddingStart="4dp"
                             android:paddingEnd="4dp"
                             android:paddingBottom="12dp" />
@@ -1391,7 +1391,7 @@
                             android:layout_height="wrap_content"
                             android:text="@string/settings_outlined_text_desc"
                             android:textColor="?attr/colorOnSurfaceVariant"
-                            android:textSize="12sp"
+                            android:textSize="14sp"
                             android:paddingStart="4dp"
                             android:paddingEnd="4dp"
                             android:paddingBottom="16dp" />
@@ -1413,7 +1413,7 @@
                             android:layout_height="wrap_content"
                             android:text="@string/settings_large_text_desc"
                             android:textColor="?attr/colorOnSurfaceVariant"
-                            android:textSize="12sp"
+                            android:textSize="14sp"
                             android:paddingStart="4dp"
                             android:paddingEnd="4dp"
                             android:paddingBottom="16dp" />
@@ -1442,7 +1442,7 @@
                             android:layout_height="wrap_content"
                             android:text="@string/type_hints_desc"
                             android:textColor="?attr/colorOnSurfaceVariant"
-                            android:textSize="12sp"
+                            android:textSize="14sp"
                             android:paddingStart="4dp"
                             android:paddingEnd="4dp"
                             android:paddingBottom="12dp" />
@@ -1522,7 +1522,7 @@
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
                                         android:text="@string/btn_add_range"
-                                        android:textSize="12sp" />
+                                        android:textSize="14sp" />
                                 </LinearLayout>
                             </LinearLayout>
                         </com.google.android.material.card.MaterialCardView>
