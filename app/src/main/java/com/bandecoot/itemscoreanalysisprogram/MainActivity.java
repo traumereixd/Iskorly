@@ -1285,6 +1285,16 @@ public class MainActivity extends AppCompatActivity {
         inScanSession = true; // Set flag for back navigation
         cameraSessionReady = false; // Reset readiness flag
         toggleView("scan");
+        
+        // Ensure TextureView is opaque and visible to avoid white flash
+        if (cameraPreviewTextureView != null) {
+            cameraPreviewTextureView.setOpaque(true);
+            cameraPreviewTextureView.setVisibility(View.VISIBLE);
+            cameraPreviewTextureView.setBackgroundColor(0xFF000000); // Black background
+            cameraPreviewTextureView.bringToFront();
+            Log.d("SCAN_UI", "TextureView set to opaque with black background");
+        }
+        
         sessionScoreTextView.setText(getString(R.string.live_score_placeholder));
         if (resultsCard != null) resultsCard.setVisibility(View.GONE);
         if (captureResultButton != null) {
@@ -1555,6 +1565,16 @@ public class MainActivity extends AppCompatActivity {
 
     private final ImageReader.OnImageAvailableListener onJpegAvailableListener = reader -> {
         Log.d(CROP_FLOW, "onJpegAvailableListener invoked");
+        
+        // Ignore JPEG callbacks while crop is in progress to prevent double-crop loop
+        if (cropInProgress) {
+            Image discard = reader.acquireLatestImage();
+            if (discard != null) discard.close();
+            waitingForJpeg.set(false);
+            Log.d(CROP_FLOW, "Ignoring JPEG callback - crop already in progress");
+            return;
+        }
+        
         if (!scanSessionActive) {
             Image discard = reader.acquireLatestImage();
             if (discard != null) discard.close();
@@ -2637,7 +2657,15 @@ public class MainActivity extends AppCompatActivity {
             case "scan":
                 if (scanSessionLayout != null) {
                     scanSessionLayout.setVisibility(View.VISIBLE);
+                    scanSessionLayout.setBackgroundColor(0xFF000000); // Black background to avoid white flash
+                    scanSessionLayout.bringToFront();
                     visibleView = scanSessionLayout;
+                    Log.d("VIEW_TOGGLE", "Scan view made visible with black background");
+                }
+                if (cameraPreviewTextureView != null) {
+                    cameraPreviewTextureView.setVisibility(View.VISIBLE);
+                    cameraPreviewTextureView.setBackgroundColor(0xFF000000); // Black background
+                    cameraPreviewTextureView.bringToFront();
                 }
                 break;
             case "masterlist":
@@ -3342,12 +3370,12 @@ public class MainActivity extends AppCompatActivity {
             java.io.File outFile = new java.io.File(getCacheDir(), "cropped_" + System.currentTimeMillis() + ".jpg");
             android.net.Uri outputUri = android.net.Uri.fromFile(outFile);
 
-            // Configure uCrop options for better UI and constraints
+            // Configure uCrop options for original sizing, free-style behavior
             UCrop.Options options = new UCrop.Options();
             options.setFreeStyleCropEnabled(true);      // allow free-style crop
             options.setHideBottomControls(false);       // show controls
             options.setCompressionQuality(90);
-            options.withMaxResultSize(2048, 2048);
+            // Keep maxBitmapSize guard where available
             try { 
                 options.setMaxBitmapSize(4096); 
             } catch (NoSuchMethodError e) { 
@@ -3368,11 +3396,15 @@ public class MainActivity extends AppCompatActivity {
             options.setRootViewBackgroundColor(getResources().getColor(R.color.surface, getTheme()));
             options.setCropFrameColor(getResources().getColor(R.color.outline, getTheme()));
 
-            // Launch uCrop with default 4:3 aspect and free style enabled
+            // Launch uCrop with source image aspect ratio and free style enabled
+            // Remove withMaxResultSize to preserve near-original size
             Intent uCropIntent = UCrop.of(sourceUri, outputUri)
-                    .withAspectRatio(4, 3)
+                    .useSourceImageAspectRatio()  // Use original aspect ratio instead of fixed 4:3
                     .withOptions(options)
                     .getIntent(this);
+            
+            // Grant URI permissions to avoid SecurityException
+            uCropIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
 
             cropLauncher.launch(uCropIntent);
         } catch (Exception e) {
