@@ -155,4 +155,25 @@ Tips:\n
     <string name="type_hints_saved">Type hints saved successfully</string>
     <string name="type_hints_cleared">Type hints cleared</string>
     <string name="type_hints_error">Invalid range: Start must be less than or equal to End</string>
+    
+    <!-- Accessibility Settings -->
+    <string name="settings_outlined_text_label">Outlined Text</string>
+    <string name="settings_outlined_text_desc">Apply white text with black outline for better readability (recommended for older users)</string>
+    <string name="settings_large_text_label">Large Text Mode</string>
+    <string name="settings_large_text_desc">Increase text size and touch targets for easier reading and interaction</string>
+    
+    <!-- CSV Export -->
+    <string name="csv_export_dialog_title">Export CSV</string>
+    <string name="csv_export_entire_history">Entire History</string>
+    <string name="csv_export_current_filters">Current Filters (Exam/Section)</string>
+    <string name="csv_export_success">CSV exported successfully</string>
+    <string name="csv_export_error">Error exporting CSV: %s</string>
+    
+    <!-- Form Persistence -->
+    <string name="btn_clear_form">Clear Form</string>
+    <string name="clear_form_confirmation">Clear all form inputs? This will not affect saved history.</string>
+    <string name="form_cleared">Form inputs cleared</string>
+    
+    <!-- Correctness Hints -->
+    <string name="correct_answer_prefix">Correct: %s</string>
 </resources>
