@@ -50,6 +50,8 @@ import androidx.core.content.FileProvider;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.card.MaterialCardView;
 
+import com.yalantis.ucrop.UCrop;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -62,11 +64,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -223,6 +227,9 @@ public class MainActivity extends AppCompatActivity {
     // CSV Export
     private ActivityResultLauncher<String> createCsvLauncher;
     private ActivityResultLauncher<String> exportMasterlistCsvLauncher;
+    
+    // CSV manual selection - stores timestamps of selected history records
+    private Set<String> selectedHistoryTimestamps = new HashSet<>();
     
     // Autocomplete JSON Import/Export
     private ActivityResultLauncher<String[]> importAutocompleteJsonLauncher;
@@ -1194,8 +1201,11 @@ public class MainActivity extends AppCompatActivity {
         // Handle navigation intents from MainMenuActivity
         handleNavigationIntent();
         
-        // Enforce black text color on all input fields
-        enforceBlackTextColorOnInputs();
+        // Apply white text with thick black outline globally for optimal legibility
+        View rootView = findViewById(android.R.id.content);
+        if (rootView != null) {
+            applyWhiteThickOutlineToTree(rootView);
+        }
     }
     
     /**
@@ -2317,27 +2327,102 @@ public class MainActivity extends AppCompatActivity {
     // ---------------------------
 
     private void exportHistoryCsv() {
-        // Show dialog to choose export scope (Feature #4: CSV export with filtering)
+        // Load history records
+        String raw = historyPreferences.getString("history", "[]");
+        JSONArray history;
+        try {
+            history = new JSONArray(raw);
+        } catch (Exception e) {
+            history = new JSONArray();
+        }
+        
+        if (history.length() == 0) {
+            Toast.makeText(this, "No history records to export", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Prepare list of records for multi-select dialog
+        final List<String> recordLabels = new ArrayList<>();
+        final List<String> recordTimestamps = new ArrayList<>();
+        
+        for (int i = 0; i < history.length(); i++) {
+            try {
+                JSONObject rec = history.getJSONObject(i);
+                String ts = rec.optString("ts", "");
+                String student = rec.optString("student", "Unknown");
+                int score = rec.optInt("score", 0);
+                int total = rec.optInt("total", 0);
+                double pct = rec.optDouble("percent", 0.0);
+                
+                // Format: [timestamp] student — score/total (%)
+                String label = String.format(Locale.US, "[%s] %s — %d/%d (%.1f%%)", 
+                        ts, student, score, total, pct);
+                recordLabels.add(label);
+                recordTimestamps.add(ts);
+            } catch (Exception ignored) {
+            }
+        }
+        
+        // Create boolean array for selection state
+        final boolean[] checkedItems = new boolean[recordLabels.size()];
+        selectedHistoryTimestamps.clear();
+        
+        // Build multi-choice dialog
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle(getString(R.string.csv_export_dialog_title));
+        builder.setTitle("Select Records to Export");
         
-        String[] options = {
-            getString(R.string.csv_export_entire_history),
-            getString(R.string.csv_export_current_filters)
-        };
+        builder.setMultiChoiceItems(
+                recordLabels.toArray(new String[0]),
+                checkedItems,
+                (dialog, which, isChecked) -> {
+                    checkedItems[which] = isChecked;
+                    if (isChecked) {
+                        selectedHistoryTimestamps.add(recordTimestamps.get(which));
+                    } else {
+                        selectedHistoryTimestamps.remove(recordTimestamps.get(which));
+                    }
+                });
         
-        builder.setItems(options, (dialog, which) -> {
-            boolean useFilters = (which == 1);
-            exportHistoryCsvWithOptions(useFilters);
+        // Add "Select All" button
+        builder.setNeutralButton("Select All", null);
+        
+        // Add "Export" button
+        builder.setPositiveButton("Export", (dialog, which) -> {
+            if (selectedHistoryTimestamps.isEmpty()) {
+                Toast.makeText(this, "No records selected", Toast.LENGTH_SHORT).show();
+            } else {
+                createCsvLauncher.launch("isa_history.csv");
+            }
         });
         
+        // Add "Cancel" button
         builder.setNegativeButton("Cancel", null);
-        builder.show();
+        
+        AlertDialog dialog = builder.create();
+        dialog.show();
+        
+        // Override "Select All" button to toggle selection without closing dialog
+        dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
+            boolean allSelected = selectedHistoryTimestamps.size() == recordTimestamps.size();
+            for (int i = 0; i < checkedItems.length; i++) {
+                checkedItems[i] = !allSelected;
+            }
+            if (allSelected) {
+                selectedHistoryTimestamps.clear();
+            } else {
+                selectedHistoryTimestamps.clear();
+                selectedHistoryTimestamps.addAll(recordTimestamps);
+            }
+            // Recreate dialog to reflect changes
+            dialog.dismiss();
+            exportHistoryCsv();
+        });
     }
     
+    @Deprecated
     private void exportHistoryCsvWithOptions(boolean useFilters) {
+        // Deprecated - now using manual selection instead of filter-based export
         createCsvLauncher.launch("isa_history.csv");
-        // Store the filter preference for use in onCsvDocumentCreated
         appPreferences.edit().putBoolean("csv_export_use_filters", useFilters).apply();
     }
 
@@ -2347,8 +2432,8 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         
-        // Get filter preference
-        boolean useFilters = appPreferences.getBoolean("csv_export_use_filters", false);
+        // Use manual selection instead of filters
+        final Set<String> selectedTs = new HashSet<>(selectedHistoryTimestamps);
         
         backgroundHandler.post(() -> {
             String raw = historyPreferences.getString("history", "[]");
@@ -2368,20 +2453,15 @@ public class MainActivity extends AppCompatActivity {
             for (int i = 0; i < history.length(); i++) {
                 try {
                     JSONObject rec = history.getJSONObject(i);
-                    String section = rec.optString("section", "").replace(",", " ");
-                    String exam = rec.optString("exam", "").replace(",", " ");
+                    String ts = rec.optString("ts", "");
                     
-                    // Apply filters if enabled (Feature #4)
-                    if (useFilters) {
-                        boolean matchesExam = currentExamFilter.equals("All") || exam.equals(currentExamFilter);
-                        boolean matchesSection = currentSectionFilter.equals("All") || section.equals(currentSectionFilter);
-                        
-                        if (!matchesExam || !matchesSection) {
-                            continue; // Skip this record
-                        }
+                    // Only export selected records
+                    if (!selectedTs.contains(ts)) {
+                        continue; // Skip this record
                     }
                     
-                    String ts = rec.optString("ts", "").replace(",", " ");
+                    String section = rec.optString("section", "").replace(",", " ");
+                    String exam = rec.optString("exam", "").replace(",", " ");
                     String student = rec.optString("student", "").replace(",", " ");
                     int score = rec.optInt("score", 0);
                     int total = rec.optInt("total", 0);
@@ -2410,20 +2490,33 @@ public class MainActivity extends AppCompatActivity {
                     os.write(sb.toString().getBytes());
                     os.flush();
                 }
-                String message = useFilters 
-                    ? String.format(Locale.US, "CSV exported: %d records (filtered)", finalExportedCount)
-                    : String.format(Locale.US, "CSV exported: %d records (all history)", finalExportedCount);
+                String message = String.format(Locale.US, "CSV exported: %d selected records", finalExportedCount);
                 runOnUiThread(() -> Toast.makeText(this, message, Toast.LENGTH_SHORT).show());
             } catch (Exception e) {
                 Log.e(TAG, "CSV export", e);
                 runOnUiThread(() -> Toast.makeText(this, "CSV export failed.", Toast.LENGTH_LONG).show());
             }
+            
+            // Clear selection after export
+            runOnUiThread(() -> selectedHistoryTimestamps.clear());
         });
     }
 
     // ---------------------------
     // Misc (unchanged)
     // ---------------------------
+
+    // ---------------------------
+    // Global White Text with Thick Black Outline
+    // ---------------------------
+    
+    /**
+     * Recursively apply white text with thick black outline to all text views in the hierarchy.
+     * This ensures optimal legibility across different backgrounds.
+     */
+    private void applyWhiteThickOutlineToTree(View root) {
+        OutlinedTextUtil.applyOutlineToTree(root);
+    }
 
     private void showCreditsDialog() {
         new AlertDialog.Builder(this)
@@ -2525,22 +2618,43 @@ public class MainActivity extends AppCompatActivity {
         if (masterlistLayout != null) masterlistLayout.setVisibility(View.GONE);
         if (settingsLayout != null) settingsLayout.setVisibility(View.GONE);
         
+        View visibleView = null;
         switch (viewName) {
             case "main":
-                if (mainLayout != null) mainLayout.setVisibility(View.VISIBLE);
+                if (mainLayout != null) {
+                    mainLayout.setVisibility(View.VISIBLE);
+                    visibleView = mainLayout;
+                }
                 break;
             case "setup":
-                if (answerKeyLayout != null) answerKeyLayout.setVisibility(View.VISIBLE);
+                if (answerKeyLayout != null) {
+                    answerKeyLayout.setVisibility(View.VISIBLE);
+                    visibleView = answerKeyLayout;
+                }
                 break;
             case "history":
-                if (testHistoryLayout != null) testHistoryLayout.setVisibility(View.VISIBLE);
+                if (testHistoryLayout != null) {
+                    testHistoryLayout.setVisibility(View.VISIBLE);
+                    visibleView = testHistoryLayout;
+                }
                 break;
             case "scan":
-                if (scanSessionLayout != null) scanSessionLayout.setVisibility(View.VISIBLE);
+                if (scanSessionLayout != null) {
+                    scanSessionLayout.setVisibility(View.VISIBLE);
+                    visibleView = scanSessionLayout;
+                }
                 break;
             case "masterlist":
-                if (masterlistLayout != null) masterlistLayout.setVisibility(View.VISIBLE);
+                if (masterlistLayout != null) {
+                    masterlistLayout.setVisibility(View.VISIBLE);
+                    visibleView = masterlistLayout;
+                }
                 break;
+        }
+        
+        // Apply white text with thick black outline to newly visible view
+        if (visibleView != null) {
+            applyWhiteThickOutlineToTree(visibleView);
         }
     }
 
@@ -3089,8 +3203,10 @@ public class MainActivity extends AppCompatActivity {
     private void onCropResult(androidx.activity.result.ActivityResult result) {
         cropInProgress = false;
         if (result.getResultCode() == RESULT_OK && result.getData() != null) {
-            android.net.Uri croppedUri = result.getData().getData();
+            // Get the cropped URI from UCrop
+            android.net.Uri croppedUri = UCrop.getOutput(result.getData());
             if (croppedUri != null) {
+                Log.d(CROP_FLOW, "UCrop succeeded, processing cropped image: " + croppedUri);
                 // Ensure OCR ready (was stopped if previous code paused it)
                 if (ocrProcessor == null) {
                     Log.w(OCR_FLOW, "ocrProcessor null on crop result - reinitializing");
@@ -3107,6 +3223,13 @@ public class MainActivity extends AppCompatActivity {
         } else if (result.getResultCode() == RESULT_CANCELED) {
             Log.d(CROP_FLOW, "Crop canceled");
         } else {
+            // Handle UCrop error
+            if (result.getData() != null) {
+                Throwable cropError = UCrop.getError(result.getData());
+                if (cropError != null) {
+                    Log.e(CROP_FLOW, "UCrop error: " + cropError.getMessage(), cropError);
+                }
+            }
             Toast.makeText(this, "Crop failed, using fallback", Toast.LENGTH_SHORT).show();
             if (lastCapturedImageUri != null) processFallbackAutoCrop(lastCapturedImageUri);
         }
@@ -3178,17 +3301,39 @@ public class MainActivity extends AppCompatActivity {
             if (lastCapturedFile == null || !lastCapturedFile.exists()) {
                 Log.w(CROP_FIX, "Captured file missing or deleted before crop");
             }
-                    cropInProgress = true;
-            // Prepare a distinct output file
+            cropInProgress = true;
+            
+            // Prepare a distinct output file for uCrop
             java.io.File outFile = new java.io.File(getCacheDir(), "cropped_" + System.currentTimeMillis() + ".jpg");
             android.net.Uri outputUri = android.net.Uri.fromFile(outFile);
-            Log.d(CROP_FLOW, "Launching SimpleCropActivity\n  source=" + sourceUri +
+            
+            Log.d(CROP_FLOW, "Launching uCrop\n  source=" + sourceUri +
                     "\n  output=" + outputUri +
                     "\n  capturedSize=" + (lastCapturedFile != null ? lastCapturedFile.length() : -1) +
                     "\n  orientationHint=" + lastCapturedJpegOrientation);
-            Intent cropIntent = SimpleCropActivity
-                    .createIntent(this, sourceUri, outputUri)
-                    .putExtra("EXTRA_JPEG_ORIENTATION", lastCapturedJpegOrientation);
+            
+            // Configure uCrop options for robust cropping with rotation
+            UCrop.Options options = new UCrop.Options();
+            options.setFreeStyleCropEnabled(true); // Enable free-style crop
+            options.setHideBottomControls(false); // Show bottom controls for rotation
+            
+            // Configure gestures: scale, rotate, and all gestures
+            options.setAllowedGestures(UCrop.SCALE, UCrop.ROTATE, UCrop.ALL);
+            
+            // Match app theme colors
+            options.setToolbarColor(ContextCompat.getColor(this, R.color.brand_brown));
+            options.setStatusBarColor(ContextCompat.getColor(this, R.color.brand_brown));
+            options.setActiveControlsWidgetColor(ContextCompat.getColor(this, R.color.secondary_emerald));
+            
+            // Set max output size to avoid OOM
+            options.setMaxBitmapSize(2048);
+            options.setCompressionQuality(90);
+            
+            // Create and launch UCrop intent
+            Intent cropIntent = UCrop.of(sourceUri, outputUri)
+                    .withOptions(options)
+                    .getIntent(this);
+            
             cropLauncher.launch(cropIntent);
         } catch (Exception e) {
             cropInProgress = false;

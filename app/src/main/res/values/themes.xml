@@ -22,8 +22,8 @@
         <item name="colorOnBackground">@color/on_background</item>
 
         <!-- Typography (downloadable font) -->
-        <item name="fontFamily">@font/inter</item>
-        <item name="android:fontFamily">@font/inter</item>
+        <item name="fontFamily">@font/noto_sans</item>
+        <item name="android:fontFamily">@font/noto_sans</item>
     </style>
 
     <!-- Splash variant -->
@@ -36,8 +36,8 @@
     <style name="Theme.Iskorly.Cropper" parent="Theme.Material3.DayNight">
         <item name="colorPrimary">@color/primary_indigo</item>
         <item name="colorOnPrimary">@color/on_primary</item>
-        <item name="fontFamily">@font/inter</item>
-        <item name="android:fontFamily">@font/inter</item>
+        <item name="fontFamily">@font/noto_sans</item>
+        <item name="android:fontFamily">@font/noto_sans</item>
     </style>
 
     <!-- Legacy alias -->
