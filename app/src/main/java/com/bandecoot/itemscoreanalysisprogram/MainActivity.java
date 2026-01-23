@@ -62,11 +62,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -223,6 +225,9 @@ public class MainActivity extends AppCompatActivity {
     // CSV Export
     private ActivityResultLauncher<String> createCsvLauncher;
     private ActivityResultLauncher<String> exportMasterlistCsvLauncher;
+    
+    // CSV manual selection - stores timestamps of selected history records
+    private Set<String> selectedHistoryTimestamps = new HashSet<>();
     
     // Autocomplete JSON Import/Export
     private ActivityResultLauncher<String[]> importAutocompleteJsonLauncher;
@@ -1194,8 +1199,11 @@ public class MainActivity extends AppCompatActivity {
         // Handle navigation intents from MainMenuActivity
         handleNavigationIntent();
         
-        // Enforce black text color on all input fields
-        enforceBlackTextColorOnInputs();
+        // Apply white text with thick black outline globally for optimal legibility
+        View rootView = findViewById(android.R.id.content);
+        if (rootView != null) {
+            applyWhiteThickOutlineToTree(rootView);
+        }
     }
     
     /**
@@ -2317,28 +2325,103 @@ public class MainActivity extends AppCompatActivity {
     // ---------------------------
 
     private void exportHistoryCsv() {
-        // Show dialog to choose export scope (Feature #4: CSV export with filtering)
+        // Load history records
+        String raw = historyPreferences.getString("history", "[]");
+        JSONArray history;
+        try {
+            history = new JSONArray(raw);
+        } catch (Exception e) {
+            history = new JSONArray();
+        }
+        
+        if (history.length() == 0) {
+            Toast.makeText(this, "No history records to export", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Prepare list of records for multi-select dialog
+        final List<String> recordLabels = new ArrayList<>();
+        final List<String> recordTimestamps = new ArrayList<>();
+        
+        for (int i = 0; i < history.length(); i++) {
+            try {
+                JSONObject rec = history.getJSONObject(i);
+                String ts = rec.optString("ts", "");
+                String student = rec.optString("student", "Unknown");
+                int score = rec.optInt("score", 0);
+                int total = rec.optInt("total", 0);
+                double pct = rec.optDouble("percent", 0.0);
+                
+                // Format: [timestamp] student — score/total (%)
+                String label = String.format(Locale.US, "[%s] %s — %d/%d (%.1f%%)", 
+                        ts, student, score, total, pct);
+                recordLabels.add(label);
+                recordTimestamps.add(ts);
+            } catch (Exception ignored) {
+            }
+        }
+        
+        // Create boolean array for selection state
+        final boolean[] checkedItems = new boolean[recordLabels.size()];
+        selectedHistoryTimestamps.clear();
+        
+        // Build multi-choice dialog
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle(getString(R.string.csv_export_dialog_title));
+        builder.setTitle("Select Records to Export");
         
-        String[] options = {
-            getString(R.string.csv_export_entire_history),
-            getString(R.string.csv_export_current_filters)
-        };
+        builder.setMultiChoiceItems(
+                recordLabels.toArray(new String[0]),
+                checkedItems,
+                (dialog, which, isChecked) -> {
+                    checkedItems[which] = isChecked;
+                    if (isChecked) {
+                        selectedHistoryTimestamps.add(recordTimestamps.get(which));
+                    } else {
+                        selectedHistoryTimestamps.remove(recordTimestamps.get(which));
+                    }
+                });
         
-        builder.setItems(options, (dialog, which) -> {
-            boolean useFilters = (which == 1);
-            exportHistoryCsvWithOptions(useFilters);
+        // Add "Select All" button
+        builder.setNeutralButton("Select All", null);
+        
+        // Add "Export" button
+        builder.setPositiveButton("Export", (dialog, which) -> {
+            if (selectedHistoryTimestamps.isEmpty()) {
+                Toast.makeText(this, "No records selected", Toast.LENGTH_SHORT).show();
+            } else {
+                createCsvLauncher.launch("isa_history.csv");
+            }
         });
         
+        // Add "Cancel" button
         builder.setNegativeButton("Cancel", null);
-        builder.show();
-    }
-    
-    private void exportHistoryCsvWithOptions(boolean useFilters) {
-        createCsvLauncher.launch("isa_history.csv");
-        // Store the filter preference for use in onCsvDocumentCreated
-        appPreferences.edit().putBoolean("csv_export_use_filters", useFilters).apply();
+        
+        AlertDialog dialog = builder.create();
+        dialog.show();
+        
+        // Override "Select All" button to toggle selection without closing dialog
+        dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
+            boolean allSelected = selectedHistoryTimestamps.size() == recordTimestamps.size();
+            
+            // Update checkedItems array and selected timestamps
+            for (int i = 0; i < checkedItems.length; i++) {
+                checkedItems[i] = !allSelected;
+                // Update ListView checked state
+                dialog.getListView().setItemChecked(i, !allSelected);
+            }
+            
+            // Update selected timestamps set
+            if (allSelected) {
+                selectedHistoryTimestamps.clear();
+            } else {
+                selectedHistoryTimestamps.clear();
+                selectedHistoryTimestamps.addAll(recordTimestamps);
+            }
+            
+            // Update button text to reflect toggle state
+            v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+            ((android.widget.Button) v).setText(allSelected ? "Select All" : "Clear All");
+        });
     }
 
     private void onCsvDocumentCreated(android.net.Uri uri) {
@@ -2347,8 +2430,8 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         
-        // Get filter preference
-        boolean useFilters = appPreferences.getBoolean("csv_export_use_filters", false);
+        // Use manual selection instead of filters
+        final Set<String> selectedTs = new HashSet<>(selectedHistoryTimestamps);
         
         backgroundHandler.post(() -> {
             String raw = historyPreferences.getString("history", "[]");
@@ -2368,20 +2451,15 @@ public class MainActivity extends AppCompatActivity {
             for (int i = 0; i < history.length(); i++) {
                 try {
                     JSONObject rec = history.getJSONObject(i);
-                    String section = rec.optString("section", "").replace(",", " ");
-                    String exam = rec.optString("exam", "").replace(",", " ");
+                    String ts = rec.optString("ts", "");
                     
-                    // Apply filters if enabled (Feature #4)
-                    if (useFilters) {
-                        boolean matchesExam = currentExamFilter.equals("All") || exam.equals(currentExamFilter);
-                        boolean matchesSection = currentSectionFilter.equals("All") || section.equals(currentSectionFilter);
-                        
-                        if (!matchesExam || !matchesSection) {
-                            continue; // Skip this record
-                        }
+                    // Only export selected records
+                    if (!selectedTs.contains(ts)) {
+                        continue; // Skip this record
                     }
                     
-                    String ts = rec.optString("ts", "").replace(",", " ");
+                    String section = rec.optString("section", "").replace(",", " ");
+                    String exam = rec.optString("exam", "").replace(",", " ");
                     String student = rec.optString("student", "").replace(",", " ");
                     int score = rec.optInt("score", 0);
                     int total = rec.optInt("total", 0);
@@ -2410,20 +2488,33 @@ public class MainActivity extends AppCompatActivity {
                     os.write(sb.toString().getBytes());
                     os.flush();
                 }
-                String message = useFilters 
-                    ? String.format(Locale.US, "CSV exported: %d records (filtered)", finalExportedCount)
-                    : String.format(Locale.US, "CSV exported: %d records (all history)", finalExportedCount);
+                String message = String.format(Locale.US, "CSV exported: %d selected records", finalExportedCount);
                 runOnUiThread(() -> Toast.makeText(this, message, Toast.LENGTH_SHORT).show());
             } catch (Exception e) {
                 Log.e(TAG, "CSV export", e);
                 runOnUiThread(() -> Toast.makeText(this, "CSV export failed.", Toast.LENGTH_LONG).show());
             }
+            
+            // Clear selection after export
+            runOnUiThread(() -> selectedHistoryTimestamps.clear());
         });
     }
 
     // ---------------------------
     // Misc (unchanged)
     // ---------------------------
+
+    // ---------------------------
+    // Global White Text with Thick Black Outline
+    // ---------------------------
+    
+    /**
+     * Recursively apply white text with thick black outline to all text views in the hierarchy.
+     * This ensures optimal legibility across different backgrounds.
+     */
+    private void applyWhiteThickOutlineToTree(View root) {
+        OutlinedTextUtil.applyOutlineToTree(root);
+    }
 
     private void showCreditsDialog() {
         new AlertDialog.Builder(this)
@@ -2525,22 +2616,43 @@ public class MainActivity extends AppCompatActivity {
         if (masterlistLayout != null) masterlistLayout.setVisibility(View.GONE);
         if (settingsLayout != null) settingsLayout.setVisibility(View.GONE);
         
+        View visibleView = null;
         switch (viewName) {
             case "main":
-                if (mainLayout != null) mainLayout.setVisibility(View.VISIBLE);
+                if (mainLayout != null) {
+                    mainLayout.setVisibility(View.VISIBLE);
+                    visibleView = mainLayout;
+                }
                 break;
             case "setup":
-                if (answerKeyLayout != null) answerKeyLayout.setVisibility(View.VISIBLE);
+                if (answerKeyLayout != null) {
+                    answerKeyLayout.setVisibility(View.VISIBLE);
+                    visibleView = answerKeyLayout;
+                }
                 break;
             case "history":
-                if (testHistoryLayout != null) testHistoryLayout.setVisibility(View.VISIBLE);
+                if (testHistoryLayout != null) {
+                    testHistoryLayout.setVisibility(View.VISIBLE);
+                    visibleView = testHistoryLayout;
+                }
                 break;
             case "scan":
-                if (scanSessionLayout != null) scanSessionLayout.setVisibility(View.VISIBLE);
+                if (scanSessionLayout != null) {
+                    scanSessionLayout.setVisibility(View.VISIBLE);
+                    visibleView = scanSessionLayout;
+                }
                 break;
             case "masterlist":
-                if (masterlistLayout != null) masterlistLayout.setVisibility(View.VISIBLE);
+                if (masterlistLayout != null) {
+                    masterlistLayout.setVisibility(View.VISIBLE);
+                    visibleView = masterlistLayout;
+                }
                 break;
+        }
+        
+        // Apply white text with thick black outline to newly visible view
+        if (visibleView != null) {
+            applyWhiteThickOutlineToTree(visibleView);
         }
     }
 
@@ -2651,11 +2763,18 @@ public class MainActivity extends AppCompatActivity {
             cell.setRadius(dp(8));
             cell.setContentPadding(dp(8), dp(6), dp(8), dp(6));
             
-            // Inner layout for Q# and EditText
+            // Inner layout - VERTICAL to allow hint below EditText
             LinearLayout cellContent = new LinearLayout(this);
-            cellContent.setOrientation(LinearLayout.HORIZONTAL);
+            cellContent.setOrientation(LinearLayout.VERTICAL);
             cellContent.setLayoutParams(new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+            
+            // Top row: Q# and EditText
+            LinearLayout topRow = new LinearLayout(this);
+            topRow.setOrientation(LinearLayout.HORIZONTAL);
+            topRow.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
             
             TextView tv = new TextView(this);
@@ -2664,7 +2783,7 @@ public class MainActivity extends AppCompatActivity {
             tv.setTextColor(Color.BLACK);
             tv.setTypeface(tv.getTypeface(), Typeface.BOLD);
             tv.setPadding(0, 0, dp(6), 0);
-            cellContent.addView(tv);
+            topRow.addView(tv);
 
             // Universal input - always use EditText for both letters and words
             // Allow mixed case input (removed TYPE_TEXT_FLAG_CAP_CHARACTERS)
@@ -2707,8 +2826,30 @@ public class MainActivity extends AppCompatActivity {
                 public void afterTextChanged(android.text.Editable s) {}
             });
             
-            cellContent.addView(et);
+            topRow.addView(et);
             parsedEditors.put(q, et);
+            cellContent.addView(topRow);
+            
+            // Hint TextView for showing correct answer (initially hidden)
+            TextView hintTv = new TextView(this);
+            hintTv.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+            hintTv.setTextSize(12);
+            hintTv.setTextColor(0xFF006400); // Dark green for correct answer
+            hintTv.setTypeface(hintTv.getTypeface(), Typeface.ITALIC);
+            hintTv.setPadding(0, dp(2), 0, 0);
+            hintTv.setVisibility(View.GONE);
+            hintTv.setTag("hint_" + q); // Tag for later reference
+            
+            // Check if we have a correct answer to show
+            String correctAnswer = currentAnswerKey.get(q);
+            if (correctAnswer != null && !correctAnswer.trim().isEmpty()) {
+                hintTv.setText("Correct: " + correctAnswer);
+                // Initially hide, will be shown after scoring
+            }
+            
+            cellContent.addView(hintTv);
             
             cell.addView(cellContent);
             currentRow.addView(cell);
@@ -2782,14 +2923,13 @@ public class MainActivity extends AppCompatActivity {
             if (editorView instanceof EditText) {
                 EditText et = (EditText) editorView;
                 
-                // Get parent container to add hint below EditText
-                ViewGroup parent = (ViewGroup) et.getParent();
+                // Get parent container - should be the topRow LinearLayout
+                ViewGroup topRow = (ViewGroup) et.getParent();
+                // Get cell content container (topRow's parent)
+                ViewGroup cellContent = (ViewGroup) topRow.getParent();
                 
-                // Remove any existing correctness hint
-                View existingHint = parent.findViewWithTag("correctness_hint_" + q);
-                if (existingHint != null) {
-                    parent.removeView(existingHint);
-                }
+                // Find the hint TextView we created in populateParsedAnswersEditable
+                TextView hintTv = cellContent.findViewWithTag("hint_" + q);
                 
                 if (got != null && !got.isEmpty()) {
                     answered++;
@@ -2798,20 +2938,21 @@ public class MainActivity extends AppCompatActivity {
                         // Highlight correct with semantic color
                         et.setBackgroundColor(ContextCompat.getColor(this, R.color.answer_correct));
                         et.setTextColor(0xFF155724); // Dark green text
+                        
+                        // Hide hint for correct answers
+                        if (hintTv != null) {
+                            hintTv.setVisibility(View.GONE);
+                        }
                     } else {
                         // Highlight incorrect with semantic color
                         et.setBackgroundColor(ContextCompat.getColor(this, R.color.answer_incorrect));
                         et.setTextColor(0xFF721C24); // Dark red text
                         
-                        // Feature #2: Add correctness hint below incorrect answer
-                        TextView hintText = new TextView(this);
-                        hintText.setTag("correctness_hint_" + q);
-                        hintText.setText(getString(R.string.correct_answer_prefix, expected));
-                        hintText.setTextSize(11);
-                        hintText.setTextColor(0xFF721C24); // Dark red to match
-                        hintText.setTypeface(hintText.getTypeface(), Typeface.ITALIC);
-                        hintText.setPadding(dp(4), dp(2), dp(4), 0);
-                        parent.addView(hintText);
+                        // Show hint below incorrect answer
+                        if (hintTv != null) {
+                            hintTv.setText(getString(R.string.correct_answer_prefix, expected));
+                            hintTv.setVisibility(View.VISIBLE);
+                        }
                         
                         // Add TextWatcher to hide hint when user corrects the answer
                         et.addTextChangedListener(new android.text.TextWatcher() {
@@ -2822,10 +2963,9 @@ public class MainActivity extends AppCompatActivity {
                             public void onTextChanged(CharSequence s, int start, int before, int count) {
                                 String newValue = s.toString().trim();
                                 if (expected.equalsIgnoreCase(newValue)) {
-                                    // User corrected it - remove hint and update colors
-                                    View hint = parent.findViewWithTag("correctness_hint_" + q);
-                                    if (hint != null) {
-                                        parent.removeView(hint);
+                                    // User corrected it - hide hint and update colors
+                                    if (hintTv != null) {
+                                        hintTv.setVisibility(View.GONE);
                                     }
                                     et.setBackgroundColor(ContextCompat.getColor(MainActivity.this, R.color.answer_correct));
                                     et.setTextColor(0xFF155724); // Dark green text
@@ -2840,6 +2980,11 @@ public class MainActivity extends AppCompatActivity {
                     // No answer - semantic blank color
                     et.setBackgroundColor(ContextCompat.getColor(this, R.color.answer_blank));
                     et.setTextColor(0xFF856404); // Dark yellow text
+                    
+                    // Hide hint for blank answers
+                    if (hintTv != null) {
+                        hintTv.setVisibility(View.GONE);
+                    }
                 }
             }
         }
@@ -3091,6 +3236,7 @@ public class MainActivity extends AppCompatActivity {
         if (result.getResultCode() == RESULT_OK && result.getData() != null) {
             android.net.Uri croppedUri = result.getData().getData();
             if (croppedUri != null) {
+                Log.d(CROP_FLOW, "SimpleCropActivity succeeded with robust rotation, processing cropped image: " + croppedUri);
                 // Ensure OCR ready (was stopped if previous code paused it)
                 if (ocrProcessor == null) {
                     Log.w(OCR_FLOW, "ocrProcessor null on crop result - reinitializing");
@@ -3178,14 +3324,18 @@ public class MainActivity extends AppCompatActivity {
             if (lastCapturedFile == null || !lastCapturedFile.exists()) {
                 Log.w(CROP_FIX, "Captured file missing or deleted before crop");
             }
-                    cropInProgress = true;
+            cropInProgress = true;
+            
             // Prepare a distinct output file
             java.io.File outFile = new java.io.File(getCacheDir(), "cropped_" + System.currentTimeMillis() + ".jpg");
             android.net.Uri outputUri = android.net.Uri.fromFile(outFile);
-            Log.d(CROP_FLOW, "Launching SimpleCropActivity\n  source=" + sourceUri +
+            
+            Log.d(CROP_FLOW, "Launching SimpleCropActivity with robust rotation support\n  source=" + sourceUri +
                     "\n  output=" + outputUri +
                     "\n  capturedSize=" + (lastCapturedFile != null ? lastCapturedFile.length() : -1) +
                     "\n  orientationHint=" + lastCapturedJpegOrientation);
+            
+            // SimpleCropActivity uses CanHub CropImageView which provides robust rotation controls
             Intent cropIntent = SimpleCropActivity
                     .createIntent(this, sourceUri, outputUri)
                     .putExtra("EXTRA_JPEG_ORIENTATION", lastCapturedJpegOrientation);

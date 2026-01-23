@@ -24,10 +24,10 @@ public final class OutlinedTextUtil {
         // Set text color to white
         view.setTextColor(Color.WHITE);
         
-        // Apply black shadow at multiple positions to simulate outline
+        // Apply thick black shadow for a more visible outline effect
         // Shadow: radius, dx, dy, color
-        // We use a small radius with offsets to create an outline effect
-        view.setShadowLayer(3f, 0, 0, Color.BLACK);
+        // Increased radius from 3f to 6f for thicker, more visible outline
+        view.setShadowLayer(6f, 0, 0, Color.BLACK);
         
         // Additional paint flags for better rendering
         view.getPaint().setStrokeWidth(2f);
@@ -45,8 +45,9 @@ public final class OutlinedTextUtil {
         // Set text color to white
         view.setTextColor(Color.WHITE);
         
-        // Apply black shadow layer
-        view.setShadowLayer(3f, 0, 0, Color.BLACK);
+        // Apply thick black shadow for a more visible outline effect
+        // Increased radius from 3f to 6f for thicker, more visible outline
+        view.setShadowLayer(6f, 0, 0, Color.BLACK);
         
         // Additional paint flags for better rendering
         view.getPaint().setStrokeWidth(2f);
@@ -102,5 +103,30 @@ public final class OutlinedTextUtil {
         
         // Check if text is white and has shadow
         return view.getCurrentTextColor() == Color.WHITE;
+    }
+    
+    /**
+     * Recursively apply white text with thick black outline to all text-bearing views
+     * in a view hierarchy. This includes TextView, EditText, Button, and Material components.
+     * 
+     * @param root Root view to start traversal from
+     */
+    public static void applyOutlineToTree(android.view.View root) {
+        if (root == null) return;
+        
+        // Apply outline to the current view if it's a text-bearing view
+        if (root instanceof EditText) {
+            applyOutline((EditText) root);
+        } else if (root instanceof TextView) {
+            applyOutline((TextView) root);
+        }
+        
+        // Recursively apply to children if this is a ViewGroup
+        if (root instanceof android.view.ViewGroup) {
+            android.view.ViewGroup group = (android.view.ViewGroup) root;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                applyOutlineToTree(group.getChildAt(i));
+            }
+        }
     }
 }

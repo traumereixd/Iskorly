@@ -23,6 +23,7 @@ import java.io.InputStream;
 
 /**
  * SimpleCropActivity - Enhanced custom crop UI with rotate, flip, and aspect ratio controls.
+ * Provides robust arbitrary rotation using CanHub CropImageView library.
  */
 public class SimpleCropActivity extends AppCompatActivity {
 
