@@ -7,8 +7,4 @@
 
 
     </style>
-    <string name="filled_answers_status">Processed %1$d image(s) • Filled %2$d / %3$d answers</string>
-    <string name="mps_format">MPS: %1$.2f (n=%2$d)</string>
-    <!-- Explicit TextAppearance to force black label on switches -->
-
 </resources>
