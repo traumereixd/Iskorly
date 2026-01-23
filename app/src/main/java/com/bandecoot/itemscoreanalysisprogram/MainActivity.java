@@ -115,6 +115,7 @@ public class MainActivity extends AppCompatActivity {
     private Button masterlistBySectionButton, masterlistAllButton, btnSlotSaveSet;
     private Button buttonSettings, buttonSettingsClose;
     private com.google.android.material.materialswitch.MaterialSwitch switchOcrTwoColumn, switchOcrHighContrast;
+    private com.google.android.material.materialswitch.MaterialSwitch switchOutlinedText, switchLargeText;
     private TextView currentKeyTextView, sessionScoreTextView, parsedLabel, masterlistInfoTextView;
     
     // Type Hints UI components
@@ -156,6 +157,8 @@ public class MainActivity extends AppCompatActivity {
     private static final String PREF_RECENT_EXAMS = "recent_exams";
     private static final String PREF_OCR_TWO_COLUMN = "ocr_two_column_enabled";
     private static final String PREF_OCR_HIGH_CONTRAST = "ocr_high_contrast_enabled";
+    private static final String PREF_OUTLINED_TEXT = "outlined_text_enabled";
+    private static final String PREF_LARGE_TEXT = "large_text_enabled";
     private static final String PREF_RANGE_HINTS = "range_hints";
     private static final String PREF_FORM_STUDENT = "form_student_name";
     private static final String PREF_FORM_SECTION = "form_section_name";
@@ -949,9 +952,14 @@ public class MainActivity extends AppCompatActivity {
         buttonSettingsClose = findViewById(R.id.button_settings_close);
         switchOcrTwoColumn = findViewById(R.id.switch_ocr_two_column);
         switchOcrHighContrast = findViewById(R.id.switch_ocr_high_contrast);
+        switchOutlinedText = findViewById(R.id.switch_outlined_text);
+        switchLargeText = findViewById(R.id.switch_large_text);
         
         // Load OCR settings from preferences
         loadOcrSettings();
+        
+        // Load accessibility settings (Feature #1)
+        loadAccessibilitySettings();
         
         // Settings button listener
         if (buttonSettings != null) {
@@ -981,6 +989,23 @@ public class MainActivity extends AppCompatActivity {
             switchOcrHighContrast.setOnCheckedChangeListener((buttonView, isChecked) -> {
                 appPreferences.edit().putBoolean(PREF_OCR_HIGH_CONTRAST, isChecked).apply();
                 Log.d(TAG, "High-contrast OCR " + (isChecked ? "enabled" : "disabled"));
+            });
+        }
+        
+        // Accessibility toggle listeners (Feature #1)
+        if (switchOutlinedText != null) {
+            switchOutlinedText.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                appPreferences.edit().putBoolean(PREF_OUTLINED_TEXT, isChecked).apply();
+                applyOutlinedTextSetting(isChecked);
+                Log.d(TAG, "Outlined text " + (isChecked ? "enabled" : "disabled"));
+            });
+        }
+        
+        if (switchLargeText != null) {
+            switchLargeText.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                appPreferences.edit().putBoolean(PREF_LARGE_TEXT, isChecked).apply();
+                applyLargeTextSetting(isChecked);
+                Log.d(TAG, "Large text " + (isChecked ? "enabled" : "disabled"));
             });
         }
         
@@ -5165,6 +5190,69 @@ public class MainActivity extends AppCompatActivity {
      */
     private boolean isHighContrastEnabled() {
         return appPreferences.getBoolean(PREF_OCR_HIGH_CONTRAST, false);
+    }
+    
+    /**
+     * Load accessibility settings from preferences (Feature #1).
+     */
+    private void loadAccessibilitySettings() {
+        // Default outlined text to ON as requested
+        boolean outlinedEnabled = appPreferences.getBoolean(PREF_OUTLINED_TEXT, true);
+        boolean largeTextEnabled = appPreferences.getBoolean(PREF_LARGE_TEXT, false);
+        
+        if (switchOutlinedText != null) {
+            switchOutlinedText.setChecked(outlinedEnabled);
+        }
+        if (switchLargeText != null) {
+            switchLargeText.setChecked(largeTextEnabled);
+        }
+        
+        // Apply settings
+        applyOutlinedTextSetting(outlinedEnabled);
+        applyLargeTextSetting(largeTextEnabled);
+        
+        Log.d(TAG, "Accessibility settings loaded: outlined=" + outlinedEnabled + ", large-text=" + largeTextEnabled);
+    }
+    
+    /**
+     * Apply outlined text setting to all TextViews (Feature #1).
+     */
+    private void applyOutlinedTextSetting(boolean enabled) {
+        if (enabled) {
+            // Apply outlined text to key UI elements
+            // Note: We keep input fields with black text for readability
+            // Only apply to static text labels and headers
+            if (parsedLabel != null) OutlinedTextUtil.applyOutline(parsedLabel);
+            if (sessionScoreTextView != null) OutlinedTextUtil.applyOutline(sessionScoreTextView);
+            if (currentKeyTextView != null) OutlinedTextUtil.applyOutline(currentKeyTextView);
+        } else {
+            // Remove outlined text
+            if (parsedLabel != null) OutlinedTextUtil.removeOutline(parsedLabel);
+            if (sessionScoreTextView != null) OutlinedTextUtil.removeOutline(sessionScoreTextView);
+            if (currentKeyTextView != null) OutlinedTextUtil.removeOutline(currentKeyTextView);
+        }
+    }
+    
+    /**
+     * Apply large text setting (Feature #1).
+     */
+    private void applyLargeTextSetting(boolean enabled) {
+        float scaleFactor = enabled ? 1.3f : 1.0f;
+        
+        // Apply to key text views
+        if (parsedLabel != null) {
+            parsedLabel.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14 * scaleFactor);
+        }
+        if (sessionScoreTextView != null) {
+            sessionScoreTextView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 16 * scaleFactor);
+        }
+        
+        // Increase touch targets for key buttons
+        int minHeight = enabled ? dp(56) : dp(48);
+        if (startScanButton != null) startScanButton.setMinHeight(minHeight);
+        if (setupButton != null) setupButton.setMinHeight(minHeight);
+        if (viewHistoryButton != null) viewHistoryButton.setMinHeight(minHeight);
+        if (confirmParsedButton != null) confirmParsedButton.setMinHeight(minHeight);
     }
     
     /**
