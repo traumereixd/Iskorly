@@ -84,9 +84,6 @@ dependencies {
     // Published on Maven Central - Supports rotation, flip, aspect ratios, and free-form cropping
     implementation("com.vanniktech:android-image-cropper:4.5.0")
     
-    // uCrop for advanced cropping with robust arbitrary rotation
-    implementation("com.github.yalantis:ucrop:2.2.8")
-    
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")

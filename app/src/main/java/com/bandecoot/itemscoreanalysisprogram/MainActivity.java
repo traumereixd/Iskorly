@@ -50,8 +50,6 @@ import androidx.core.content.FileProvider;
 import com.google.android.material.textfield.MaterialAutoCompleteTextView;
 import com.google.android.material.card.MaterialCardView;
 
-import com.yalantis.ucrop.UCrop;
-
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -2765,11 +2763,18 @@ public class MainActivity extends AppCompatActivity {
             cell.setRadius(dp(8));
             cell.setContentPadding(dp(8), dp(6), dp(8), dp(6));
             
-            // Inner layout for Q# and EditText
+            // Inner layout - VERTICAL to allow hint below EditText
             LinearLayout cellContent = new LinearLayout(this);
-            cellContent.setOrientation(LinearLayout.HORIZONTAL);
+            cellContent.setOrientation(LinearLayout.VERTICAL);
             cellContent.setLayoutParams(new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+            
+            // Top row: Q# and EditText
+            LinearLayout topRow = new LinearLayout(this);
+            topRow.setOrientation(LinearLayout.HORIZONTAL);
+            topRow.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT));
             
             TextView tv = new TextView(this);
@@ -2778,7 +2783,7 @@ public class MainActivity extends AppCompatActivity {
             tv.setTextColor(Color.BLACK);
             tv.setTypeface(tv.getTypeface(), Typeface.BOLD);
             tv.setPadding(0, 0, dp(6), 0);
-            cellContent.addView(tv);
+            topRow.addView(tv);
 
             // Universal input - always use EditText for both letters and words
             // Allow mixed case input (removed TYPE_TEXT_FLAG_CAP_CHARACTERS)
@@ -2821,8 +2826,30 @@ public class MainActivity extends AppCompatActivity {
                 public void afterTextChanged(android.text.Editable s) {}
             });
             
-            cellContent.addView(et);
+            topRow.addView(et);
             parsedEditors.put(q, et);
+            cellContent.addView(topRow);
+            
+            // Hint TextView for showing correct answer (initially hidden)
+            TextView hintTv = new TextView(this);
+            hintTv.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+            hintTv.setTextSize(12);
+            hintTv.setTextColor(0xFF006400); // Dark green for correct answer
+            hintTv.setTypeface(hintTv.getTypeface(), Typeface.ITALIC);
+            hintTv.setPadding(0, dp(2), 0, 0);
+            hintTv.setVisibility(View.GONE);
+            hintTv.setTag("hint_" + q); // Tag for later reference
+            
+            // Check if we have a correct answer to show
+            String correctAnswer = currentAnswerKey.get(q);
+            if (correctAnswer != null && !correctAnswer.trim().isEmpty()) {
+                hintTv.setText("Correct: " + correctAnswer);
+                // Initially hide, will be shown after scoring
+            }
+            
+            cellContent.addView(hintTv);
             
             cell.addView(cellContent);
             currentRow.addView(cell);
@@ -2896,14 +2923,13 @@ public class MainActivity extends AppCompatActivity {
             if (editorView instanceof EditText) {
                 EditText et = (EditText) editorView;
                 
-                // Get parent container to add hint below EditText
-                ViewGroup parent = (ViewGroup) et.getParent();
+                // Get parent container - should be the topRow LinearLayout
+                ViewGroup topRow = (ViewGroup) et.getParent();
+                // Get cell content container (topRow's parent)
+                ViewGroup cellContent = (ViewGroup) topRow.getParent();
                 
-                // Remove any existing correctness hint
-                View existingHint = parent.findViewWithTag("correctness_hint_" + q);
-                if (existingHint != null) {
-                    parent.removeView(existingHint);
-                }
+                // Find the hint TextView we created in populateParsedAnswersEditable
+                TextView hintTv = cellContent.findViewWithTag("hint_" + q);
                 
                 if (got != null && !got.isEmpty()) {
                     answered++;
@@ -2912,20 +2938,21 @@ public class MainActivity extends AppCompatActivity {
                         // Highlight correct with semantic color
                         et.setBackgroundColor(ContextCompat.getColor(this, R.color.answer_correct));
                         et.setTextColor(0xFF155724); // Dark green text
+                        
+                        // Hide hint for correct answers
+                        if (hintTv != null) {
+                            hintTv.setVisibility(View.GONE);
+                        }
                     } else {
                         // Highlight incorrect with semantic color
                         et.setBackgroundColor(ContextCompat.getColor(this, R.color.answer_incorrect));
                         et.setTextColor(0xFF721C24); // Dark red text
                         
-                        // Feature #2: Add correctness hint below incorrect answer
-                        TextView hintText = new TextView(this);
-                        hintText.setTag("correctness_hint_" + q);
-                        hintText.setText(getString(R.string.correct_answer_prefix, expected));
-                        hintText.setTextSize(11);
-                        hintText.setTextColor(0xFF721C24); // Dark red to match
-                        hintText.setTypeface(hintText.getTypeface(), Typeface.ITALIC);
-                        hintText.setPadding(dp(4), dp(2), dp(4), 0);
-                        parent.addView(hintText);
+                        // Show hint below incorrect answer
+                        if (hintTv != null) {
+                            hintTv.setText(getString(R.string.correct_answer_prefix, expected));
+                            hintTv.setVisibility(View.VISIBLE);
+                        }
                         
                         // Add TextWatcher to hide hint when user corrects the answer
                         et.addTextChangedListener(new android.text.TextWatcher() {
@@ -2936,10 +2963,9 @@ public class MainActivity extends AppCompatActivity {
                             public void onTextChanged(CharSequence s, int start, int before, int count) {
                                 String newValue = s.toString().trim();
                                 if (expected.equalsIgnoreCase(newValue)) {
-                                    // User corrected it - remove hint and update colors
-                                    View hint = parent.findViewWithTag("correctness_hint_" + q);
-                                    if (hint != null) {
-                                        parent.removeView(hint);
+                                    // User corrected it - hide hint and update colors
+                                    if (hintTv != null) {
+                                        hintTv.setVisibility(View.GONE);
                                     }
                                     et.setBackgroundColor(ContextCompat.getColor(MainActivity.this, R.color.answer_correct));
                                     et.setTextColor(0xFF155724); // Dark green text
@@ -2954,6 +2980,11 @@ public class MainActivity extends AppCompatActivity {
                     // No answer - semantic blank color
                     et.setBackgroundColor(ContextCompat.getColor(this, R.color.answer_blank));
                     et.setTextColor(0xFF856404); // Dark yellow text
+                    
+                    // Hide hint for blank answers
+                    if (hintTv != null) {
+                        hintTv.setVisibility(View.GONE);
+                    }
                 }
             }
         }
@@ -3203,10 +3234,9 @@ public class MainActivity extends AppCompatActivity {
     private void onCropResult(androidx.activity.result.ActivityResult result) {
         cropInProgress = false;
         if (result.getResultCode() == RESULT_OK && result.getData() != null) {
-            // Get the cropped URI from UCrop
-            android.net.Uri croppedUri = UCrop.getOutput(result.getData());
+            android.net.Uri croppedUri = result.getData().getData();
             if (croppedUri != null) {
-                Log.d(CROP_FLOW, "UCrop succeeded, processing cropped image: " + croppedUri);
+                Log.d(CROP_FLOW, "SimpleCropActivity succeeded with robust rotation, processing cropped image: " + croppedUri);
                 // Ensure OCR ready (was stopped if previous code paused it)
                 if (ocrProcessor == null) {
                     Log.w(OCR_FLOW, "ocrProcessor null on crop result - reinitializing");
@@ -3223,13 +3253,6 @@ public class MainActivity extends AppCompatActivity {
         } else if (result.getResultCode() == RESULT_CANCELED) {
             Log.d(CROP_FLOW, "Crop canceled");
         } else {
-            // Handle UCrop error
-            if (result.getData() != null) {
-                Throwable cropError = UCrop.getError(result.getData());
-                if (cropError != null) {
-                    Log.e(CROP_FLOW, "UCrop error: " + cropError.getMessage(), cropError);
-                }
-            }
             Toast.makeText(this, "Crop failed, using fallback", Toast.LENGTH_SHORT).show();
             if (lastCapturedImageUri != null) processFallbackAutoCrop(lastCapturedImageUri);
         }
@@ -3303,37 +3326,19 @@ public class MainActivity extends AppCompatActivity {
             }
             cropInProgress = true;
             
-            // Prepare a distinct output file for uCrop
+            // Prepare a distinct output file
             java.io.File outFile = new java.io.File(getCacheDir(), "cropped_" + System.currentTimeMillis() + ".jpg");
             android.net.Uri outputUri = android.net.Uri.fromFile(outFile);
             
-            Log.d(CROP_FLOW, "Launching uCrop\n  source=" + sourceUri +
+            Log.d(CROP_FLOW, "Launching SimpleCropActivity with robust rotation support\n  source=" + sourceUri +
                     "\n  output=" + outputUri +
                     "\n  capturedSize=" + (lastCapturedFile != null ? lastCapturedFile.length() : -1) +
                     "\n  orientationHint=" + lastCapturedJpegOrientation);
             
-            // Configure uCrop options for robust cropping with rotation
-            UCrop.Options options = new UCrop.Options();
-            options.setFreeStyleCropEnabled(true); // Enable free-style crop
-            options.setHideBottomControls(false); // Show bottom controls for rotation
-            
-            // Configure gestures: scale, rotate, and all gestures
-            options.setAllowedGestures(UCrop.SCALE, UCrop.ROTATE, UCrop.ALL);
-            
-            // Match app theme colors
-            options.setToolbarColor(ContextCompat.getColor(this, R.color.brand_brown));
-            options.setStatusBarColor(ContextCompat.getColor(this, R.color.brand_brown));
-            options.setActiveControlsWidgetColor(ContextCompat.getColor(this, R.color.secondary_emerald));
-            
-            // Set max output size to avoid OOM
-            options.setMaxBitmapSize(2048);
-            options.setCompressionQuality(90);
-            
-            // Create and launch UCrop intent
-            Intent cropIntent = UCrop.of(sourceUri, outputUri)
-                    .withOptions(options)
-                    .getIntent(this);
-            
+            // SimpleCropActivity uses CanHub CropImageView which provides robust rotation controls
+            Intent cropIntent = SimpleCropActivity
+                    .createIntent(this, sourceUri, outputUri)
+                    .putExtra("EXTRA_JPEG_ORIENTATION", lastCapturedJpegOrientation);
             cropLauncher.launch(cropIntent);
         } catch (Exception e) {
             cropInProgress = false;

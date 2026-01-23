@@ -23,10 +23,7 @@ import java.io.InputStream;
 
 /**
  * SimpleCropActivity - Enhanced custom crop UI with rotate, flip, and aspect ratio controls.
- * 
- * @deprecated This activity is no longer used. The app now uses uCrop library for cropping
- * with robust arbitrary rotation support. This file is kept for reference but is not launched
- * by MainActivity anymore.
+ * Provides robust arbitrary rotation using CanHub CropImageView library.
  */
 public class SimpleCropActivity extends AppCompatActivity {
 
