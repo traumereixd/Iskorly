@@ -5371,9 +5371,27 @@ public class MainActivity extends AppCompatActivity {
      * Apply outlined text setting to all TextViews (Feature #1).
      */
     private void applyOutlinedTextSetting(boolean enabled) {
-        if (parsedLabel != null) OutlinedTextUtil.applyOutline(parsedLabel);
-        if (sessionScoreTextView != null) OutlinedTextUtil.applyOutline(sessionScoreTextView);
-        if (currentKeyTextView != null) OutlinedTextUtil.applyOutline(currentKeyTextView);
+        if (parsedLabel != null) {
+            if (enabled) {
+                OutlinedTextUtil.applyOutline(parsedLabel);
+            } else {
+                OutlinedTextUtil.removeOutline(parsedLabel);
+            }
+        }
+        if (sessionScoreTextView != null) {
+            if (enabled) {
+                OutlinedTextUtil.applyOutline(sessionScoreTextView);
+            } else {
+                OutlinedTextUtil.removeOutline(sessionScoreTextView);
+            }
+        }
+        if (currentKeyTextView != null) {
+            if (enabled) {
+                OutlinedTextUtil.applyOutline(currentKeyTextView);
+            } else {
+                OutlinedTextUtil.removeOutline(currentKeyTextView);
+            }
+        }
     }
     
     /**
@@ -5450,10 +5468,10 @@ public class MainActivity extends AppCompatActivity {
         setButtonContrast(buttonCollapseAll, false);
     }
 
-    private void setButtonContrast(Button button, boolean primary) {
+    private void setButtonContrast(Button button, boolean isPrimary) {
         if (button == null) return;
-        int background = getResources().getColor(primary ? R.color.brand_brown : R.color.surface, getTheme());
-        int textColor = getResources().getColor(primary ? R.color.on_primary : R.color.on_surface, getTheme());
+        int background = getResources().getColor(isPrimary ? R.color.brand_brown : R.color.surface, getTheme());
+        int textColor = getResources().getColor(isPrimary ? R.color.on_primary : R.color.on_surface, getTheme());
         button.setBackgroundTintList(ColorStateList.valueOf(background));
         button.setTextColor(textColor);
     }
