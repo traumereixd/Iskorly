@@ -157,6 +157,9 @@ public class MainActivity extends AppCompatActivity {
     private static final String PREF_OCR_TWO_COLUMN = "ocr_two_column_enabled";
     private static final String PREF_OCR_HIGH_CONTRAST = "ocr_high_contrast_enabled";
     private static final String PREF_RANGE_HINTS = "range_hints";
+    private static final String PREF_FORM_STUDENT = "form_student_name";
+    private static final String PREF_FORM_SECTION = "form_section_name";
+    private static final String PREF_FORM_EXAM = "form_exam_name";
     private static final int MAX_RECENTS = 50;
     private String currentSlotId = "default";
     private final HashMap<String, SlotData> slots = new HashMap<>();
@@ -777,6 +780,9 @@ public class MainActivity extends AppCompatActivity {
         
         // Setup autocomplete for inputs
         setupAutocompleteInputs();
+        
+        // Setup form persistence (Feature #3: Persist form inputs)
+        setupFormPersistence();
         
         // Manage autocomplete button
         if (manageAutocompleteButton != null) {
@@ -2286,7 +2292,28 @@ public class MainActivity extends AppCompatActivity {
     // ---------------------------
 
     private void exportHistoryCsv() {
+        // Show dialog to choose export scope (Feature #4: CSV export with filtering)
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(getString(R.string.csv_export_dialog_title));
+        
+        String[] options = {
+            getString(R.string.csv_export_entire_history),
+            getString(R.string.csv_export_current_filters)
+        };
+        
+        builder.setItems(options, (dialog, which) -> {
+            boolean useFilters = (which == 1);
+            exportHistoryCsvWithOptions(useFilters);
+        });
+        
+        builder.setNegativeButton("Cancel", null);
+        builder.show();
+    }
+    
+    private void exportHistoryCsvWithOptions(boolean useFilters) {
         createCsvLauncher.launch("isa_history.csv");
+        // Store the filter preference for use in onCsvDocumentCreated
+        appPreferences.edit().putBoolean("csv_export_use_filters", useFilters).apply();
     }
 
     private void onCsvDocumentCreated(android.net.Uri uri) {
@@ -2294,6 +2321,10 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Export canceled.", Toast.LENGTH_SHORT).show();
             return;
         }
+        
+        // Get filter preference
+        boolean useFilters = appPreferences.getBoolean("csv_export_use_filters", false);
+        
         backgroundHandler.post(() -> {
             String raw = historyPreferences.getString("history", "[]");
             JSONArray history;
@@ -2308,13 +2339,25 @@ public class MainActivity extends AppCompatActivity {
             sb.append("exam,section,student,timestamp,score,total,percent,answer_mode,answers\n");
             String modeLabel = "Universal"; // v1.1 uses universal input
 
+            int exportedCount = 0;
             for (int i = 0; i < history.length(); i++) {
                 try {
                     JSONObject rec = history.getJSONObject(i);
-                    String ts = rec.optString("ts", "").replace(",", " ");
-                    String student = rec.optString("student", "").replace(",", " ");
                     String section = rec.optString("section", "").replace(",", " ");
                     String exam = rec.optString("exam", "").replace(",", " ");
+                    
+                    // Apply filters if enabled (Feature #4)
+                    if (useFilters) {
+                        boolean matchesExam = currentExamFilter.equals("All") || exam.equals(currentExamFilter);
+                        boolean matchesSection = currentSectionFilter.equals("All") || section.equals(currentSectionFilter);
+                        
+                        if (!matchesExam || !matchesSection) {
+                            continue; // Skip this record
+                        }
+                    }
+                    
+                    String ts = rec.optString("ts", "").replace(",", " ");
+                    String student = rec.optString("student", "").replace(",", " ");
                     int score = rec.optInt("score", 0);
                     int total = rec.optInt("total", 0);
                     double pct = rec.optDouble("percent", 0.0);
@@ -2331,16 +2374,21 @@ public class MainActivity extends AppCompatActivity {
                             .append(modeLabel).append(",")
                             .append("\"").append(answersStr.replace("\"", "'")).append("\"")
                             .append("\n");
+                    exportedCount++;
                 } catch (Exception ignored) {
                 }
             }
 
+            final int finalExportedCount = exportedCount;
             try (OutputStream os = getContentResolver().openOutputStream(uri)) {
                 if (os != null) {
                     os.write(sb.toString().getBytes());
                     os.flush();
                 }
-                runOnUiThread(() -> Toast.makeText(this, "CSV exported.", Toast.LENGTH_SHORT).show());
+                String message = useFilters 
+                    ? String.format(Locale.US, "CSV exported: %d records (filtered)", finalExportedCount)
+                    : String.format(Locale.US, "CSV exported: %d records (all history)", finalExportedCount);
+                runOnUiThread(() -> Toast.makeText(this, message, Toast.LENGTH_SHORT).show());
             } catch (Exception e) {
                 Log.e(TAG, "CSV export", e);
                 runOnUiThread(() -> Toast.makeText(this, "CSV export failed.", Toast.LENGTH_LONG).show());
@@ -2708,6 +2756,16 @@ public class MainActivity extends AppCompatActivity {
             View editorView = parsedEditors.get(q);
             if (editorView instanceof EditText) {
                 EditText et = (EditText) editorView;
+                
+                // Get parent container to add hint below EditText
+                ViewGroup parent = (ViewGroup) et.getParent();
+                
+                // Remove any existing correctness hint
+                View existingHint = parent.findViewWithTag("correctness_hint_" + q);
+                if (existingHint != null) {
+                    parent.removeView(existingHint);
+                }
+                
                 if (got != null && !got.isEmpty()) {
                     answered++;
                     if (expected.equalsIgnoreCase(got)) {
@@ -2719,6 +2777,39 @@ public class MainActivity extends AppCompatActivity {
                         // Highlight incorrect with semantic color
                         et.setBackgroundColor(ContextCompat.getColor(this, R.color.answer_incorrect));
                         et.setTextColor(0xFF721C24); // Dark red text
+                        
+                        // Feature #2: Add correctness hint below incorrect answer
+                        TextView hintText = new TextView(this);
+                        hintText.setTag("correctness_hint_" + q);
+                        hintText.setText(getString(R.string.correct_answer_prefix, expected));
+                        hintText.setTextSize(11);
+                        hintText.setTextColor(0xFF721C24); // Dark red to match
+                        hintText.setTypeface(hintText.getTypeface(), Typeface.ITALIC);
+                        hintText.setPadding(dp(4), dp(2), dp(4), 0);
+                        parent.addView(hintText);
+                        
+                        // Add TextWatcher to hide hint when user corrects the answer
+                        et.addTextChangedListener(new android.text.TextWatcher() {
+                            @Override
+                            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                            
+                            @Override
+                            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                                String newValue = s.toString().trim();
+                                if (expected.equalsIgnoreCase(newValue)) {
+                                    // User corrected it - remove hint and update colors
+                                    View hint = parent.findViewWithTag("correctness_hint_" + q);
+                                    if (hint != null) {
+                                        parent.removeView(hint);
+                                    }
+                                    et.setBackgroundColor(ContextCompat.getColor(MainActivity.this, R.color.answer_correct));
+                                    et.setTextColor(0xFF155724); // Dark green text
+                                }
+                            }
+                            
+                            @Override
+                            public void afterTextChanged(android.text.Editable s) {}
+                        });
                     }
                 } else {
                     // No answer - semantic blank color
@@ -2847,10 +2938,31 @@ public class MainActivity extends AppCompatActivity {
             int processedCount = 0;
             
             for (android.net.Uri uri : uris) {
+                Bitmap bitmap = null;
                 try {
-                    // Load bitmap from URI
+                    // Feature #7: Load bitmap with downsampling to reduce memory usage
                     java.io.InputStream inputStream = getContentResolver().openInputStream(uri);
-                    Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+                    
+                    // First pass: get image dimensions
+                    BitmapFactory.Options opts = new BitmapFactory.Options();
+                    opts.inJustDecodeBounds = true;
+                    BitmapFactory.decodeStream(inputStream, null, opts);
+                    if (inputStream != null) inputStream.close();
+                    
+                    // Calculate appropriate sample size based on device/display
+                    // Target max dimension of 2048px for OCR processing
+                    int maxDim = Math.max(opts.outWidth, opts.outHeight);
+                    int sampleSize = 1;
+                    final int targetMaxDim = 2048;
+                    while (maxDim / sampleSize > targetMaxDim) {
+                        sampleSize *= 2;
+                    }
+                    
+                    // Second pass: decode with sample size
+                    inputStream = getContentResolver().openInputStream(uri);
+                    opts.inJustDecodeBounds = false;
+                    opts.inSampleSize = sampleSize;
+                    bitmap = BitmapFactory.decodeStream(inputStream, null, opts);
                     if (inputStream != null) inputStream.close();
                     
                     if (bitmap == null) {
@@ -2859,10 +2971,17 @@ public class MainActivity extends AppCompatActivity {
                         continue;
                     }
                     
+                    Log.d(TAG, "Loaded image " + (processedCount + 1) + ": " + bitmap.getWidth() + "x" + bitmap.getHeight() + " (sample: " + sampleSize + ")");
+                    
                     // Use OcrProcessor to handle enhancement, OCR, and parsing
                     Log.d(OCR_FLOW, "Processing image " + (processedCount + 1) + " with OcrProcessor");
                     HashMap<Integer, String> parsed = ocrProcessor.processImage(bitmap);
-                    bitmap.recycle();
+                    
+                    // Feature #7: Strictly recycle bitmap immediately after use
+                    if (bitmap != null && !bitmap.isRecycled()) {
+                        bitmap.recycle();
+                        bitmap = null;
+                    }
                     
                     // Merge: first non-blank value wins
                     for (Map.Entry<Integer, String> entry : parsed.entrySet()) {
@@ -2874,11 +2993,37 @@ public class MainActivity extends AppCompatActivity {
                     
                     processedCount++;
                     
+                    // Feature #7: Add GC hint at safe points (every 5 images)
+                    if (processedCount % 5 == 0) {
+                        System.gc();
+                        Log.d(TAG, "GC hint issued after " + processedCount + " images");
+                    }
+                    
+                } catch (OutOfMemoryError oom) {
+                    Log.e(TAG, "OOM while processing image: " + uri, oom);
+                    Log.e(OCR_FLOW, "OOM in multi-import for image " + (processedCount + 1), oom);
+                    
+                    // Emergency cleanup
+                    if (bitmap != null && !bitmap.isRecycled()) {
+                        bitmap.recycle();
+                        bitmap = null;
+                    }
+                    System.gc();
+                    
                 } catch (Exception e) {
                     Log.e(TAG, "Error processing image: " + uri, e);
                     Log.e(OCR_FLOW, "Error in multi-import for image " + (processedCount + 1), e);
+                    
+                    // Cleanup on error
+                    if (bitmap != null && !bitmap.isRecycled()) {
+                        bitmap.recycle();
+                        bitmap = null;
+                    }
                 }
             }
+            
+            // Final cleanup
+            System.gc();
             
             final int finalProcessed = processedCount;
             final HashMap<Integer, String> finalMerged = mergedAnswers;
@@ -3920,6 +4065,112 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) {
             Log.e(TAG, "Error updating recents for " + prefsKey, e);
         }
+    }
+    
+    /**
+     * Persist form inputs to SharedPreferences as user types.
+     * This allows restoring form data when returning from menu.
+     */
+    private void setupFormPersistence() {
+        // Restore saved form inputs
+        restoreFormInputs();
+        
+        // Add TextWatchers to save inputs as user types
+        if (studentNameInput != null) {
+            studentNameInput.addTextChangedListener(new android.text.TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {}
+                
+                @Override
+                public void afterTextChanged(android.text.Editable s) {
+                    saveFormInput(PREF_FORM_STUDENT, s.toString());
+                }
+            });
+        }
+        
+        if (sectionNameInput != null) {
+            sectionNameInput.addTextChangedListener(new android.text.TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {}
+                
+                @Override
+                public void afterTextChanged(android.text.Editable s) {
+                    saveFormInput(PREF_FORM_SECTION, s.toString());
+                }
+            });
+        }
+        
+        if (examNameInput != null) {
+            examNameInput.addTextChangedListener(new android.text.TextWatcher() {
+                @Override
+                public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+                
+                @Override
+                public void onTextChanged(CharSequence s, int start, int before, int count) {}
+                
+                @Override
+                public void afterTextChanged(android.text.Editable s) {
+                    saveFormInput(PREF_FORM_EXAM, s.toString());
+                }
+            });
+        }
+    }
+    
+    private void saveFormInput(String key, String value) {
+        if (appPreferences != null) {
+            appPreferences.edit().putString(key, value).apply();
+        }
+    }
+    
+    private void restoreFormInputs() {
+        if (appPreferences == null) return;
+        
+        String savedStudent = appPreferences.getString(PREF_FORM_STUDENT, "");
+        String savedSection = appPreferences.getString(PREF_FORM_SECTION, "");
+        String savedExam = appPreferences.getString(PREF_FORM_EXAM, "");
+        
+        if (studentNameInput != null && !savedStudent.isEmpty()) {
+            studentNameInput.setText(savedStudent);
+        }
+        if (sectionNameInput != null && !savedSection.isEmpty()) {
+            sectionNameInput.setText(savedSection);
+        }
+        if (examNameInput != null && !savedExam.isEmpty()) {
+            examNameInput.setText(savedExam);
+        }
+    }
+    
+    /**
+     * Clear all form inputs (optional feature).
+     */
+    private void clearFormInputs() {
+        new AlertDialog.Builder(this)
+            .setTitle(getString(R.string.btn_clear_form))
+            .setMessage(getString(R.string.clear_form_confirmation))
+            .setPositiveButton("Clear", (dialog, which) -> {
+                if (studentNameInput != null) studentNameInput.setText("");
+                if (sectionNameInput != null) sectionNameInput.setText("");
+                if (examNameInput != null) examNameInput.setText("");
+                
+                // Clear saved prefs
+                if (appPreferences != null) {
+                    appPreferences.edit()
+                        .remove(PREF_FORM_STUDENT)
+                        .remove(PREF_FORM_SECTION)
+                        .remove(PREF_FORM_EXAM)
+                        .apply();
+                }
+                
+                Toast.makeText(this, getString(R.string.form_cleared), Toast.LENGTH_SHORT).show();
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
     }
     
     // ---------------------------
