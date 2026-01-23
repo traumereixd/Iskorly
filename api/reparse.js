@@ -50,7 +50,7 @@ OCR TEXT:
 ${cleaned}
 `.trim();
 
-    // Minimal call to OpenAI (compatible with fetch API)
+    // Minimal call to OpenAI (Node 18+ has fetch)
     const resp = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -63,7 +63,9 @@ ${cleaned}
           { role: 'system', content: 'You only output valid JSON. No prose.' },
           { role: 'user', content: prompt }
         ],
-        temperature: 0.1
+        temperature: 0.1,
+        // Enforce JSON mode to stop code fences and prose
+        response_format: { type: 'json_object' }
       })
     });
 
@@ -73,15 +75,35 @@ ${cleaned}
     }
 
     const data = await resp.json();
-    const raw = data?.choices?.[0]?.message?.content || '{}';
+    let raw = data?.choices?.[0]?.message?.content ?? '{}';
 
+    // Clean typical code fences if any slip through
+    if (typeof raw === 'string') {
+      raw = raw.trim()
+        .replace(/^```json\s*/i, '')
+        .replace(/^```\s*/i, '')
+        .replace(/\s*```$/i, '')
+        .trim();
+    }
+
+    // Parse robustly
     let json;
     try {
-      json = JSON.parse(raw);
+      json = typeof raw === 'string' ? JSON.parse(raw) : raw;
     } catch {
-      // Fallback: try to salvage a JSON object substring
-      const match = raw.match(/\{[\s\S]*\}$/);
-      json = match ? JSON.parse(match[0]) : { answers: {} };
+      // Fallback: try to find the largest {...} block
+      const first = raw.indexOf('{');
+      const last = raw.lastIndexOf('}');
+      if (first !== -1 && last !== -1 && last > first) {
+        const slice = raw.slice(first, last + 1);
+        try {
+          json = JSON.parse(slice);
+        } catch {
+          json = { answers: {} };
+        }
+      } else {
+        json = { answers: {} };
+      }
     }
 
     // Normalize: ensure answers is an object of string keys to string values
@@ -95,7 +117,9 @@ ${cleaned}
         const val = typeof v === 'string' ? v.trim() : '';
         if (!val) continue;
         // Normalize single letters
-        const normalized = (val.length === 1 && /[A-Za-z]/.test(val)) ? val.toUpperCase() : val.replace(/[.,;!?]+$/,'').slice(0, 40);
+        const normalized = (val.length === 1 && /[A-Za-z]/.test(val))
+          ? val.toUpperCase()
+          : val.replace(/[.,;!?]+$/, '').slice(0, 40);
         out.answers[kk] = normalized;
       }
     }
@@ -103,10 +127,10 @@ ${cleaned}
     // CORS (optional)
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.status(200).json(out);
+    return res.status(Object.keys(out.answers).length ? 200 : 200).json(out);
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: 'server_error' });
+    return res.status(500).json({ error: 'server_error' });
   }
 }
 
