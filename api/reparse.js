@@ -213,7 +213,8 @@ ${cleaned}
             return res.status(200).json(out);
           } else {
             // Non-OK response, fall through to lite fallback
-            console.error('OpenRouter API error:', resp.status);
+            const errText = await resp.text().catch(() => 'no body');
+            console.error('OpenRouter API error:', resp.status, errText.slice(0, 200));
           }
         } catch (error) {
           // Any error during OpenRouter call, fall through to lite fallback
