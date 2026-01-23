@@ -306,7 +306,7 @@
                             android:layout_height="wrap_content"
                             android:text="@string/autocomplete_students_label"
                             android:textColor="?attr/colorOnSurface"
-                            android:textSize="16sp"
+                            android:textSize="18sp"
                             android:textStyle="bold" />
 
                         <com.google.android.material.chip.ChipGroup
@@ -392,7 +392,7 @@
                             android:layout_height="wrap_content"
                             android:text="@string/autocomplete_section_label"
                             android:textColor="?attr/colorOnSurface"
-                            android:textSize="16sp"
+                            android:textSize="18sp"
                             android:textStyle="bold" />
 
                         <com.google.android.material.chip.ChipGroup
@@ -478,7 +478,7 @@
                             android:layout_height="wrap_content"
                             android:text="@string/autocomplete_exam_label"
                             android:textColor="?attr/colorOnSurface"
-                            android:textSize="16sp"
+                            android:textSize="18sp"
                             android:textStyle="bold" />
 
                         <com.google.android.material.chip.ChipGroup
@@ -1309,7 +1309,7 @@
                             android:layout_height="wrap_content"
                             android:checked="true"
                             android:text="@string/settings_two_column_label"
-                            android:textSize="16sp"
+                            android:textSize="18sp"
                             android:textStyle="bold"
                             android:paddingTop="8dp"
                             android:paddingBottom="4dp" />
@@ -1331,7 +1331,7 @@
                             android:layout_height="wrap_content"
                             android:checked="false"
                             android:text="@string/settings_high_contrast_label"
-                            android:textSize="16sp"
+                            android:textSize="18sp"
                             android:textStyle="bold"
                             android:paddingTop="8dp"
                             android:paddingBottom="4dp" />
@@ -1381,7 +1381,7 @@
                             android:layout_height="wrap_content"
                             android:checked="true"
                             android:text="@string/settings_outlined_text_label"
-                            android:textSize="16sp"
+                            android:textSize="18sp"
                             android:textStyle="bold"
                             android:paddingTop="8dp"
                             android:paddingBottom="4dp" />
@@ -1403,7 +1403,7 @@
                             android:layout_height="wrap_content"
                             android:checked="false"
                             android:text="@string/settings_large_text_label"
-                            android:textSize="16sp"
+                            android:textSize="18sp"
                             android:textStyle="bold"
                             android:paddingTop="8dp"
                             android:paddingBottom="4dp" />
