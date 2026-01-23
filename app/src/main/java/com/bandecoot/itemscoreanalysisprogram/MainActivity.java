@@ -999,11 +999,11 @@ public class MainActivity extends AppCompatActivity {
         
         // Accessibility toggle listeners (Feature #1)
         if (switchOutlinedText != null) {
-            switchOutlinedText.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                appPreferences.edit().putBoolean(PREF_OUTLINED_TEXT, isChecked).apply();
-                applyOutlinedTextSetting(isChecked);
-                Log.d(TAG, "Outlined text " + (isChecked ? "enabled" : "disabled"));
-            });
+            // Outlined text feature removed - now using global black text
+            // Disable and hide the switch
+            switchOutlinedText.setEnabled(false);
+            switchOutlinedText.setChecked(false);
+            switchOutlinedText.setVisibility(View.GONE);
         }
         
         if (switchLargeText != null) {
@@ -1199,11 +1199,10 @@ public class MainActivity extends AppCompatActivity {
         // Handle navigation intents from MainMenuActivity
         handleNavigationIntent();
         
-        // Apply black text styling globally
+        // Apply global text colors (BLACK for text, WHITE for buttons) for optimal legibility
         View rootView = findViewById(android.R.id.content);
         if (rootView != null) {
-            applyWhiteThickOutlineToTree(rootView);
-            applyButtonContrast();
+            TextColorUtil.applyGlobalTextColors(rootView);
         }
     }
     
@@ -2348,14 +2347,14 @@ public class MainActivity extends AppCompatActivity {
             try {
                 JSONObject rec = history.getJSONObject(i);
                 String ts = rec.optString("ts", "");
-                String subgroupTwo = rec.optString("exam", "Subgroup 2");
+                String exam = rec.optString("exam", "Untitled Quiz");
                 int score = rec.optInt("score", 0);
                 int total = rec.optInt("total", 0);
                 double pct = rec.optDouble("percent", 0.0);
                 
-                // Format: [timestamp] subgroup 2 — score/total (%)
+                // Format: [timestamp] [Subgroup 2 (Exam)] — score/total (%)
                 String label = String.format(Locale.US, "[%s] %s — %d/%d (%.1f%%)", 
-                        ts, subgroupTwo, score, total, pct);
+                        ts, exam, score, total, pct);
                 recordLabels.add(label);
                 recordTimestamps.add(ts);
             } catch (Exception ignored) {
@@ -2506,16 +2505,12 @@ public class MainActivity extends AppCompatActivity {
     // ---------------------------
 
     // ---------------------------
-    // Global White Text with Thick Black Outline
+    // Global Text Colors (Replaced Outlined Text)
     // ---------------------------
     
-    /**
-     * Recursively apply white text with thick black outline to all text views in the hierarchy.
-     * This ensures optimal legibility across different backgrounds.
-     */
-    private void applyWhiteThickOutlineToTree(View root) {
-        OutlinedTextUtil.applyOutlineToTree(root);
-    }
+    // Note: applyWhiteThickOutlineToTree method has been removed.
+    // Use TextColorUtil.applyGlobalTextColors() for the new black text approach.
+
 
     private void showCreditsDialog() {
         new AlertDialog.Builder(this)
@@ -2651,10 +2646,9 @@ public class MainActivity extends AppCompatActivity {
                 break;
         }
         
-        // Apply black text styling to newly visible view
+        // Apply global text colors to newly visible view
         if (visibleView != null) {
-            applyWhiteThickOutlineToTree(visibleView);
-            applyButtonContrast();
+            TextColorUtil.applyGlobalTextColors(visibleView);
         }
     }
 
@@ -3314,7 +3308,12 @@ public class MainActivity extends AppCompatActivity {
         }
     }
     /**
-     * Start crop activity for the captured image using SimpleCropActivity.
+     * Start crop activity for the captured image.
+     * Uses SimpleCropActivity which provides uCrop-equivalent functionality:
+     * - Free-style crop with robust arbitrary rotation
+     * - Rotation controls (90° increments + fine-grained slider)
+     * - JPEG quality ~90, max output size ~2048
+     * - EXIF preservation where possible
      */
     private void startCropActivity(android.net.Uri sourceUri) {
         try {
@@ -3337,7 +3336,7 @@ public class MainActivity extends AppCompatActivity {
                     "\n  capturedSize=" + (lastCapturedFile != null ? lastCapturedFile.length() : -1) +
                     "\n  orientationHint=" + lastCapturedJpegOrientation);
             
-            // SimpleCropActivity uses CanHub CropImageView which provides robust rotation controls
+            // SimpleCropActivity uses CanHub CropImageView which provides uCrop-equivalent features
             Intent cropIntent = SimpleCropActivity
                     .createIntent(this, sourceUri, outputUri)
                     .putExtra("EXTRA_JPEG_ORIENTATION", lastCapturedJpegOrientation);
@@ -5348,50 +5347,41 @@ public class MainActivity extends AppCompatActivity {
      * Load accessibility settings from preferences (Feature #1).
      */
     private void loadAccessibilitySettings() {
-        // Default outlined text to OFF for black text
-        boolean outlinedEnabled = appPreferences.getBoolean(PREF_OUTLINED_TEXT, false);
+        // Outlined text feature removed - always use global black text
         boolean largeTextEnabled = appPreferences.getBoolean(PREF_LARGE_TEXT, false);
         
         if (switchOutlinedText != null) {
-            switchOutlinedText.setChecked(outlinedEnabled);
+            switchOutlinedText.setChecked(false);
+            switchOutlinedText.setEnabled(false); // Disable the switch
         }
         if (switchLargeText != null) {
             switchLargeText.setChecked(largeTextEnabled);
         }
         
-        // Apply settings
-        applyOutlinedTextSetting(outlinedEnabled);
+        // Apply global text colors (BLACK for text, WHITE for buttons)
+        applyGlobalTextColors();
+        
+        // Apply large text setting if enabled
         applyLargeTextSetting(largeTextEnabled);
         applyButtonContrast();
         
-        Log.d(TAG, "Accessibility settings loaded: outlined=" + outlinedEnabled + ", large-text=" + largeTextEnabled);
+        Log.d(TAG, "Accessibility settings loaded: global-black-text=true, large-text=" + largeTextEnabled);
     }
     
     /**
-     * Apply outlined text setting to all TextViews (Feature #1).
+     * Apply global text colors to all UI elements.
+     * This replaces the previous outlined text feature with a consistent color scheme:
+     * - All regular text: BLACK for maximum readability
+     * - All button text: WHITE for proper contrast with button backgrounds
      */
-    private void applyOutlinedTextSetting(boolean enabled) {
-        if (parsedLabel != null) {
-            if (enabled) {
-                OutlinedTextUtil.applyOutline(parsedLabel);
-            } else {
-                OutlinedTextUtil.removeOutline(parsedLabel);
-            }
+    private void applyGlobalTextColors() {
+        // Apply global colors to the entire view hierarchy
+        View rootView = findViewById(android.R.id.content);
+        if (rootView != null) {
+            TextColorUtil.applyGlobalTextColors(rootView);
         }
-        if (sessionScoreTextView != null) {
-            if (enabled) {
-                OutlinedTextUtil.applyOutline(sessionScoreTextView);
-            } else {
-                OutlinedTextUtil.removeOutline(sessionScoreTextView);
-            }
-        }
-        if (currentKeyTextView != null) {
-            if (enabled) {
-                OutlinedTextUtil.applyOutline(currentKeyTextView);
-            } else {
-                OutlinedTextUtil.removeOutline(currentKeyTextView);
-            }
-        }
+        
+        Log.d(TAG, "Applied global text colors (BLACK for text, WHITE for buttons)");
     }
     
     /**

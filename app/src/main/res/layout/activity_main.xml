@@ -185,18 +185,32 @@
                             app:strokeWidth="1dp" />
                     </LinearLayout>
 
-                    <TextView
-                        android:id="@+id/textView_intro"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:text="@string/intro_text"
-                        android:textColor="?attr/colorOnSurface"
-                        android:textSize="16sp" />
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/button_manage_autocomplete"
+                                style="@style/Widget.Material3.Button"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="8dp"
+                                android:text="@string/btn_manage_autocomplete"
+                                app:backgroundTint="@color/brand_brown"
+                                android:textColor="@color/on_primary"
+                                android:textSize="14sp" />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_manage_autocomplete"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/button_back_to_menu"
+                                style="@style/Widget.Material3.Button"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Back to Main Menu"
+                                android:textSize="14sp"
+                                app:backgroundTint="@color/brand_brown"
+                                android:textColor="@color/on_primary" />
+                        </LinearLayout>
+                        
+                        <!-- Row 3: Settings button -->
+                        <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
@@ -263,18 +277,28 @@
                             android:layout_marginTop="12dp"
                             android:orientation="horizontal">
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_autocomplete_import_all"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginEnd="4dp"
-                            android:text="@string/btn_import_all"
-                            android:textColor="#000000"
-                            android:textSize="12sp"
-                            app:strokeColor="@color/brand_brown"
-                            app:strokeWidth="1dp" />
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/button_autocomplete_import_all"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="4dp"
+                                android:text="@string/btn_import_all"
+                                android:textColor="#000000"
+                                android:textSize="14sp" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/button_autocomplete_export_all"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginStart="4dp"
+                                android:layout_marginEnd="4dp"
+                                android:text="@string/btn_export_all"
+                                android:textColor="#000000"
+                                android:textSize="14sp" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/button_autocomplete_export_all"
@@ -290,17 +314,8 @@
                             app:strokeColor="@color/brand_brown"
                             app:strokeWidth="1dp" />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_autocomplete_clear_all"
-                            style="@style/Widget.Material3.Button"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="4dp"
-                            android:backgroundTint="?attr/colorPrimary"
-                            android:text="@string/btn_clear_all_words"
-                            android:textColor="@android:color/white"
-                            android:textSize="12sp" />
+                                android:textColor="@android:color/white"
+                                android:textSize="14sp" />
                         </LinearLayout>
 
                         <!-- Divider -->
@@ -357,7 +372,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:text="@string/btn_add"
-                                android:textSize="12sp" />
+                                android:textSize="14sp" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -366,31 +381,27 @@
                             android:layout_marginTop="8dp"
                             android:orientation="horizontal">
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_import_students_json"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginEnd="4dp"
-                            android:textColor="#000000"
-                            android:text="@string/btn_import_json"
-                            android:textSize="12sp"
-                            app:strokeColor="@color/brand_brown"
-                            app:strokeWidth="1dp" />
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/button_import_students_json"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="4dp"
+                                android:textColor="#000000"
+                                android:text="@string/btn_import_json"
+                                android:textSize="14sp" />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_export_students_json"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="4dp"
-                            android:textColor="#000000"
-                            android:text="@string/btn_export_json"
-                            android:textSize="12sp"
-                            app:strokeColor="@color/brand_brown"
-                            app:strokeWidth="1dp" />
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/button_export_students_json"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginStart="4dp"
+                                android:textColor="#000000"
+                                android:text="@string/btn_export_json"
+                                android:textSize="14sp" />
                         </LinearLayout>
 
                         <!-- Divider -->
@@ -447,7 +458,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:text="@string/btn_add"
-                                android:textSize="12sp" />
+                                android:textSize="14sp" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -456,31 +467,27 @@
                             android:layout_marginTop="8dp"
                             android:orientation="horizontal">
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_import_sections_json"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginEnd="4dp"
-                            android:textColor="#000000"
-                            android:text="@string/btn_import_json"
-                            android:textSize="12sp"
-                            app:strokeColor="@color/brand_brown"
-                            app:strokeWidth="1dp" />
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/button_import_sections_json"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="4dp"
+                                android:textColor="#000000"
+                                android:text="@string/btn_import_json"
+                                android:textSize="14sp" />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_export_sections_json"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="4dp"
-                            android:textColor="#000000"
-                            android:text="@string/btn_export_json"
-                            android:textSize="12sp"
-                            app:strokeColor="@color/brand_brown"
-                            app:strokeWidth="1dp" />
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/button_export_sections_json"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginStart="4dp"
+                                android:text="@string/btn_export_json"
+                                android:textColor="#000000"
+                                android:textSize="14sp" />
                         </LinearLayout>
 
                         <!-- Divider -->
@@ -537,7 +544,7 @@
                                 android:layout_height="wrap_content"
                                 android:layout_gravity="center_vertical"
                                 android:text="@string/btn_add"
-                                android:textSize="12sp" />
+                                android:textSize="14sp" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -546,31 +553,27 @@
                             android:layout_marginTop="8dp"
                             android:orientation="horizontal">
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_import_exams_json"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginEnd="4dp"
-                            android:text="@string/btn_import_json"
-                            android:textSize="12sp"
-                            android:textColor="#000000"
-                            app:strokeColor="@color/brand_brown"
-                            app:strokeWidth="1dp" />
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/button_import_exams_json"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="4dp"
+                                android:text="@string/btn_import_json"
+                                android:textSize="14sp"
+                                android:textColor="#000000"/>
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_export_exams_json"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="4dp"
-                            android:text="@string/btn_export_json"
-                            android:textSize="12sp"
-                            android:textColor="#000000"
-                            app:strokeColor="@color/brand_brown"
-                            app:strokeWidth="1dp" />
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/button_export_exams_json"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginStart="4dp"
+                                android:text="@string/btn_export_json"
+                                android:textSize="14sp"
+                                android:textColor="#000000"/>
                         </LinearLayout>
 
                         <!-- Close Button -->
@@ -898,7 +901,7 @@
                                 android:layout_height="wrap_content"
                                 android:inputType="none"
                                 android:textColor="#000000"
-                                android:textSize="12sp"
+                                android:textSize="14sp"
                                 android:paddingStart="8dp"
                                 android:paddingEnd="8dp" />
                         </com.google.android.material.textfield.TextInputLayout>
@@ -918,7 +921,7 @@
                                 android:layout_height="wrap_content"
                                 android:inputType="none"
                                 android:textColor="#000000"
-                                android:textSize="12sp"
+                                android:textSize="14sp"
                                 android:paddingStart="8dp"
                                 android:paddingEnd="8dp" />
                         </com.google.android.material.textfield.TextInputLayout>
@@ -1361,8 +1364,8 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="@string/settings_two_column_desc"
-                            android:textColor="?attr/colorOnSurface"
-                            android:textSize="12sp"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="14sp"
                             android:paddingStart="4dp"
                             android:paddingEnd="4dp"
                             android:paddingBottom="16dp" />
@@ -1383,8 +1386,8 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="@string/settings_high_contrast_desc"
-                            android:textColor="?attr/colorOnSurface"
-                            android:textSize="12sp"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="14sp"
                             android:paddingStart="4dp"
                             android:paddingEnd="4dp"
                             android:paddingBottom="16dp" />
@@ -1411,8 +1414,8 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="Options to improve readability for older users"
-                            android:textColor="?attr/colorOnSurface"
-                            android:textSize="12sp"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="14sp"
                             android:paddingStart="4dp"
                             android:paddingEnd="4dp"
                             android:paddingBottom="12dp" />
@@ -1433,8 +1436,8 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="@string/settings_outlined_text_desc"
-                            android:textColor="?attr/colorOnSurface"
-                            android:textSize="12sp"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="14sp"
                             android:paddingStart="4dp"
                             android:paddingEnd="4dp"
                             android:paddingBottom="16dp" />
@@ -1455,8 +1458,8 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="@string/settings_large_text_desc"
-                            android:textColor="?attr/colorOnSurface"
-                            android:textSize="12sp"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="14sp"
                             android:paddingStart="4dp"
                             android:paddingEnd="4dp"
                             android:paddingBottom="16dp" />
@@ -1484,8 +1487,8 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="@string/type_hints_desc"
-                            android:textColor="?attr/colorOnSurface"
-                            android:textSize="12sp"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            android:textSize="14sp"
                             android:paddingStart="4dp"
                             android:paddingEnd="4dp"
                             android:paddingBottom="12dp" />
@@ -1565,7 +1568,7 @@
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
                                         android:text="@string/btn_add_range"
-                                        android:textSize="12sp" />
+                                        android:textSize="14sp" />
                                 </LinearLayout>
                             </LinearLayout>
                         </com.google.android.material.card.MaterialCardView>

@@ -36,6 +36,9 @@ public class MainMenuActivity extends AppCompatActivity {
         cardTutorial = findViewById(R.id.card_tutorial);
         cardCredits = findViewById(R.id.card_credits);
         
+        // Apply global text colors (BLACK for text, WHITE for buttons)
+        applyGlobalTextColors();
+        
         // Start Scan - launches MainActivity normally without extras
         cardStartScan.setOnClickListener(v -> {
             v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
@@ -54,6 +57,16 @@ public class MainMenuActivity extends AppCompatActivity {
             v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
             showCredits();
         });
+    }
+    
+    /**
+     * Apply global text colors to all UI elements.
+     */
+    private void applyGlobalTextColors() {
+        android.view.View rootView = findViewById(android.R.id.content);
+        if (rootView != null) {
+            TextColorUtil.applyGlobalTextColors(rootView);
+        }
     }
     
     /**
