@@ -999,10 +999,13 @@ public class MainActivity extends AppCompatActivity {
         
         // Accessibility toggle listeners (Feature #1)
         if (switchOutlinedText != null) {
+            // Outlined text feature removed - now using global black text
+            // Hide the switch or disable it
+            switchOutlinedText.setEnabled(false);
+            switchOutlinedText.setChecked(false);
             switchOutlinedText.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                appPreferences.edit().putBoolean(PREF_OUTLINED_TEXT, isChecked).apply();
-                applyOutlinedTextSetting(isChecked);
-                Log.d(TAG, "Outlined text " + (isChecked ? "enabled" : "disabled"));
+                // No-op: feature removed, always use black text
+                Log.d(TAG, "Outlined text feature removed - using global black text");
             });
         }
         
@@ -2505,15 +2508,18 @@ public class MainActivity extends AppCompatActivity {
     // ---------------------------
 
     // ---------------------------
-    // Global White Text with Thick Black Outline
+    // Global Text Colors (Replaced Outlined Text)
     // ---------------------------
     
     /**
-     * Recursively apply white text with thick black outline to all text views in the hierarchy.
-     * This ensures optimal legibility across different backgrounds.
+     * Apply global black text to all text views in the hierarchy (deprecated - now handled by applyGlobalTextColors).
+     * @deprecated Use applyGlobalTextColors() instead for consistent BLACK text / WHITE button approach.
      */
+    @Deprecated
     private void applyWhiteThickOutlineToTree(View root) {
-        OutlinedTextUtil.applyOutlineToTree(root);
+        // This method is deprecated and should not be used.
+        // Use TextColorUtil.applyGlobalTextColors() for the new black text approach.
+        Log.w(TAG, "applyWhiteThickOutlineToTree is deprecated - use applyGlobalTextColors instead");
     }
 
     private void showCreditsDialog() {
@@ -5351,41 +5357,40 @@ public class MainActivity extends AppCompatActivity {
      * Load accessibility settings from preferences (Feature #1).
      */
     private void loadAccessibilitySettings() {
-        // Default outlined text to ON as requested
-        boolean outlinedEnabled = appPreferences.getBoolean(PREF_OUTLINED_TEXT, true);
+        // Outlined text feature removed - always use global black text
         boolean largeTextEnabled = appPreferences.getBoolean(PREF_LARGE_TEXT, false);
         
         if (switchOutlinedText != null) {
-            switchOutlinedText.setChecked(outlinedEnabled);
+            switchOutlinedText.setChecked(false);
+            switchOutlinedText.setEnabled(false); // Disable the switch
         }
         if (switchLargeText != null) {
             switchLargeText.setChecked(largeTextEnabled);
         }
         
-        // Apply settings
-        applyOutlinedTextSetting(outlinedEnabled);
+        // Apply global text colors (BLACK for text, WHITE for buttons)
+        applyGlobalTextColors();
+        
+        // Apply large text setting if enabled
         applyLargeTextSetting(largeTextEnabled);
         
-        Log.d(TAG, "Accessibility settings loaded: outlined=" + outlinedEnabled + ", large-text=" + largeTextEnabled);
+        Log.d(TAG, "Accessibility settings loaded: global-black-text=true, large-text=" + largeTextEnabled);
     }
     
     /**
-     * Apply outlined text setting to all TextViews (Feature #1).
+     * Apply global text colors to all UI elements.
+     * This replaces the previous outlined text feature with a consistent color scheme:
+     * - All regular text: BLACK for maximum readability
+     * - All button text: WHITE for proper contrast with button backgrounds
      */
-    private void applyOutlinedTextSetting(boolean enabled) {
-        if (enabled) {
-            // Apply outlined text to key UI elements
-            // Note: We keep input fields with black text for readability
-            // Only apply to static text labels and headers
-            if (parsedLabel != null) OutlinedTextUtil.applyOutline(parsedLabel);
-            if (sessionScoreTextView != null) OutlinedTextUtil.applyOutline(sessionScoreTextView);
-            if (currentKeyTextView != null) OutlinedTextUtil.applyOutline(currentKeyTextView);
-        } else {
-            // Remove outlined text
-            if (parsedLabel != null) OutlinedTextUtil.removeOutline(parsedLabel);
-            if (sessionScoreTextView != null) OutlinedTextUtil.removeOutline(sessionScoreTextView);
-            if (currentKeyTextView != null) OutlinedTextUtil.removeOutline(currentKeyTextView);
+    private void applyGlobalTextColors() {
+        // Apply global colors to the entire view hierarchy
+        View rootView = findViewById(android.R.id.content);
+        if (rootView != null) {
+            TextColorUtil.applyGlobalTextColors(rootView);
         }
+        
+        Log.d(TAG, "Applied global text colors (BLACK for text, WHITE for buttons)");
     }
     
     /**
