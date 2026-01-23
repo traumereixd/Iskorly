@@ -52,5 +52,12 @@
             android:name=".SimpleCropActivity"
             android:exported="false"
             android:theme="@style/Theme.Iskorly.Cropper" />
+        
+        <!-- uCrop Activity for image cropping -->
+        <activity
+            android:name="com.yalantis.ucrop.UCropActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
     </application>
 </manifest>
