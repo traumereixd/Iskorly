@@ -2,9 +2,9 @@
     <string name="app_name">Iskorly</string>
     <string name="intro_text">Enter student and exam details, then scan answer sheets for automatic scoring.</string>
 
-    <string name="hint_student">Student Name</string>
-    <string name="hint_section">Subgroup 1 e.g: Name of Section</string>
-    <string name="hint_exam">Subgroup 2 e.g: Name of subject and quiz</string>
+    <string name="hint_student">Name</string>
+    <string name="hint_section">Subgroup 1 e.g: Name of Class Section</string>
+    <string name="hint_exam">Subgroup 2 e.g: Name of Assessment</string>
 
     <string name="btn_setup_key">Answer Key</string>
     <string name="btn_history">View History</string>
@@ -28,14 +28,14 @@
     <string name="btn_slot_import">Import</string>
     <string name="btn_slot_export">Export</string>
     <string name="slot_name_dialog_title">Slot Name</string>
-    <string name="slot_name_hint">Enter slot name</string>
+    <string name="slot_name_hintswitch_ocr_two_column">Enter slot name</string>
     <string name="slot_delete_confirm">Delete this slot? This cannot be undone.</string>
     <string name="slot_delete_last_error">Cannot delete the last remaining slot.</string>
     <string name="slot_export_success">Slot exported successfully</string>
     <string name="slot_import_success">Slot imported successfully</string>
     <string name="slot_import_error">Error importing slot: %s</string>
     <string name="btn_slot_save_set">Save Set</string>
-    <string name="mps_format">MPS: %.1f%% (n=%d)</string>
+
 
     <string name="history_title">Test History</string>
     <string name="live_score_placeholder">Score will appear here</string>
@@ -51,7 +51,7 @@
 \nMedel, Myra J.
 \nReyes, John Jharen R.
 \nSahagun, Jayson G.
-\nTagle, Steve Aldrei D.\n\nProgrammed By: Sahagun, Jayson G.\n\nIskorly v1.7\nGoogle Cloud Vision Powered</string>
+\nTagle, Steve Aldrei D.\n\nProgrammed By: Sahagun, Jayson G.\n\nIskorly Alpha v1.1.1\nGoogle Cloud Vision (OCR) Powered</string>
 
     <!-- Menu -->
     <string name="menu_setup">Setup</string>
@@ -75,7 +75,8 @@
     <string name="main_menu_title">Iskorly</string>
     <string name="main_menu_tagline">Better. Faster. Smarter Scoring</string>
     <string name="processing_images">Processing %d image(s)…</string>
-    <string name="filled_answers_status">Processed %d image(s) • Filled %d / %d answers</string>
+    <string name="filled_answers_status">Processed %1$d image(s) • Filled %2$d / %3$d answers</string>
+    <string name="mps_format">MPS: %1$.2f (n=%2$d)</string>
 
     <!-- Optional extra tagline resource if you want to use dynamically -->
     <string name="brand_tagline_alt">Better. Faster. Smarter Scoring.</string>
@@ -115,9 +116,9 @@ Tips:\n
     <!-- Autocomplete Manager -->
     <string name="btn_manage_autocomplete">Edit Autocomplete</string>
     <string name="autocomplete_manager_title">Autocomplete Manager</string>
-    <string name="autocomplete_students_label">Student Names</string>
-    <string name="autocomplete_section_label">Subgroup 1 (Section)</string>
-    <string name="autocomplete_exam_label">Subgroup 2 (Exam)</string>
+    <string name="autocomplete_students_label">Names of People</string>
+    <string name="autocomplete_section_label">Subgroup 1 (Class Section)</string>
+    <string name="autocomplete_exam_label">Subgroup 2 (Assessment Name)</string>
     <string name="autocomplete_add_hint">Add new word</string>
     <string name="btn_add">Add</string>
     <string name="btn_import_json">Import</string>

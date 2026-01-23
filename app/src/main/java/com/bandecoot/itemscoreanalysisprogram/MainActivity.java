@@ -526,7 +526,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void showNewSlotDialog() {
         EditText input = new EditText(this);
-        input.setHint(getString(R.string.slot_name_hint));
+        input.setHint(getString(R.string.slot_name_hintswitch_ocr_two_column));
         input.setInputType(InputType.TYPE_CLASS_TEXT);
 
         new AlertDialog.Builder(this)
@@ -548,7 +548,7 @@ public class MainActivity extends AppCompatActivity {
 
         EditText input = new EditText(this);
         input.setText(currentSlot.name);
-        input.setHint(getString(R.string.slot_name_hint));
+        input.setHint(getString(R.string.slot_name_hintswitch_ocr_two_column));
         input.setInputType(InputType.TYPE_CLASS_TEXT);
 
         new AlertDialog.Builder(this)
@@ -764,6 +764,10 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        switchOcrTwoColumn = findViewById(R.id.switch_ocr_two_column);
+        switchOcrHighContrast = findViewById(R.id.switch_ocr_high_contrast);
+        switchLargeText = findViewById(R.id.switch_large_text);
+        forceSwitchTextBlack();
 
         // Initialize prefs EARLY
         historyPreferences = getSharedPreferences("TestHistoryPrefs", MODE_PRIVATE);
@@ -2679,6 +2683,9 @@ public class MainActivity extends AppCompatActivity {
         // Apply global text colors to newly visible view
         if (visibleView != null) {
             TextColorUtil.applyGlobalTextColors(visibleView);
+            if (visibleView == settingsLayout) {
+                forceSwitchTextBlack();
+            }
         }
     }
 
@@ -2921,6 +2928,23 @@ public class MainActivity extends AppCompatActivity {
         }
         lastDetectedAnswers = edited;
     }
+    private void forceSwitchTextBlack() {
+        try {
+            final android.content.res.ColorStateList black = android.content.res.ColorStateList.valueOf(android.graphics.Color.BLACK);
+            if (switchOcrTwoColumn != null) {
+                switchOcrTwoColumn.setTextColor(black);
+            }
+            if (switchOcrHighContrast != null) {
+                switchOcrHighContrast.setTextColor(black);
+            }
+            if (switchLargeText != null) {
+                switchLargeText.setTextColor(black);
+            }
+        } catch (Throwable t) {
+            android.util.Log.w("ISA_SWITCH", "Failed to force black text on switches", t);
+        }
+    }
+
 
     private void computeAndDisplayScoreAfterConfirm() {
         if (sessionScoreTextView == null) return;

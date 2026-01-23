@@ -8,7 +8,9 @@
     <FrameLayout
         android:id="@+id/content_container"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        app:useMaterialThemeColors="false"
+        android:textColor="@android:color/black">
 
         <!-- MAIN SCREEN -->
         <LinearLayout
@@ -257,18 +259,18 @@
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/button_autocomplete_import_all"
-                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                style="@style/Widget.Material3.Button"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
                                 android:layout_marginEnd="4dp"
                                 android:text="@string/btn_import_all"
-                                android:textColor="#000000"
+                                android:textColor="#FFFFFF"
                                 android:textSize="14sp" />
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/button_autocomplete_export_all"
-                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                style="@style/Widget.Material3.Button"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
@@ -357,7 +359,7 @@
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/button_import_students_json"
-                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                style="@style/Widget.Material3.Button"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
@@ -368,7 +370,7 @@
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/button_export_students_json"
-                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                style="@style/Widget.Material3.Button"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
@@ -443,7 +445,7 @@
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/button_import_sections_json"
-                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                style="@style/Widget.Material3.Button"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
@@ -454,7 +456,7 @@
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/button_export_sections_json"
-                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                style="@style/Widget.Material3.Button"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
@@ -529,7 +531,7 @@
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/button_import_exams_json"
-                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                style="@style/Widget.Material3.Button"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
@@ -540,7 +542,7 @@
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/button_export_exams_json"
-                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                style="@style/Widget.Material3.Button"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
@@ -630,7 +632,7 @@
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_slot_new"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            style="@style/Widget.Material3.Button"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
@@ -640,7 +642,7 @@
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_slot_rename"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            style="@style/Widget.Material3.Button"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
@@ -650,7 +652,7 @@
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_slot_delete"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            style="@style/Widget.Material3.Button"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
@@ -666,7 +668,7 @@
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_slot_import"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            style="@style/Widget.Material3.Button"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
@@ -676,7 +678,7 @@
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_slot_export"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            style="@style/Widget.Material3.Button"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
@@ -686,7 +688,7 @@
                         
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_slot_save_set"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            style="@style/Widget.Material3.Button"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:textColor="#000000"
@@ -788,7 +790,7 @@
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/button_clear_answers"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            style="@style/Widget.Material3.Button"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:textColor="#000000"
@@ -896,7 +898,7 @@
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/button_expand_all"
-                            style="@style/Widget.Material3.Button.TextButton"
+                            style="@style/Widget.Material3.Button"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
@@ -908,7 +910,7 @@
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/button_collapse_all"
-                            style="@style/Widget.Material3.Button.TextButton"
+                            style="@style/Widget.Material3.Button"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
@@ -936,7 +938,7 @@
                         
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/button_masterlist"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            style="@style/Widget.Material3.Button"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
@@ -946,7 +948,7 @@
                         
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/button_export_csv"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            style="@style/Widget.Material3.Button"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
@@ -1307,12 +1309,13 @@
                             android:id="@+id/switch_ocr_two_column"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:checked="true"
                             android:text="@string/settings_two_column_label"
+                            android:textAppearance="@style/TextAppearance.Iskorly.SwitchLabel"
                             android:textSize="18sp"
                             android:textStyle="bold"
                             android:paddingTop="8dp"
                             android:paddingBottom="4dp" />
+
 
                         <TextView
                             android:layout_width="match_parent"
@@ -1329,12 +1332,13 @@
                             android:id="@+id/switch_ocr_high_contrast"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:checked="false"
                             android:text="@string/settings_high_contrast_label"
+                            android:textAppearance="@style/TextAppearance.Iskorly.SwitchLabel"
                             android:textSize="18sp"
                             android:textStyle="bold"
                             android:paddingTop="8dp"
                             android:paddingBottom="4dp" />
+
 
                         <TextView
                             android:layout_width="match_parent"
@@ -1401,8 +1405,8 @@
                             android:id="@+id/switch_large_text"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:checked="false"
                             android:text="@string/settings_large_text_label"
+                            android:textAppearance="@style/TextAppearance.Iskorly.SwitchLabel"
                             android:textSize="18sp"
                             android:textStyle="bold"
                             android:paddingTop="8dp"
@@ -1545,11 +1549,14 @@
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/btn_clear_hints"
-                                style="@style/Widget.Material3.Button.TextButton"
+                                style="@style/Widget.Material3.Button"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="@string/btn_clear_hints"
-                                android:textSize="14sp" />
+                                android:layout_marginStart="8dp"
+                                android:textSize="14sp"
+                                app:backgroundTint="@color/brand_brown"
+                                android:textColor="@color/on_primary"/>
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/btn_save_hints"

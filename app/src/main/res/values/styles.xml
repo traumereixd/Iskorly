@@ -1,0 +1,14 @@
+<resources>
+    <!-- Theme overlay used on views (if any view uses android:theme="@style/ThemeOverlay.Iskorly") -->
+    <style name="ThemeOverlay.Iskorly" parent="@style/ThemeOverlay.Material3">
+        <!-- Force text to render black on surface where labels might inherit colorOnSurface -->
+        <item name="colorOnSurface">@android:color/black</item>
+        <item name="android:textColor">@android:color/black</item>
+
+
+    </style>
+    <string name="filled_answers_status">Processed %1$d image(s) • Filled %2$d / %3$d answers</string>
+    <string name="mps_format">MPS: %1$.2f (n=%2$d)</string>
+    <!-- Explicit TextAppearance to force black label on switches -->
+
+</resources>

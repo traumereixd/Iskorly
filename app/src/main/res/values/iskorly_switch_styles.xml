@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Theme overlay for switches; optional (only if you set android:theme on the view). -->
+    <style name="ThemeOverlay.Iskorly.Switch" parent="@style/ThemeOverlay.Material3">
+        <item name="colorOnSurface">@android:color/black</item>
+    </style>
+
+    <!-- TextAppearance for switch labels: forces black text -->
+    <style name="TextAppearance.Iskorly.SwitchLabel" parent="@style/TextAppearance.Material3.BodyLarge">
+        <item name="android:textColor">@android:color/black</item>
+    </style>
+</resources>
