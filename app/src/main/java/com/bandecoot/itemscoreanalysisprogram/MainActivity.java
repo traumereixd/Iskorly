@@ -1000,13 +1000,10 @@ public class MainActivity extends AppCompatActivity {
         // Accessibility toggle listeners (Feature #1)
         if (switchOutlinedText != null) {
             // Outlined text feature removed - now using global black text
-            // Hide the switch or disable it
+            // Disable and hide the switch
             switchOutlinedText.setEnabled(false);
             switchOutlinedText.setChecked(false);
-            switchOutlinedText.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                // No-op: feature removed, always use black text
-                Log.d(TAG, "Outlined text feature removed - using global black text");
-            });
+            switchOutlinedText.setVisibility(View.GONE);
         }
         
         if (switchLargeText != null) {
@@ -1202,10 +1199,10 @@ public class MainActivity extends AppCompatActivity {
         // Handle navigation intents from MainMenuActivity
         handleNavigationIntent();
         
-        // Apply white text with thick black outline globally for optimal legibility
+        // Apply global text colors (BLACK for text, WHITE for buttons) for optimal legibility
         View rootView = findViewById(android.R.id.content);
         if (rootView != null) {
-            applyWhiteThickOutlineToTree(rootView);
+            TextColorUtil.applyGlobalTextColors(rootView);
         }
     }
     
@@ -2511,16 +2508,9 @@ public class MainActivity extends AppCompatActivity {
     // Global Text Colors (Replaced Outlined Text)
     // ---------------------------
     
-    /**
-     * Apply global black text to all text views in the hierarchy (deprecated - now handled by applyGlobalTextColors).
-     * @deprecated Use applyGlobalTextColors() instead for consistent BLACK text / WHITE button approach.
-     */
-    @Deprecated
-    private void applyWhiteThickOutlineToTree(View root) {
-        // This method is deprecated and should not be used.
-        // Use TextColorUtil.applyGlobalTextColors() for the new black text approach.
-        Log.w(TAG, "applyWhiteThickOutlineToTree is deprecated - use applyGlobalTextColors instead");
-    }
+    // Note: applyWhiteThickOutlineToTree method has been removed.
+    // Use TextColorUtil.applyGlobalTextColors() for the new black text approach.
+
 
     private void showCreditsDialog() {
         new AlertDialog.Builder(this)
@@ -2656,9 +2646,9 @@ public class MainActivity extends AppCompatActivity {
                 break;
         }
         
-        // Apply white text with thick black outline to newly visible view
+        // Apply global text colors to newly visible view
         if (visibleView != null) {
-            applyWhiteThickOutlineToTree(visibleView);
+            TextColorUtil.applyGlobalTextColors(visibleView);
         }
     }
 

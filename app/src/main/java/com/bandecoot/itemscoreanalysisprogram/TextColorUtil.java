@@ -83,11 +83,12 @@ public final class TextColorUtil {
         if (root == null) return;
         
         // Apply appropriate color based on view type
+        // Order matters: Button extends TextView, so check Button first
         if (root instanceof Button) {
             // Buttons get white text
             applyWhiteTextToButton((Button) root);
         } else if (root instanceof EditText) {
-            // EditTexts get black text
+            // EditTexts get black text (EditText extends TextView, so check before TextView)
             applyBlackText((EditText) root);
         } else if (root instanceof TextView) {
             // Other TextViews get black text
