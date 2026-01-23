@@ -80,6 +80,8 @@ import okhttp3.Response;
 
 import android.content.res.ColorStateList;
 
+import com.yalantis.ucrop.UCrop;
+import com.yalantis.ucrop.UCropActivity;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -3225,15 +3227,22 @@ public class MainActivity extends AppCompatActivity {
     }
     
     /**
-     * Handle crop result from SimpleCropActivity.
+     * Handle crop result from uCrop or SimpleCropActivity fallback.
      */
     private void onCropResult(androidx.activity.result.ActivityResult result) {
         cropInProgress = false;
-        if (result.getResultCode() == RESULT_OK && result.getData() != null) {
-            android.net.Uri croppedUri = result.getData().getData();
+        Intent data = result.getData();
+
+        if (result.getResultCode() == RESULT_OK && data != null) {
+            // Prefer uCrop result first
+            android.net.Uri croppedUri = null;
+            try { croppedUri = UCrop.getOutput(data); } catch (Throwable ignored) {}
+            if (croppedUri == null) {
+                // Legacy fallback for SimpleCropActivity
+                croppedUri = data.getData();
+            }
             if (croppedUri != null) {
-                Log.d(CROP_FLOW, "SimpleCropActivity succeeded with robust rotation, processing cropped image: " + croppedUri);
-                // Ensure OCR ready (was stopped if previous code paused it)
+                Log.d(CROP_FLOW, "Crop succeeded, processing cropped image: " + croppedUri);
                 if (ocrProcessor == null) {
                     Log.w(OCR_FLOW, "ocrProcessor null on crop result - reinitializing");
                     ocrProcessor = new OcrProcessor(
@@ -3309,11 +3318,11 @@ public class MainActivity extends AppCompatActivity {
     }
     /**
      * Start crop activity for the captured image.
-     * Uses SimpleCropActivity which provides uCrop-equivalent functionality:
-     * - Free-style crop with robust arbitrary rotation
-     * - Rotation controls (90° increments + fine-grained slider)
-     * - JPEG quality ~90, max output size ~2048
-     * - EXIF preservation where possible
+     * Uses uCrop as primary crop flow:
+     * - 4:3 default aspect ratio with free-style enabled
+     * - Rotate-only controls, grid hidden, frame shown
+     * - Bitmap limits: maxBitmapSize 4096, maxResultSize 2048x2048
+     * - Falls back to SimpleCropActivity if uCrop fails
      */
     private void startCropActivity(android.net.Uri sourceUri) {
         try {
@@ -3322,28 +3331,43 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, "Capture error", Toast.LENGTH_SHORT).show();
                 return;
             }
-            if (lastCapturedFile == null || !lastCapturedFile.exists()) {
-                Log.w(CROP_FIX, "Captured file missing or deleted before crop");
-            }
             cropInProgress = true;
-            
-            // Prepare a distinct output file
+
+            // Prepare distinct output file
             java.io.File outFile = new java.io.File(getCacheDir(), "cropped_" + System.currentTimeMillis() + ".jpg");
             android.net.Uri outputUri = android.net.Uri.fromFile(outFile);
-            
-            Log.d(CROP_FLOW, "Launching SimpleCropActivity with robust rotation support\n  source=" + sourceUri +
-                    "\n  output=" + outputUri +
-                    "\n  capturedSize=" + (lastCapturedFile != null ? lastCapturedFile.length() : -1) +
-                    "\n  orientationHint=" + lastCapturedJpegOrientation);
-            
-            // SimpleCropActivity uses CanHub CropImageView which provides uCrop-equivalent features
-            Intent cropIntent = SimpleCropActivity
-                    .createIntent(this, sourceUri, outputUri)
-                    .putExtra("EXTRA_JPEG_ORIENTATION", lastCapturedJpegOrientation);
-            cropLauncher.launch(cropIntent);
+
+            // Configure uCrop options for better UI and constraints
+            UCrop.Options options = new UCrop.Options();
+            options.setFreeStyleCropEnabled(true);      // allow free-style crop
+            options.setHideBottomControls(false);       // show controls
+            options.setCompressionQuality(90);
+            options.withMaxResultSize(2048, 2048);
+            try { options.setMaxBitmapSize(4096); } catch (Throwable ignored) { /* method may not exist in some builds */ }
+
+            // Visual behavior: rotate-only and hide grid
+            options.setShowCropGrid(false);             // hide crop grid
+            options.setShowCropFrame(true);             // keep frame/border
+            options.setAllowedGestures(UCropActivity.NONE, UCropActivity.ROTATE, UCropActivity.NONE);
+
+            // Theme to match app palette
+            options.setToolbarTitle("Crop");
+            options.setToolbarColor(getResources().getColor(R.color.brand_brown, getTheme()));
+            options.setStatusBarColor(getResources().getColor(R.color.brand_brown, getTheme()));
+            options.setActiveControlsWidgetColor(getResources().getColor(R.color.secondary_emerald, getTheme()));
+            options.setRootViewBackgroundColor(getResources().getColor(R.color.surface, getTheme()));
+            options.setCropFrameColor(getResources().getColor(R.color.outline, getTheme()));
+
+            // Launch uCrop with default 4:3 aspect and free style enabled
+            Intent uCropIntent = UCrop.of(sourceUri, outputUri)
+                    .withAspectRatio(4, 3)
+                    .withOptions(options)
+                    .getIntent(this);
+
+            cropLauncher.launch(uCropIntent);
         } catch (Exception e) {
             cropInProgress = false;
-            Log.e(CROP_FIX, "startCropActivity exception", e);
+            Log.e(CROP_FIX, "startCropActivity (uCrop) exception", e);
             Toast.makeText(this, "Crop not available (fallback)", Toast.LENGTH_SHORT).show();
             processFallbackAutoCrop(sourceUri);
         }
