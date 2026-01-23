@@ -185,41 +185,6 @@
                             app:strokeWidth="1dp" />
                     </LinearLayout>
 
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/button_manage_autocomplete"
-                                style="@style/Widget.Material3.Button"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:layout_marginEnd="8dp"
-                                android:text="@string/btn_manage_autocomplete"
-                                app:backgroundTint="@color/brand_brown"
-                                android:textColor="@color/on_primary"
-                                android:textSize="14sp" />
-
-                            <com.google.android.material.button.MaterialButton
-                                android:id="@+id/button_back_to_menu"
-                                style="@style/Widget.Material3.Button"
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="Back to Main Menu"
-                                android:textSize="14sp"
-                                app:backgroundTint="@color/brand_brown"
-                                android:textColor="@color/on_primary" />
-                        </LinearLayout>
-                        
-                        <!-- Row 3: Settings button -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:text="@string/btn_manage_autocomplete"
-                            android:textColor="#000000"
-                            android:textSize="16sp"
-                            app:strokeColor="@color/brand_brown"
-                            app:strokeWidth="1dp" />
-
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/button_clear_form"
                         style="@style/Widget.Material3.Button.TextButton"
@@ -300,21 +265,15 @@
                                 android:textColor="#000000"
                                 android:textSize="14sp" />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_autocomplete_export_all"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:layout_marginStart="4dp"
-                            android:layout_marginEnd="4dp"
-                            android:text="@string/btn_export_all"
-                            android:textColor="#000000"
-                            android:textSize="12sp"
-                            app:strokeColor="@color/brand_brown"
-                            app:strokeWidth="1dp" />
-
-                                android:textColor="@android:color/white"
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/button_autocomplete_clear_all"
+                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginStart="4dp"
+                                android:text="@string/btn_clear_all_words"
+                                android:textColor="#000000"
                                 android:textSize="14sp" />
                         </LinearLayout>
 
