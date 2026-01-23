@@ -24,6 +24,16 @@ import java.io.InputStream;
 /**
  * SimpleCropActivity - Enhanced custom crop UI with rotate, flip, and aspect ratio controls.
  * Provides robust arbitrary rotation using CanHub CropImageView library.
+ * 
+ * This activity provides uCrop-equivalent functionality:
+ * - Free-style crop (no fixed aspect ratio)
+ * - Robust rotation controls (90° buttons + fine-grained slider for arbitrary angles)
+ * - Horizontal flip support
+ * - JPEG quality ~90 and max output size ~2048
+ * - EXIF preservation where possible
+ * 
+ * The CanHub library (com.vanniktech:android-image-cropper) is used instead of uCrop
+ * to maintain Maven Central dependency compatibility.
  */
 public class SimpleCropActivity extends AppCompatActivity {
 
