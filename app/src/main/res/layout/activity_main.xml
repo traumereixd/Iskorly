@@ -170,7 +170,6 @@
                             android:text="@string/btn_settings"
                             android:textColor="#000000"
                             android:textSize="16sp"
-                            android:tag="text"
                             app:strokeColor="@color/brand_brown"
                             app:strokeWidth="1dp" />
 
@@ -182,7 +181,6 @@
                             android:text="Back to Main Menu"
                             android:textColor="#000000"
                             android:textSize="16sp"
-                            android:tag="text"
                             app:strokeColor="@color/brand_brown"
                             app:strokeWidth="1dp" />
                     </LinearLayout>
@@ -205,7 +203,6 @@
                             android:text="@string/btn_manage_autocomplete"
                             android:textColor="#000000"
                             android:textSize="16sp"
-                            android:tag="text"
                             app:strokeColor="@color/brand_brown"
                             app:strokeWidth="1dp" />
 
@@ -217,8 +214,7 @@
                         android:layout_marginTop="4dp"
                         android:text="@string/btn_clear_form"
                         android:textColor="#000000"
-                        app:backgroundTint="@color/surface"
-                        android:tag="text" />
+                        app:backgroundTint="@color/surface" />
                 </LinearLayout>
                 </FrameLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -277,7 +273,6 @@
                             android:text="@string/btn_import_all"
                             android:textColor="#000000"
                             android:textSize="12sp"
-                            android:tag="text"
                             app:strokeColor="@color/brand_brown"
                             app:strokeWidth="1dp" />
 
@@ -292,7 +287,6 @@
                             android:text="@string/btn_export_all"
                             android:textColor="#000000"
                             android:textSize="12sp"
-                            android:tag="text"
                             app:strokeColor="@color/brand_brown"
                             app:strokeWidth="1dp" />
 
@@ -382,7 +376,6 @@
                             android:textColor="#000000"
                             android:text="@string/btn_import_json"
                             android:textSize="12sp"
-                            android:tag="text"
                             app:strokeColor="@color/brand_brown"
                             app:strokeWidth="1dp" />
 
@@ -396,7 +389,6 @@
                             android:textColor="#000000"
                             android:text="@string/btn_export_json"
                             android:textSize="12sp"
-                            android:tag="text"
                             app:strokeColor="@color/brand_brown"
                             app:strokeWidth="1dp" />
                         </LinearLayout>
@@ -474,7 +466,6 @@
                             android:textColor="#000000"
                             android:text="@string/btn_import_json"
                             android:textSize="12sp"
-                            android:tag="text"
                             app:strokeColor="@color/brand_brown"
                             app:strokeWidth="1dp" />
 
@@ -488,7 +479,6 @@
                             android:textColor="#000000"
                             android:text="@string/btn_export_json"
                             android:textSize="12sp"
-                            android:tag="text"
                             app:strokeColor="@color/brand_brown"
                             app:strokeWidth="1dp" />
                         </LinearLayout>
@@ -566,7 +556,6 @@
                             android:text="@string/btn_import_json"
                             android:textSize="12sp"
                             android:textColor="#000000"
-                            android:tag="text"
                             app:strokeColor="@color/brand_brown"
                             app:strokeWidth="1dp" />
 
@@ -580,7 +569,6 @@
                             android:text="@string/btn_export_json"
                             android:textSize="12sp"
                             android:textColor="#000000"
-                            android:tag="text"
                             app:strokeColor="@color/brand_brown"
                             app:strokeWidth="1dp" />
                         </LinearLayout>
@@ -672,7 +660,6 @@
                             android:layout_marginEnd="4dp"
                             android:textColor="#000000"
                             android:text="@string/btn_slot_new"
-                            android:tag="text"
                             app:strokeColor="@color/brand_brown"
                             app:strokeWidth="1dp" />
 
@@ -685,7 +672,6 @@
                             android:layout_marginEnd="4dp"
                             android:textColor="#000000"
                             android:text="@string/btn_slot_rename"
-                            android:tag="text"
                             app:strokeColor="@color/brand_brown"
                             app:strokeWidth="1dp" />
 
@@ -697,7 +683,6 @@
                             android:layout_weight="1"
                             android:textColor="#000000"
                             android:text="@string/btn_slot_delete"
-                            android:tag="text"
                             app:strokeColor="@color/brand_brown"
                             app:strokeWidth="1dp" />
                     </LinearLayout>
@@ -717,7 +702,6 @@
                             android:textColor="#000000"
                             android:layout_marginEnd="4dp"
                             android:text="@string/btn_slot_import"
-                            android:tag="text"
                             app:strokeColor="@color/brand_brown"
                             app:strokeWidth="1dp" />
 
@@ -730,7 +714,6 @@
                             android:layout_marginEnd="4dp"
                             android:textColor="#000000"
                             android:text="@string/btn_slot_export"
-                            android:tag="text"
                             app:strokeColor="@color/brand_brown"
                             app:strokeWidth="1dp" />
                         
@@ -742,7 +725,6 @@
                             android:textColor="#000000"
                             android:layout_weight="1"
                             android:text="@string/btn_slot_save_set"
-                            android:tag="text"
                             app:strokeColor="@color/brand_brown"
                             app:strokeWidth="1dp" />
                     </LinearLayout>
@@ -846,7 +828,6 @@
                             android:layout_height="wrap_content"
                             android:textColor="#000000"
                             android:text="@string/btn_clear_all"
-                            android:tag="text"
                             app:strokeColor="@color/brand_brown"
                             app:strokeWidth="1dp" />
 
@@ -959,7 +940,6 @@
                             android:text="@string/btn_expand_all"
                             android:textSize="11sp"
                             android:textColor="#000000"
-                            android:tag="text"
                             android:paddingTop="4dp"
                             android:paddingBottom="4dp" />
 
@@ -972,7 +952,6 @@
                             android:text="@string/btn_collapse_all"
                             android:textColor="#000000"
                             android:textSize="11sp"
-                            android:tag="text"
                             android:paddingTop="4dp"
                             android:paddingBottom="4dp" />
                     </LinearLayout>
@@ -1001,7 +980,6 @@
                             android:layout_marginBottom="6dp"
                             android:textColor="#000000"
                             android:text="@string/btn_masterlist"
-                            android:tag="text"
                             app:strokeColor="@color/brand_brown"
                             app:strokeWidth="1dp" />
 
@@ -1012,7 +990,6 @@
                             android:layout_height="wrap_content"
                             android:textColor="#000000"
                             android:text="@string/btn_back"
-                            android:tag="text"
                             app:strokeColor="@color/brand_brown"
                             app:strokeWidth="1dp" />
                     </LinearLayout>
@@ -1257,7 +1234,6 @@
                             android:layout_weight="1"
                             android:layout_marginEnd="4dp"
                             android:text="@string/masterlist_by_section"
-                            android:tag="text"
                             app:strokeColor="@color/brand_brown"
                             app:strokeWidth="1dp" />
                         
@@ -1269,7 +1245,6 @@
                             android:layout_weight="1"
                             android:layout_marginStart="4dp"
                             android:text="@string/masterlist_all"
-                            android:tag="text"
                             app:strokeColor="@color/brand_brown"
                             app:strokeWidth="1dp" />
                     </LinearLayout>
@@ -1590,8 +1565,7 @@
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
                                         android:text="@string/btn_add_range"
-                                        android:textSize="12sp"
-                                        android:tag="text" />
+                                        android:textSize="12sp" />
                                 </LinearLayout>
                             </LinearLayout>
                         </com.google.android.material.card.MaterialCardView>
@@ -1618,8 +1592,7 @@
                                         android:layout_width="wrap_content"
                                         android:layout_height="wrap_content"
                                         android:text="@string/btn_clear_hints"
-                                        android:textSize="14sp"
-                                        android:tag="text" />
+                                        android:textSize="14sp" />
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/btn_save_hints"

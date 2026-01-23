@@ -1199,10 +1199,11 @@ public class MainActivity extends AppCompatActivity {
         // Handle navigation intents from MainMenuActivity
         handleNavigationIntent();
         
-        // Apply white text with thick black outline globally for optimal legibility
+        // Apply black text styling globally
         View rootView = findViewById(android.R.id.content);
         if (rootView != null) {
             applyWhiteThickOutlineToTree(rootView);
+            applyButtonContrast();
         }
     }
     
@@ -2650,9 +2651,10 @@ public class MainActivity extends AppCompatActivity {
                 break;
         }
         
-        // Apply white text with thick black outline to newly visible view
+        // Apply black text styling to newly visible view
         if (visibleView != null) {
             applyWhiteThickOutlineToTree(visibleView);
+            applyButtonContrast();
         }
     }
 
@@ -5346,8 +5348,8 @@ public class MainActivity extends AppCompatActivity {
      * Load accessibility settings from preferences (Feature #1).
      */
     private void loadAccessibilitySettings() {
-        // Default outlined text to ON as requested
-        boolean outlinedEnabled = appPreferences.getBoolean(PREF_OUTLINED_TEXT, true);
+        // Default outlined text to OFF for black text
+        boolean outlinedEnabled = appPreferences.getBoolean(PREF_OUTLINED_TEXT, false);
         boolean largeTextEnabled = appPreferences.getBoolean(PREF_LARGE_TEXT, false);
         
         if (switchOutlinedText != null) {
@@ -5360,6 +5362,7 @@ public class MainActivity extends AppCompatActivity {
         // Apply settings
         applyOutlinedTextSetting(outlinedEnabled);
         applyLargeTextSetting(largeTextEnabled);
+        applyButtonContrast();
         
         Log.d(TAG, "Accessibility settings loaded: outlined=" + outlinedEnabled + ", large-text=" + largeTextEnabled);
     }
@@ -5368,19 +5371,9 @@ public class MainActivity extends AppCompatActivity {
      * Apply outlined text setting to all TextViews (Feature #1).
      */
     private void applyOutlinedTextSetting(boolean enabled) {
-        if (enabled) {
-            // Apply outlined text to key UI elements
-            // Note: We keep input fields with black text for readability
-            // Only apply to static text labels and headers
-            if (parsedLabel != null) OutlinedTextUtil.applyOutline(parsedLabel);
-            if (sessionScoreTextView != null) OutlinedTextUtil.applyOutline(sessionScoreTextView);
-            if (currentKeyTextView != null) OutlinedTextUtil.applyOutline(currentKeyTextView);
-        } else {
-            // Remove outlined text
-            if (parsedLabel != null) OutlinedTextUtil.removeOutline(parsedLabel);
-            if (sessionScoreTextView != null) OutlinedTextUtil.removeOutline(sessionScoreTextView);
-            if (currentKeyTextView != null) OutlinedTextUtil.removeOutline(currentKeyTextView);
-        }
+        if (parsedLabel != null) OutlinedTextUtil.applyOutline(parsedLabel);
+        if (sessionScoreTextView != null) OutlinedTextUtil.applyOutline(sessionScoreTextView);
+        if (currentKeyTextView != null) OutlinedTextUtil.applyOutline(currentKeyTextView);
     }
     
     /**
@@ -5403,6 +5396,66 @@ public class MainActivity extends AppCompatActivity {
         if (setupButton != null) setupButton.setMinHeight(minHeight);
         if (viewHistoryButton != null) viewHistoryButton.setMinHeight(minHeight);
         if (confirmParsedButton != null) confirmParsedButton.setMinHeight(minHeight);
+    }
+
+    private void applyButtonContrast() {
+        setButtonContrast(startScanButton, true);
+        setButtonContrast(setupButton, true);
+        setButtonContrast(viewHistoryButton, true);
+        setButtonContrast(confirmParsedButton, true);
+        setButtonContrast(findViewById(R.id.button_save_result), true);
+        setButtonContrast(tryAgainButton, true);
+        setButtonContrast(cancelScanButton, true);
+        setButtonContrast(captureResultButton, true);
+        setButtonContrast(importPhotosButton, true);
+        setButtonContrast(exportCsvButton, true);
+        setButtonContrast(exportMasterlistCsvButton, true);
+        setButtonContrast(masterlistResetAllButton, true);
+        setButtonContrast(saveAnswerButton, true);
+        setButtonContrast(removeAnswerButton, true);
+        setButtonContrast(backButton, true);
+        setButtonContrast(clearButton, false);
+        setButtonContrast(masterlistBackButton, true);
+        setButtonContrast(masterlistBySectionButton, false);
+        setButtonContrast(masterlistAllButton, false);
+        setButtonContrast(btnSlotNew, false);
+        setButtonContrast(btnSlotRename, false);
+        setButtonContrast(btnSlotDelete, false);
+        setButtonContrast(btnSlotImport, false);
+        setButtonContrast(btnSlotExport, false);
+        setButtonContrast(btnSlotSaveSet, false);
+        setButtonContrast(buttonSettings, false);
+        setButtonContrast(buttonSettingsClose, true);
+        setButtonContrast(historyBackButton, false);
+        setButtonContrast(masterlistButton, false);
+        setButtonContrast(btnAddHintRange, false);
+        setButtonContrast(btnClearHints, false);
+        setButtonContrast(btnSaveHints, true);
+        setButtonContrast(buttonAddStudent, true);
+        setButtonContrast(buttonAddSection, true);
+        setButtonContrast(buttonAddExam, true);
+        setButtonContrast(buttonAutocompleteImportAll, false);
+        setButtonContrast(buttonAutocompleteExportAll, false);
+        setButtonContrast(buttonAutocompleteClearAll, true);
+        setButtonContrast(buttonImportStudentsJson, false);
+        setButtonContrast(buttonExportStudentsJson, false);
+        setButtonContrast(buttonImportSectionsJson, false);
+        setButtonContrast(buttonExportSectionsJson, false);
+        setButtonContrast(buttonImportExamsJson, false);
+        setButtonContrast(buttonExportExamsJson, false);
+        setButtonContrast(buttonAutocompleteClose, true);
+        setButtonContrast(manageAutocompleteButton, false);
+        setButtonContrast(backToMenuButton, false);
+        setButtonContrast(buttonExpandAll, false);
+        setButtonContrast(buttonCollapseAll, false);
+    }
+
+    private void setButtonContrast(Button button, boolean primary) {
+        if (button == null) return;
+        int background = getResources().getColor(primary ? R.color.brand_brown : R.color.surface, getTheme());
+        int textColor = getResources().getColor(primary ? R.color.on_primary : R.color.on_surface, getTheme());
+        button.setBackgroundTintList(ColorStateList.valueOf(background));
+        button.setTextColor(textColor);
     }
     
     /**
