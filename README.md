@@ -173,6 +173,19 @@ The Item Score Analysis (ISA) App uses Google Vision API and OCR technology to a
 - **Rate Limits**: Free tier: 25,000 requests/month
 - **Get Key**: [OCR.Space](https://ocr.space/ocrapi)
 
+### OpenRouter API (For Vercel Reparse Endpoint)
+- **Type**: LLM provider for re-parsing low-quality OCR text
+- **Model**: meta-llama/llama-3.3-70b-instruct:free (zero-cost)
+- **Rate Limits**: Free tier available
+- **Get Key**: [OpenRouter.ai](https://openrouter.ai/)
+- **Environment Variables** (set in Vercel dashboard):
+  - `REPARSE_PROVIDER=openrouter` (default)
+  - `OPENROUTER_API_KEY=sk-or-v1-...` (required)
+  - `OPENROUTER_MODEL=meta-llama/llama-3.3-70b-instruct:free` (optional, default shown)
+  - `OPENROUTER_SITE_URL=https://iskorlyapp.vercel.app` (optional)
+  - `OPENROUTER_APP_NAME=Iskorly Reparser` (optional)
+- **Fallback**: If OpenRouter is unavailable or rate-limited, the endpoint automatically falls back to a regex-based lite parser
+
 ## Tips for Best Results
 
 ### Photography
