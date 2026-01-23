@@ -5668,19 +5668,31 @@ public class MainActivity extends AppCompatActivity {
      */
     private void setupTypeHintsDropdown() {
         if (hintTypeDropdown == null) return;
-        
+
         String[] types = new String[]{
-            "Multiple Choice",
-            "Matching",
-            "Identification",
-            "True/False",
-            "Enumeration"
+                "Multiple Choice",
+                "Matching",
+                "Identification",
+                "True/False",
+                "Enumeration"
         };
-        
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_dropdown_item_1line, types);
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                this, android.R.layout.simple_dropdown_item_1line, types);
         hintTypeDropdown.setAdapter(adapter);
-        hintTypeDropdown.setThreshold(Integer.MAX_VALUE); // Don't auto-show
+
+        // Make it behave like other dropdowns: show suggestions on focus and click
+        hintTypeDropdown.setThreshold(0);
+        hintTypeDropdown.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus && adapter.getCount() > 0) {
+                hintTypeDropdown.showDropDown();
+            }
+        });
+        hintTypeDropdown.setOnClickListener(v -> {
+            if (adapter.getCount() > 0) {
+                hintTypeDropdown.showDropDown();
+            }
+        });
     }
     
     /**
