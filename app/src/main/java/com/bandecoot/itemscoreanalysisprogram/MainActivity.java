@@ -2347,14 +2347,14 @@ public class MainActivity extends AppCompatActivity {
             try {
                 JSONObject rec = history.getJSONObject(i);
                 String ts = rec.optString("ts", "");
-                String student = rec.optString("student", "Unknown");
+                String subgroupTwo = rec.optString("exam", "Subgroup 2");
                 int score = rec.optInt("score", 0);
                 int total = rec.optInt("total", 0);
                 double pct = rec.optDouble("percent", 0.0);
                 
-                // Format: [timestamp] student — score/total (%)
+                // Format: [timestamp] subgroup 2 — score/total (%)
                 String label = String.format(Locale.US, "[%s] %s — %d/%d (%.1f%%)", 
-                        ts, student, score, total, pct);
+                        ts, subgroupTwo, score, total, pct);
                 recordLabels.add(label);
                 recordTimestamps.add(ts);
             } catch (Exception ignored) {
@@ -5799,4 +5799,3 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 }
-
