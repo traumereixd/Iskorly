@@ -3236,7 +3236,12 @@ public class MainActivity extends AppCompatActivity {
         if (result.getResultCode() == RESULT_OK && data != null) {
             // Prefer uCrop result first
             android.net.Uri croppedUri = null;
-            try { croppedUri = UCrop.getOutput(data); } catch (Throwable ignored) {}
+            try { 
+                croppedUri = UCrop.getOutput(data); 
+            } catch (IllegalArgumentException | IllegalStateException e) {
+                // UCrop.getOutput may fail if data doesn't contain uCrop result
+                Log.d(CROP_FLOW, "Not a uCrop result, trying fallback");
+            }
             if (croppedUri == null) {
                 // Legacy fallback for SimpleCropActivity
                 croppedUri = data.getData();
@@ -3343,7 +3348,12 @@ public class MainActivity extends AppCompatActivity {
             options.setHideBottomControls(false);       // show controls
             options.setCompressionQuality(90);
             options.withMaxResultSize(2048, 2048);
-            try { options.setMaxBitmapSize(4096); } catch (Throwable ignored) { /* method may not exist in some builds */ }
+            try { 
+                options.setMaxBitmapSize(4096); 
+            } catch (NoSuchMethodError e) { 
+                // Method may not exist in some uCrop versions
+                Log.d(CROP_FIX, "setMaxBitmapSize not available in this uCrop version");
+            }
 
             // Visual behavior: rotate-only and hide grid
             options.setShowCropGrid(false);             // hide crop grid
