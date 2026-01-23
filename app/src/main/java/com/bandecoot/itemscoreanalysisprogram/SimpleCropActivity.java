@@ -34,7 +34,12 @@ import java.io.InputStream;
  * 
  * The CanHub library (com.vanniktech:android-image-cropper) is used instead of uCrop
  * to maintain Maven Central dependency compatibility.
+ * 
+ * @deprecated While still functional, this custom implementation is maintained for backward compatibility.
+ *             The app uses CanHub's CropImageView which provides the same robust arbitrary rotation
+ *             and cropping features as uCrop but with Maven Central availability.
  */
+@Deprecated
 public class SimpleCropActivity extends AppCompatActivity {
 
     private static final String TAG = "SimpleCropActivity";
