@@ -151,8 +151,7 @@ ${cleaned}
                 { role: 'system', content: 'You only output valid JSON. No prose.' },
                 { role: 'user', content: prompt }
               ],
-              temperature: 0.1,
-              response_format: { type: 'json_object' }
+              temperature: 0.1
             })
           });
 
