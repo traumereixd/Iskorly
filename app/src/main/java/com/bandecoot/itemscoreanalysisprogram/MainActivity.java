@@ -80,7 +80,6 @@ import okhttp3.Response;
 
 import android.content.res.ColorStateList;
 
-import com.yalantis.ucrop.UCrop;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -3226,34 +3225,14 @@ public class MainActivity extends AppCompatActivity {
     }
     
     /**
-     * Handle crop result from UCrop or SimpleCropActivity (fallback).
-     * Tries UCrop.getOutput() first, then falls back to data.getData() for SimpleCropActivity.
+     * Handle crop result from SimpleCropActivity.
      */
     private void onCropResult(androidx.activity.result.ActivityResult result) {
         cropInProgress = false;
         if (result.getResultCode() == RESULT_OK && result.getData() != null) {
-            android.net.Uri croppedUri = null;
-            
-            // Try UCrop output first (may throw if data doesn't contain UCrop extras)
-            try {
-                croppedUri = UCrop.getOutput(result.getData());
-                if (croppedUri != null) {
-                    Log.d(CROP_FLOW, "UCrop succeeded, processing cropped image: " + croppedUri);
-                }
-            } catch (Exception e) {
-                // Not a UCrop result or UCrop result parsing failed - will try SimpleCropActivity format
-                Log.d(CROP_FLOW, "Not a UCrop result, trying SimpleCropActivity format");
-            }
-            
-            // If UCrop output is null or failed, try SimpleCropActivity result format
-            if (croppedUri == null) {
-                croppedUri = result.getData().getData();
-                if (croppedUri != null) {
-                    Log.d(CROP_FLOW, "SimpleCropActivity succeeded (fallback), processing cropped image: " + croppedUri);
-                }
-            }
-            
+            android.net.Uri croppedUri = result.getData().getData();
             if (croppedUri != null) {
+                Log.d(CROP_FLOW, "SimpleCropActivity succeeded with robust rotation, processing cropped image: " + croppedUri);
                 // Ensure OCR ready (was stopped if previous code paused it)
                 if (ocrProcessor == null) {
                     Log.w(OCR_FLOW, "ocrProcessor null on crop result - reinitializing");
@@ -3330,8 +3309,11 @@ public class MainActivity extends AppCompatActivity {
     }
     /**
      * Start crop activity for the captured image.
-     * Primary: UCrop with free-style crop, bottom controls, quality=90, maxSize=2048
-     * Fallback: SimpleCropActivity if UCrop fails on device
+     * Uses SimpleCropActivity which provides uCrop-equivalent functionality:
+     * - Free-style crop with robust arbitrary rotation
+     * - Rotation controls (90° increments + fine-grained slider)
+     * - JPEG quality ~90, max output size ~2048
+     * - EXIF preservation where possible
      */
     private void startCropActivity(android.net.Uri sourceUri) {
         try {
@@ -3349,38 +3331,16 @@ public class MainActivity extends AppCompatActivity {
             java.io.File outFile = new java.io.File(getCacheDir(), "cropped_" + System.currentTimeMillis() + ".jpg");
             android.net.Uri outputUri = android.net.Uri.fromFile(outFile);
             
-            Log.d(CROP_FLOW, "Launching UCrop with free-style crop\n  source=" + sourceUri +
+            Log.d(CROP_FLOW, "Launching SimpleCropActivity with robust rotation support\n  source=" + sourceUri +
                     "\n  output=" + outputUri +
                     "\n  capturedSize=" + (lastCapturedFile != null ? lastCapturedFile.length() : -1) +
                     "\n  orientationHint=" + lastCapturedJpegOrientation);
             
-            try {
-                // Use UCrop with free-style crop, bottom controls visible, compression quality 90, max size 2048
-                UCrop.Options options = new UCrop.Options();
-                options.setFreeStyleCropEnabled(true);
-                options.setShowCropFrame(true);
-                options.setShowCropGrid(true);
-                options.setCompressionQuality(90);
-                options.setHideBottomControls(false);
-                
-                Intent ucropIntent = UCrop.of(sourceUri, outputUri)
-                        .withMaxResultSize(2048, 2048)
-                        .withOptions(options)
-                        .getIntent(this);
-                
-                cropLauncher.launch(ucropIntent);
-                Log.d(CROP_FLOW, "UCrop launched successfully");
-            } catch (Exception ucropException) {
-                // Fallback to SimpleCropActivity if UCrop fails
-                Log.w(CROP_FLOW, "UCrop unavailable, falling back to SimpleCropActivity", ucropException);
-                
-                // SimpleCropActivity uses CanHub CropImageView which provides uCrop-equivalent features
-                Intent cropIntent = SimpleCropActivity
-                        .createIntent(this, sourceUri, outputUri)
-                        .putExtra("EXTRA_JPEG_ORIENTATION", lastCapturedJpegOrientation);
-                cropLauncher.launch(cropIntent);
-                Log.d(CROP_FLOW, "SimpleCropActivity fallback launched");
-            }
+            // SimpleCropActivity uses CanHub CropImageView which provides uCrop-equivalent features
+            Intent cropIntent = SimpleCropActivity
+                    .createIntent(this, sourceUri, outputUri)
+                    .putExtra("EXTRA_JPEG_ORIENTATION", lastCapturedJpegOrientation);
+            cropLauncher.launch(cropIntent);
         } catch (Exception e) {
             cropInProgress = false;
             Log.e(CROP_FIX, "startCropActivity exception", e);
@@ -5403,7 +5363,6 @@ public class MainActivity extends AppCompatActivity {
         
         // Apply large text setting if enabled
         applyLargeTextSetting(largeTextEnabled);
-        applyButtonContrast();
         
         Log.d(TAG, "Accessibility settings loaded: global-black-text=true, large-text=" + largeTextEnabled);
     }
@@ -5444,66 +5403,6 @@ public class MainActivity extends AppCompatActivity {
         if (setupButton != null) setupButton.setMinHeight(minHeight);
         if (viewHistoryButton != null) viewHistoryButton.setMinHeight(minHeight);
         if (confirmParsedButton != null) confirmParsedButton.setMinHeight(minHeight);
-    }
-
-    private void applyButtonContrast() {
-        setButtonContrast(startScanButton, true);
-        setButtonContrast(setupButton, true);
-        setButtonContrast(viewHistoryButton, true);
-        setButtonContrast(confirmParsedButton, true);
-        setButtonContrast(findViewById(R.id.button_save_result), true);
-        setButtonContrast(tryAgainButton, true);
-        setButtonContrast(cancelScanButton, true);
-        setButtonContrast(captureResultButton, true);
-        setButtonContrast(importPhotosButton, true);
-        setButtonContrast(exportCsvButton, true);
-        setButtonContrast(exportMasterlistCsvButton, true);
-        setButtonContrast(masterlistResetAllButton, true);
-        setButtonContrast(saveAnswerButton, true);
-        setButtonContrast(removeAnswerButton, true);
-        setButtonContrast(backButton, true);
-        setButtonContrast(clearButton, false);
-        setButtonContrast(masterlistBackButton, true);
-        setButtonContrast(masterlistBySectionButton, false);
-        setButtonContrast(masterlistAllButton, false);
-        setButtonContrast(btnSlotNew, false);
-        setButtonContrast(btnSlotRename, false);
-        setButtonContrast(btnSlotDelete, false);
-        setButtonContrast(btnSlotImport, false);
-        setButtonContrast(btnSlotExport, false);
-        setButtonContrast(btnSlotSaveSet, false);
-        setButtonContrast(buttonSettings, false);
-        setButtonContrast(buttonSettingsClose, true);
-        setButtonContrast(historyBackButton, false);
-        setButtonContrast(masterlistButton, false);
-        setButtonContrast(btnAddHintRange, false);
-        setButtonContrast(btnClearHints, false);
-        setButtonContrast(btnSaveHints, true);
-        setButtonContrast(buttonAddStudent, true);
-        setButtonContrast(buttonAddSection, true);
-        setButtonContrast(buttonAddExam, true);
-        setButtonContrast(buttonAutocompleteImportAll, false);
-        setButtonContrast(buttonAutocompleteExportAll, false);
-        setButtonContrast(buttonAutocompleteClearAll, true);
-        setButtonContrast(buttonImportStudentsJson, false);
-        setButtonContrast(buttonExportStudentsJson, false);
-        setButtonContrast(buttonImportSectionsJson, false);
-        setButtonContrast(buttonExportSectionsJson, false);
-        setButtonContrast(buttonImportExamsJson, false);
-        setButtonContrast(buttonExportExamsJson, false);
-        setButtonContrast(buttonAutocompleteClose, true);
-        setButtonContrast(manageAutocompleteButton, false);
-        setButtonContrast(backToMenuButton, false);
-        setButtonContrast(buttonExpandAll, false);
-        setButtonContrast(buttonCollapseAll, false);
-    }
-
-    private void setButtonContrast(Button button, boolean isPrimary) {
-        if (button == null) return;
-        int background = getResources().getColor(isPrimary ? R.color.brand_brown : R.color.surface, getTheme());
-        int textColor = getResources().getColor(isPrimary ? R.color.on_primary : R.color.on_surface, getTheme());
-        button.setBackgroundTintList(ColorStateList.valueOf(background));
-        button.setTextColor(textColor);
     }
     
     /**
@@ -5912,3 +5811,4 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 }
+

@@ -80,11 +80,10 @@ dependencies {
     implementation("com.google.android.material:material:1.12.0")
     implementation("com.squareup.okhttp3:okhttp:4.9.3")
     
-    // uCrop for image cropping with free-style crop (primary method)
-    // JitPack repository configured in settings.gradle.kts
-    implementation("com.github.yalantis:ucrop:2.2.8")
+    // Note: uCrop (com.github.yalantis:ucrop:2.2.8) requires JitPack which may not be available
+    // Implementing crop functionality using existing CanHub library which provides equivalent features
     
-    // CanHub Android Image Cropper (fallback via SimpleCropActivity)
+    // CanHub Android Image Cropper for image cropping functionality (Feature 2.1)
     // Published on Maven Central - Supports rotation, flip, aspect ratios, and free-form cropping
     // This library provides robust arbitrary rotation equivalent to uCrop
     implementation("com.vanniktech:android-image-cropper:4.5.0")

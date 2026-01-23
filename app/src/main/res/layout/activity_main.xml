@@ -50,75 +50,15 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="@string/intro_text"
-                        android:textColor="?attr/colorOnSurface"
+                        android:textColor="?attr/colorOnSurfaceVariant"
                         android:textSize="18sp"
                         android:paddingBottom="8dp" />
 
-                    <!-- Primary Actions -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="vertical">
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_scan"
-                            style="@style/Widget.Material3.Button"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginBottom="8dp"
-                            android:text="@string/btn_capture"
-                            app:backgroundTint="@color/brand_brown"
-                            android:textColor="@color/on_primary"
-                            android:textSize="18sp" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_view_history"
-                            style="@style/Widget.Material3.Button"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginBottom="8dp"
-                            android:text="@string/btn_history"
-                            app:backgroundTint="@color/brand_brown"
-                            android:textColor="@color/on_primary"
-                            android:textSize="18sp" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_setup_answers"
-                            style="@style/Widget.Material3.Button"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginBottom="8dp"
-                            android:text="@string/btn_setup_key"
-                            app:backgroundTint="@color/brand_brown"
-                            android:textColor="@color/on_primary"
-                            android:textSize="18sp" />
-                    </LinearLayout>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
-                            android:hint="@string/hint_section"
-                            app:boxBackgroundMode="outline"
-                            app:hintEnabled="true"
-                            app:endIconMode="dropdown_menu">
-
-                            <com.google.android.material.textfield.MaterialAutoCompleteTextView
-                                android:id="@+id/editText_section_name"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="textCapSentences"
-                                android:textColor="#000000"
-                                android:paddingStart="0dp"
-                                android:paddingEnd="0dp" />
-                        </com.google.android.material.textfield.TextInputLayout>
-
+                    <!-- Inputs: Student, Section (Subgroup 1), Exam (Subgroup 2) -->
                     <com.google.android.material.textfield.TextInputLayout
                         style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
                         android:hint="@string/hint_student"
                         app:boxBackgroundMode="outline"
                         app:hintEnabled="true"
@@ -129,6 +69,26 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:inputType="textCapWords|textPersonName"
+                            android:textColor="#000000"
+                            android:paddingStart="0dp"
+                            android:paddingEnd="0dp" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:hint="@string/hint_section"
+                        app:boxBackgroundMode="outline"
+                        app:hintEnabled="true"
+                        app:endIconMode="dropdown_menu">
+
+                        <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                            android:id="@+id/editText_section_name"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textCapSentences"
                             android:textColor="#000000"
                             android:paddingStart="0dp"
                             android:paddingEnd="0dp" />
@@ -154,46 +114,99 @@
                             android:paddingEnd="0dp" />
                     </com.google.android.material.textfield.TextInputLayout>
 
-                    <!-- Secondary Actions -->
+                    <!-- 2x2 button grid -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="16dp"
                         android:orientation="vertical">
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_settings"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
+                        <!-- Row 1: Setup Answer Key | View History -->
+                        <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginBottom="8dp"
-                            android:text="@string/btn_settings"
-                            android:textColor="#000000"
-                            android:textSize="16sp"
-                            app:strokeColor="@color/brand_brown"
-                            app:strokeWidth="1dp" />
+                            android:orientation="horizontal">
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_back_to_menu"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/button_setup_answers"
+                                style="@style/Widget.Material3.Button"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="8dp"
+                                app:backgroundTint="@color/brand_brown"
+                                android:textColor="@color/on_primary"
+                                android:text="@string/btn_setup_key" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/button_view_history"
+                                style="@style/Widget.Material3.Button"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="@string/btn_history"
+                                app:backgroundTint="@color/brand_brown"
+                                android:textColor="@color/on_primary" />
+                        </LinearLayout>
+
+                        <!-- Row 2: Manage Autocomplete | Back to Main Menu -->
+                        <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="Back to Main Menu"
-                            android:textColor="#000000"
-                            android:textSize="16sp"
-                            app:strokeColor="@color/brand_brown"
-                            app:strokeWidth="1dp" />
+                            android:orientation="horizontal"
+                            android:layout_marginTop="8dp">
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/button_manage_autocomplete"
+                                style="@style/Widget.Material3.Button"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:layout_marginEnd="8dp"
+                                android:text="@string/btn_manage_autocomplete"
+                                app:backgroundTint="@color/brand_brown"
+                                android:textColor="@color/on_primary"
+                                android:textSize="14sp" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/button_back_to_menu"
+                                style="@style/Widget.Material3.Button"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Back to Main Menu"
+                                android:textSize="14sp"
+                                app:backgroundTint="@color/brand_brown"
+                                android:textColor="@color/on_primary" />
+                        </LinearLayout>
+                        
+                        <!-- Row 3: Settings button -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginTop="8dp">
+                            
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/button_settings"
+                                style="@style/Widget.Material3.Button"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/btn_settings"
+                                app:backgroundTint="@color/brand_brown"
+                                android:textColor="@color/on_primary"
+                                android:textSize="15sp" />
+                        </LinearLayout>
                     </LinearLayout>
 
+                    <!-- Start Scan button below the grid -->
                     <com.google.android.material.button.MaterialButton
-                        android:id="@+id/button_clear_form"
-                        style="@style/Widget.Material3.Button.TextButton"
-                        android:layout_width="match_parent"
+                        android:id="@+id/button_scan"
+                        style="@style/Widget.Material3.Button"
+                        app:backgroundTint="@color/brand_brown"                      android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="@string/btn_clear_form"
-                        android:textColor="#000000"
-                        app:backgroundTint="@color/surface" />
+                        android:layout_marginTop="16dp"
+                        android:text="@string/btn_capture" />
                 </LinearLayout>
                 </FrameLayout>
             </com.google.android.material.card.MaterialCardView>
@@ -267,13 +280,15 @@
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/button_autocomplete_clear_all"
-                                style="@style/Widget.Material3.Button.OutlinedButton"
+                                style="@style/Widget.Material3.Button"
                                 android:layout_width="0dp"
                                 android:layout_height="wrap_content"
                                 android:layout_weight="1"
                                 android:layout_marginStart="4dp"
+                                android:backgroundTint="?attr/colorPrimary"
                                 android:text="@string/btn_clear_all_words"
-                                android:textColor="#000000"
+
+                                android:textColor="@android:color/white"
                                 android:textSize="14sp" />
                         </LinearLayout>
 
@@ -621,9 +636,7 @@
                             android:layout_weight="1"
                             android:layout_marginEnd="4dp"
                             android:textColor="#000000"
-                            android:text="@string/btn_slot_new"
-                            app:strokeColor="@color/brand_brown"
-                            app:strokeWidth="1dp" />
+                            android:text="@string/btn_slot_new" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_slot_rename"
@@ -633,9 +646,7 @@
                             android:layout_weight="1"
                             android:layout_marginEnd="4dp"
                             android:textColor="#000000"
-                            android:text="@string/btn_slot_rename"
-                            app:strokeColor="@color/brand_brown"
-                            app:strokeWidth="1dp" />
+                            android:text="@string/btn_slot_rename" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_slot_delete"
@@ -644,9 +655,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:textColor="#000000"
-                            android:text="@string/btn_slot_delete"
-                            app:strokeColor="@color/brand_brown"
-                            app:strokeWidth="1dp" />
+                            android:text="@string/btn_slot_delete" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -663,9 +672,7 @@
                             android:layout_weight="1"
                             android:textColor="#000000"
                             android:layout_marginEnd="4dp"
-                            android:text="@string/btn_slot_import"
-                            app:strokeColor="@color/brand_brown"
-                            app:strokeWidth="1dp" />
+                            android:text="@string/btn_slot_import" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_slot_export"
@@ -675,9 +682,7 @@
                             android:layout_weight="1"
                             android:layout_marginEnd="4dp"
                             android:textColor="#000000"
-                            android:text="@string/btn_slot_export"
-                            app:strokeColor="@color/brand_brown"
-                            app:strokeWidth="1dp" />
+                            android:text="@string/btn_slot_export" />
                         
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_slot_save_set"
@@ -686,9 +691,7 @@
                             android:layout_height="wrap_content"
                             android:textColor="#000000"
                             android:layout_weight="1"
-                            android:text="@string/btn_slot_save_set"
-                            app:strokeColor="@color/brand_brown"
-                            app:strokeWidth="1dp" />
+                            android:text="@string/btn_slot_save_set" />
                     </LinearLayout>
 
                     <LinearLayout
@@ -789,9 +792,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:textColor="#000000"
-                            android:text="@string/btn_clear_all"
-                            app:strokeColor="@color/brand_brown"
-                            app:strokeWidth="1dp" />
+                            android:text="@string/btn_clear_all" />
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/button_back"
@@ -922,38 +923,36 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
-                        android:orientation="vertical">
+                        android:orientation="horizontal">
                         
                         <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_export_csv"
+                            android:id="@+id/button_history_back"
                             style="@style/Widget.Material3.Button"
-                            android:layout_width="match_parent"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginBottom="6dp"
-                            android:text="@string/btn_export_csv"
-                            app:backgroundTint="@color/brand_brown"
-                            android:textColor="@color/on_primary" />
-
+                            android:layout_weight="1"
+                            android:layout_marginEnd="4dp"
+                            android:text="@string/btn_back" />
+                        
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/button_masterlist"
                             style="@style/Widget.Material3.Button.OutlinedButton"
-                            android:layout_width="match_parent"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginBottom="6dp"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="4dp"
                             android:textColor="#000000"
-                            android:text="@string/btn_masterlist"
-                            app:strokeColor="@color/brand_brown"
-                            app:strokeWidth="1dp" />
-
+                            android:text="@string/btn_masterlist" />
+                        
                         <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_history_back"
+                            android:id="@+id/button_export_csv"
                             style="@style/Widget.Material3.Button.OutlinedButton"
-                            android:layout_width="match_parent"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
+                            android:layout_weight="1"
                             android:textColor="#000000"
-                            android:text="@string/btn_back"
-                            app:strokeColor="@color/brand_brown"
-                            app:strokeWidth="1dp" />
+                            android:text="@string/btn_export_csv" />
+
                     </LinearLayout>
 
                     <ScrollView
@@ -1112,26 +1111,26 @@
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <!-- SCAN ACTIONS AT BOTTOM -->
+                <!-- CENTERED SCAN BUTTON AT BOTTOM -->
                 <LinearLayout
-                    android:layout_width="match_parent"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="bottom"
-                    android:layout_margin="16dp"
-                    android:orientation="vertical">
+                    android:layout_gravity="center_horizontal|bottom"
+                    android:layout_marginBottom="24dp"
+                    android:orientation="horizontal">
                     
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/button_capture_result"
                         style="@style/Widget.Material3.Button"
-                        android:layout_width="match_parent"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="8dp"
+                        android:layout_marginEnd="8dp"
                         android:text="Scan" />
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/button_import_photos"
                         style="@style/Widget.Material3.Button"
-                        android:layout_width="match_parent"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/btn_import_photos"
                         app:backgroundTint="@color/brand_brown"
@@ -1177,7 +1176,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:text="Filter: All exams and sections"
-                        android:textColor="?attr/colorOnSurface"
+                        android:textColor="?attr/colorOnSurfaceVariant"
                         android:textSize="14sp" />
                     
                     <!-- Toggle for By Section / All -->
@@ -1195,9 +1194,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:layout_marginEnd="4dp"
-                            android:text="@string/masterlist_by_section"
-                            app:strokeColor="@color/brand_brown"
-                            app:strokeWidth="1dp" />
+                            android:text="@string/masterlist_by_section" />
                         
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/button_masterlist_all"
@@ -1206,9 +1203,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:layout_marginStart="4dp"
-                            android:text="@string/masterlist_all"
-                            app:strokeColor="@color/brand_brown"
-                            app:strokeWidth="1dp" />
+                            android:text="@string/masterlist_all" />
                     </LinearLayout>
                     
                     <!-- Action buttons -->
@@ -1303,7 +1298,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="Configure OCR behavior for better accuracy"
-                            android:textColor="?attr/colorOnSurface"
+                            android:textColor="?attr/colorOnSurfaceVariant"
                             android:textSize="14sp"
                             android:paddingBottom="16dp" />
 
@@ -1548,13 +1543,13 @@
                             android:gravity="end"
                             android:paddingBottom="16dp">
 
-                                    <com.google.android.material.button.MaterialButton
-                                        android:id="@+id/btn_clear_hints"
-                                        style="@style/Widget.Material3.Button.TextButton"
-                                        android:layout_width="wrap_content"
-                                        android:layout_height="wrap_content"
-                                        android:text="@string/btn_clear_hints"
-                                        android:textSize="14sp" />
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btn_clear_hints"
+                                style="@style/Widget.Material3.Button.TextButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/btn_clear_hints"
+                                android:textSize="14sp" />
 
                             <com.google.android.material.button.MaterialButton
                                 android:id="@+id/btn_save_hints"

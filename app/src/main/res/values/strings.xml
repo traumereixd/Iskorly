@@ -35,7 +35,7 @@
     <string name="slot_import_success">Slot imported successfully</string>
     <string name="slot_import_error">Error importing slot: %s</string>
     <string name="btn_slot_save_set">Save Set</string>
-    <string name="mps_format">MPS: %1$.2f (n=%2$d)</string>
+    <string name="mps_format">MPS: %.1f%% (n=%d)</string>
 
     <string name="history_title">Test History</string>
     <string name="live_score_placeholder">Score will appear here</string>
@@ -75,7 +75,7 @@
     <string name="main_menu_title">Iskorly</string>
     <string name="main_menu_tagline">Better. Faster. Smarter Scoring</string>
     <string name="processing_images">Processing %d image(s)…</string>
-    <string name="filled_answers_status">Processed %1$d image(s) • Filled %2$d / %3$d answers</string>
+    <string name="filled_answers_status">Processed %d image(s) • Filled %d / %d answers</string>
 
     <!-- Optional extra tagline resource if you want to use dynamically -->
     <string name="brand_tagline_alt">Better. Faster. Smarter Scoring.</string>
@@ -158,7 +158,7 @@ Tips:\n
     
     <!-- Accessibility Settings -->
     <string name="settings_outlined_text_label">Outlined Text</string>
-    <string name="settings_outlined_text_desc">Use black text with no outline for consistent readability</string>
+    <string name="settings_outlined_text_desc">Apply white text with black outline for better readability (recommended for older users)</string>
     <string name="settings_large_text_label">Large Text Mode</string>
     <string name="settings_large_text_desc">Increase text size and touch targets for easier reading and interaction</string>
     
