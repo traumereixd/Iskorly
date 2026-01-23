@@ -12,7 +12,7 @@
         <item name="colorSurface">@color/crop_surface</item>
         <item name="colorOnSurface">@color/crop_on_surface</item>
         <item name="android:colorBackground">@color/crop_background</item>
-        <item name="fontFamily">@font/inter</item>
-        <item name="android:fontFamily">@font/inter</item>
+        <item name="fontFamily">@font/noto_sans</item>
+        <item name="android:fontFamily">@font/noto_sans</item>
     </style>
 </resources>

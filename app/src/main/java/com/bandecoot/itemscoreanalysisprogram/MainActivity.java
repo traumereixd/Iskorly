@@ -5363,6 +5363,7 @@ public class MainActivity extends AppCompatActivity {
         
         // Apply large text setting if enabled
         applyLargeTextSetting(largeTextEnabled);
+        applyButtonContrast();
         
         Log.d(TAG, "Accessibility settings loaded: global-black-text=true, large-text=" + largeTextEnabled);
     }
@@ -5403,6 +5404,66 @@ public class MainActivity extends AppCompatActivity {
         if (setupButton != null) setupButton.setMinHeight(minHeight);
         if (viewHistoryButton != null) viewHistoryButton.setMinHeight(minHeight);
         if (confirmParsedButton != null) confirmParsedButton.setMinHeight(minHeight);
+    }
+
+    private void applyButtonContrast() {
+        setButtonContrast(startScanButton, true);
+        setButtonContrast(setupButton, true);
+        setButtonContrast(viewHistoryButton, true);
+        setButtonContrast(confirmParsedButton, true);
+        setButtonContrast(findViewById(R.id.button_save_result), true);
+        setButtonContrast(tryAgainButton, true);
+        setButtonContrast(cancelScanButton, true);
+        setButtonContrast(captureResultButton, true);
+        setButtonContrast(importPhotosButton, true);
+        setButtonContrast(exportCsvButton, true);
+        setButtonContrast(exportMasterlistCsvButton, true);
+        setButtonContrast(masterlistResetAllButton, true);
+        setButtonContrast(saveAnswerButton, true);
+        setButtonContrast(removeAnswerButton, true);
+        setButtonContrast(backButton, true);
+        setButtonContrast(clearButton, false);
+        setButtonContrast(masterlistBackButton, true);
+        setButtonContrast(masterlistBySectionButton, false);
+        setButtonContrast(masterlistAllButton, false);
+        setButtonContrast(btnSlotNew, false);
+        setButtonContrast(btnSlotRename, false);
+        setButtonContrast(btnSlotDelete, false);
+        setButtonContrast(btnSlotImport, false);
+        setButtonContrast(btnSlotExport, false);
+        setButtonContrast(btnSlotSaveSet, false);
+        setButtonContrast(buttonSettings, false);
+        setButtonContrast(buttonSettingsClose, true);
+        setButtonContrast(historyBackButton, false);
+        setButtonContrast(masterlistButton, false);
+        setButtonContrast(btnAddHintRange, false);
+        setButtonContrast(btnClearHints, false);
+        setButtonContrast(btnSaveHints, true);
+        setButtonContrast(buttonAddStudent, true);
+        setButtonContrast(buttonAddSection, true);
+        setButtonContrast(buttonAddExam, true);
+        setButtonContrast(buttonAutocompleteImportAll, false);
+        setButtonContrast(buttonAutocompleteExportAll, false);
+        setButtonContrast(buttonAutocompleteClearAll, true);
+        setButtonContrast(buttonImportStudentsJson, false);
+        setButtonContrast(buttonExportStudentsJson, false);
+        setButtonContrast(buttonImportSectionsJson, false);
+        setButtonContrast(buttonExportSectionsJson, false);
+        setButtonContrast(buttonImportExamsJson, false);
+        setButtonContrast(buttonExportExamsJson, false);
+        setButtonContrast(buttonAutocompleteClose, true);
+        setButtonContrast(manageAutocompleteButton, false);
+        setButtonContrast(backToMenuButton, false);
+        setButtonContrast(buttonExpandAll, false);
+        setButtonContrast(buttonCollapseAll, false);
+    }
+
+    private void setButtonContrast(Button button, boolean isPrimary) {
+        if (button == null) return;
+        int background = getResources().getColor(isPrimary ? R.color.brand_brown : R.color.surface, getTheme());
+        int textColor = getResources().getColor(isPrimary ? R.color.on_primary : R.color.on_surface, getTheme());
+        button.setBackgroundTintList(ColorStateList.valueOf(background));
+        button.setTextColor(textColor);
     }
     
     /**
@@ -5799,4 +5860,3 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 }
-

@@ -158,7 +158,7 @@ Tips:\n
     
     <!-- Accessibility Settings -->
     <string name="settings_outlined_text_label">Outlined Text</string>
-    <string name="settings_outlined_text_desc">Apply white text with black outline for better readability (recommended for older users)</string>
+    <string name="settings_outlined_text_desc">Use black text with no outline for consistent readability</string>
     <string name="settings_large_text_label">Large Text Mode</string>
     <string name="settings_large_text_desc">Increase text size and touch targets for easier reading and interaction</string>
     

@@ -13,44 +13,28 @@ public final class OutlinedTextUtil {
     private OutlinedTextUtil() {}
     
     /**
-     * Apply white text with black outline to a TextView.
-     * Uses shadow layers at multiple angles to simulate outline effect.
+     * Apply plain black text styling to a TextView.
      * 
-     * @param view TextView to apply outline to
+     * @param view TextView to apply styling to
      */
     public static void applyOutline(TextView view) {
         if (view == null) return;
-        
-        // Set text color to white
-        view.setTextColor(Color.WHITE);
-        
-        // Apply thick black shadow for a more visible outline effect
-        // Shadow: radius, dx, dy, color
-        // Increased radius from 3f to 6f for thicker, more visible outline
-        view.setShadowLayer(6f, 0, 0, Color.BLACK);
-        
-        // Additional paint flags for better rendering
-        view.getPaint().setStrokeWidth(2f);
+        view.setTextColor(Color.BLACK);
+        view.setShadowLayer(0f, 0, 0, Color.TRANSPARENT);
+        view.getPaint().setStrokeWidth(0f);
         view.getPaint().setStyle(android.graphics.Paint.Style.FILL);
     }
     
     /**
-     * Apply white text with black outline to an EditText.
+     * Apply plain black text styling to an EditText.
      * 
-     * @param view EditText to apply outline to
+     * @param view EditText to apply styling to
      */
     public static void applyOutline(EditText view) {
         if (view == null) return;
-        
-        // Set text color to white
-        view.setTextColor(Color.WHITE);
-        
-        // Apply thick black shadow for a more visible outline effect
-        // Increased radius from 3f to 6f for thicker, more visible outline
-        view.setShadowLayer(6f, 0, 0, Color.BLACK);
-        
-        // Additional paint flags for better rendering
-        view.getPaint().setStrokeWidth(2f);
+        view.setTextColor(Color.BLACK);
+        view.setShadowLayer(0f, 0, 0, Color.TRANSPARENT);
+        view.getPaint().setStrokeWidth(0f);
         view.getPaint().setStyle(android.graphics.Paint.Style.FILL);
     }
     
@@ -100,9 +84,7 @@ public final class OutlinedTextUtil {
      */
     public static boolean hasOutline(TextView view) {
         if (view == null) return false;
-        
-        // Check if text is white and has shadow
-        return view.getCurrentTextColor() == Color.WHITE;
+        return view.getCurrentTextColor() != Color.BLACK;
     }
     
     /**
