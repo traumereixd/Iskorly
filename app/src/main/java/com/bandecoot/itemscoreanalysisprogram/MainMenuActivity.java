@@ -46,17 +46,13 @@ public class MainMenuActivity extends AppCompatActivity {
         // Tutorial
         cardTutorial.setOnClickListener(v -> {
             v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-            Intent intent = new Intent(this, MainActivity.class);
-            intent.putExtra("open_tutorial", true);
-            startActivity(intent);
+            showTutorial();
         });
 
         // Credits
         cardCredits.setOnClickListener(v -> {
             v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-            Intent intent = new Intent(this, MainActivity.class);
-            intent.putExtra("open_credits", true);
-            startActivity(intent);
+            showCredits();
         });
     }
     
@@ -92,9 +88,16 @@ public class MainMenuActivity extends AppCompatActivity {
     }
 
     private void showTutorial() {
+        android.widget.ScrollView scroll = new android.widget.ScrollView(this);
+        android.widget.TextView tv = new android.widget.TextView(this);
+        tv.setPadding(48, 48, 48, 48);
+        tv.setTextColor(android.graphics.Color.BLACK);
+        tv.setText(getString(R.string.tutorial_text));
+        scroll.addView(tv);
+
         new AlertDialog.Builder(this)
                 .setTitle(getString(R.string.tutorial_title))
-                .setMessage(getString(R.string.tutorial_text))
+                .setView(scroll)
                 .setPositiveButton("OK", null)
                 .show();
     }

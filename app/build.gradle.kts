@@ -81,7 +81,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.9.3")
     
     // CanHub Android Image Cropper for image cropping functionality (Feature 2.1)
-    // Published on Maven Central
+    // Published on Maven Central - Supports rotation, flip, aspect ratios, and free-form cropping
     implementation("com.vanniktech:android-image-cropper:4.5.0")
     
     testImplementation("junit:junit:4.13.2")

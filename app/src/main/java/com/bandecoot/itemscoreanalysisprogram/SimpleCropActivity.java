@@ -34,6 +34,7 @@ public class SimpleCropActivity extends AppCompatActivity {
 
     private CropImageView cropImageView;
     private TextView rotationAngleText;
+    private TextView fineRotationText;
     private ImageButton rotateLeftButton;
     private ImageButton rotateRightButton;
     private ImageButton flipHorizontalButton;
@@ -42,10 +43,12 @@ public class SimpleCropActivity extends AppCompatActivity {
     private Button aspectRatioFree;
     private Button aspectRatio4_3;
     private Button aspectRatio1_1;
+    private androidx.appcompat.widget.AppCompatSeekBar rotationSlider;
 
     private Uri sourceUri;
     private Uri outputUri;
     private int currentRotation = 0;
+    private int fineRotation = 0; // Fine-grained rotation from slider (-180 to +180)
     private boolean isFlipped = false;
     private Bitmap sourceBitmap;
     private boolean appliedAutoFix = false;
@@ -94,6 +97,7 @@ public class SimpleCropActivity extends AppCompatActivity {
 
         cropImageView = findViewById(R.id.cropImageView);
         rotationAngleText = findViewById(R.id.rotationAngleText);
+        fineRotationText = findViewById(R.id.fineRotationText);
         rotateLeftButton = findViewById(R.id.rotateLeftButton);
         rotateRightButton = findViewById(R.id.rotateRightButton);
         flipHorizontalButton = findViewById(R.id.flipHorizontalButton);
@@ -102,6 +106,7 @@ public class SimpleCropActivity extends AppCompatActivity {
         aspectRatioFree = findViewById(R.id.aspectRatioFree);
         aspectRatio4_3 = findViewById(R.id.aspectRatio4_3);
         aspectRatio1_1 = findViewById(R.id.aspectRatio1_1);
+        rotationSlider = findViewById(R.id.rotationSlider);
 
         loadImage(jpegOrientation);
         setupListeners();
@@ -242,11 +247,46 @@ public class SimpleCropActivity extends AppCompatActivity {
             v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
             setAspectRatio1_1();
         });
+        
+        // Feature #5: Fine rotation slider for arbitrary angle adjustment
+        if (rotationSlider != null) {
+            rotationSlider.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener() {
+                private int lastProgress = 180; // Center position (0 degrees)
+                
+                @Override
+                public void onProgressChanged(android.widget.SeekBar seekBar, int progress, boolean fromUser) {
+                    if (fromUser) {
+                        // Map 0-360 to -180 to +180 degrees
+                        int angle = progress - 180;
+                        int delta = angle - fineRotation;
+                        
+                        if (delta != 0) {
+                            cropImageView.rotateImage(delta);
+                            fineRotation = angle;
+                            updateRotationDisplay();
+                        }
+                    }
+                }
+                
+                @Override
+                public void onStartTrackingTouch(android.widget.SeekBar seekBar) {}
+                
+                @Override
+                public void onStopTrackingTouch(android.widget.SeekBar seekBar) {
+                    // Optionally provide haptic feedback when releasing
+                    seekBar.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                }
+            });
+        }
     }
 
     private void updateRotationDisplay() {
         if (rotationAngleText != null) {
-            rotationAngleText.setText(currentRotation + "°");
+            int totalRotation = (currentRotation + fineRotation + 360) % 360;
+            rotationAngleText.setText(totalRotation + "°");
+        }
+        if (fineRotationText != null) {
+            fineRotationText.setText(fineRotation + "°");
         }
     }
 
