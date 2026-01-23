@@ -2402,26 +2402,26 @@ public class MainActivity extends AppCompatActivity {
         // Override "Select All" button to toggle selection without closing dialog
         dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
             boolean allSelected = selectedHistoryTimestamps.size() == recordTimestamps.size();
+            
+            // Update checkedItems array and selected timestamps
             for (int i = 0; i < checkedItems.length; i++) {
                 checkedItems[i] = !allSelected;
+                // Update ListView checked state
+                dialog.getListView().setItemChecked(i, !allSelected);
             }
+            
+            // Update selected timestamps set
             if (allSelected) {
                 selectedHistoryTimestamps.clear();
             } else {
                 selectedHistoryTimestamps.clear();
                 selectedHistoryTimestamps.addAll(recordTimestamps);
             }
-            // Recreate dialog to reflect changes
-            dialog.dismiss();
-            exportHistoryCsv();
+            
+            // Update button text to reflect toggle state
+            v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+            ((android.widget.Button) v).setText(allSelected ? "Select All" : "Clear All");
         });
-    }
-    
-    @Deprecated
-    private void exportHistoryCsvWithOptions(boolean useFilters) {
-        // Deprecated - now using manual selection instead of filter-based export
-        createCsvLauncher.launch("isa_history.csv");
-        appPreferences.edit().putBoolean("csv_export_use_filters", useFilters).apply();
     }
 
     private void onCsvDocumentCreated(android.net.Uri uri) {
