@@ -426,7 +426,7 @@ body {
 .screen-caption {
     margin-top: var(--spacing-sm);
     font-size: 0.875rem;
-    color: var(--dark-gray);
+    color: #4a4a4a;
 }
 
 /* Process Timeline */
@@ -535,7 +535,7 @@ body {
 .traction-label {
     font-size: 1rem;
     font-weight: 600;
-    color: var(--dark-gray);
+    color: #4a4a4a;
     margin-bottom: var(--spacing-xs);
 }
 
@@ -756,7 +756,7 @@ body {
 
 .member-role {
     font-weight: 600;
-    color: var(--dark-gray);
+    color: #4a4a4a;
     margin-bottom: var(--spacing-xs);
     text-transform: uppercase;
     font-size: 0.875rem;
