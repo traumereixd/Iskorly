@@ -1,4 +1,4 @@
-# Iskorly v1.3 
+# Iskorly Alpha v1.1.1
 
 (Formerly: Item Score Analysis App)
 ## Executive Overview

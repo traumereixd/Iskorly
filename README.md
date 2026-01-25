@@ -2,7 +2,7 @@
 
 **AI-powered answer sheet scanning, scoring, and item analysis for classrooms.**
 
-[![Version](https://img.shields.io/badge/version-1.7-blue.svg)](project-docs/CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.1-blue.svg)](project-docs/CHANGELOG.md)
 [![Android](https://img.shields.io/badge/Android-6.0%2B-green.svg)](https://developer.android.com)
 [![License](https://img.shields.io/badge/license-Educational-orange.svg)](#license)
 
