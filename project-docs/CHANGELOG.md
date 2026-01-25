@@ -1,7 +1,34 @@
-# Changelog - Iskorly (formerly Item Score Analysis)
+# Changelog - Iskorly
+
+> **Iskorly** (formerly "Item Score Analysis App") - AI-powered answer sheet scanning and scoring for classrooms.
+
+---
+
+## Summary of Key Features
+
+Iskorly provides teachers with:
+- **Smart OCR Scanning**: AI-powered answer extraction from photos or batch imports
+- **Automatic Scoring**: Instant grading against configurable answer keys  
+- **Crop-Before-OCR**: Built-in cropper with rotation for better accuracy
+- **Item Analysis**: Per-question statistics and common mistake tracking
+- **Batch Processing**: Multi-image import for efficient scanning
+- **Data Export**: CSV export for further analysis
+- **Accessibility**: Large text mode and high-contrast options
+
+---
+
+## Version 1.7 (Latest) - January 2025
+
+### UX 2.0 Visual Refresh
+- Simplified main menu (Start, Tutorial, Credits)
+- Modern interface with consistent indigo color scheme
+- Improved button layouts and visual hierarchy
+
+---
 
 ## Version 1.3 (2025)
-(Rebranding note: App name changed to Iskorly for memorability.)
+
+*Rebranding note: App name changed from "Item Score Analysis" to "Iskorly" for memorability.*
 
 ### New Features
 
