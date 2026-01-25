@@ -6,10 +6,12 @@ The Iskorly team takes security issues seriously. We appreciate your efforts to 
 
 ### How to Report
 
-If you discover a security vulnerability in Iskorly, please report it by:
+If you discover a security vulnerability in Iskorly, please report it **privately** by one of these methods:
 
-1. **Email**: Send details to the development team via GitHub issues marked as "Security"
-2. **GitHub Issues**: Create a private security advisory if you have access, or a regular issue with the `security` label
+1. **GitHub Security Advisory** (Preferred): Use GitHub's private security advisory feature at `https://github.com/traumereixd/Iskorly/security/advisories`
+2. **Email**: Contact the development team directly (check repository for contact information)
+
+**Note**: Please do NOT create public issues for security vulnerabilities until they have been addressed.
 
 ### What to Include
 

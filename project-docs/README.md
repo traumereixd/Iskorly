@@ -6,7 +6,7 @@ This folder contains all project documentation for the Iskorly app.
 
 ### User Documentation
 - [Quick Start Guide](QUICK_START.md) - Step-by-step usage instructions
-- [Quick Reference](QUICK_REFERENCE.md) - Command/feature reference
+- [Quick Reference](QUICK_REFERENCE.md) - Feature reference
 - [Teacher Analytics Guide](TEACHER_ANALYTICS_GUIDE.md) - Using masterlist and item analysis
 
 ### Project Information
