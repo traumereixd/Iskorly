@@ -29,7 +29,7 @@ Iskorly uses OCR (Google Vision + fallback) to extract student answers from phot
 
 ## Rebranding Notes
 - Package name unchanged for backward compatibility.
-- Historical references: See CHANGELOG.md for prior naming.
+- Historical references: See project-docs/CHANGELOG.md for prior naming.
 - Credits updated to reflect “Iskorly” branding.
 
 (Keep rest of previous README content here unchanged unless you want me to regenerate it all with new name everywhere.)
