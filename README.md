@@ -34,33 +34,6 @@ Iskorly uses Google Cloud Vision OCR to automatically extract and score student 
 ### Prerequisites
 
 - Android device (API 23+, Android 6.0 or higher)
-- Google Vision API key ([Get one here](https://console.cloud.google.com))
-- OCR.Space API key (optional, for handwriting fallback)
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/traumereixd/Iskorly.git
-   cd Iskorly
-   ```
-
-2. **Configure API Keys**
-   
-   Create `local.properties` in the project root:
-   ```properties
-   # Required
-   GCLOUD_VISION_API_KEY=your_vision_api_key_here
-   
-   # Optional: fallback for handwriting
-   OCR_SPACE_API_KEY=your_ocr_space_key_here
-   ```
-
-3. **Build and Install**
-   ```bash
-   ./gradlew assembleDebug
-   ./gradlew installDebug
-   ```
 
 ### Basic Usage
 
