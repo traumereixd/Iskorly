@@ -2540,7 +2540,7 @@ public class MainActivity extends AppCompatActivity {
     private void showCreditsDialog() {
         new AlertDialog.Builder(this)
                 .setTitle("Credits")
-                .setMessage("Iskorly\nGoogle Vision OCR Powered\nVersion 1.8.1\n\nResearchers:\nEspaño, Elijah Ria D.\nLolos, Kneel Charles B.\nMahusay, Queen Rheyceljoy F.\nMedel, Myra J.\nReyes, John Jharen R.\nSahagun, Jayson G.\nTagle, Steve Aldrei D.\n\nProgrammed By: Jayson G. Sahagun")
+                .setMessage("Iskorly\nGoogle Vision OCR Powered\nVersion 1.8.1\n\nResearchers:\nEspaño, Elijah Ria D.\nLolos, Kneel Charles B.\nMahusay, Queen Rheyceljoy F.\nMedel, Myra J.\nReyes, John Jharen R.\nSahagun, Jayson G.\nTagle, Steve Aldrei D.\n\nDeveloper: Sahagun, Jayson G.")
                 .setPositiveButton("OK", null)
                 .show();
     }
