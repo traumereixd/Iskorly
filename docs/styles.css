@@ -330,7 +330,7 @@ body {
 
 .section-description {
     font-size: 1.25rem;
-    color: var(--dark-gray);
+    color: #4a4a4a;
     max-width: 700px;
     margin: 0 auto;
 }
@@ -368,7 +368,8 @@ body {
 }
 
 .problem-card p {
-    color: var(--dark-gray);
+    color: #4a4a4a;
+    line-height: 1.6;
 }
 
 /* Solution Section */
@@ -388,7 +389,7 @@ body {
 
 .solution-text p {
     margin-bottom: var(--spacing-sm);
-    color: var(--dark-gray);
+    color: #4a4a4a;
     line-height: 1.8;
 }
 
@@ -466,7 +467,8 @@ body {
 }
 
 .step-content p {
-    color: var(--dark-gray);
+    color: #4a4a4a;
+    line-height: 1.6;
 }
 
 /* Features Grid */
@@ -502,8 +504,9 @@ body {
 }
 
 .feature-card p {
-    color: var(--dark-gray);
+    color: #4a4a4a;
     font-size: 0.95rem;
+    line-height: 1.6;
 }
 
 /* Traction Section */
@@ -538,7 +541,8 @@ body {
 
 .traction-detail {
     font-size: 0.9rem;
-    color: var(--dark-gray);
+    color: #4a4a4a;
+    line-height: 1.6;
 }
 
 .milestones {
@@ -563,7 +567,8 @@ body {
 .milestone-list li {
     padding: var(--spacing-xs) 0;
     font-size: 1rem;
-    color: var(--dark-gray);
+    color: #4a4a4a;
+    line-height: 1.6;
 }
 
 /* App Screens Gallery */
@@ -596,7 +601,7 @@ body {
 
 .screen-desc {
     font-size: 0.875rem;
-    color: var(--dark-gray);
+    color: #4a4a4a;
 }
 
 /* SDG Section */
@@ -636,7 +641,7 @@ body {
 
 .sdg-text p {
     margin-bottom: var(--spacing-sm);
-    color: var(--dark-gray);
+    color: #4a4a4a;
     line-height: 1.7;
 }
 
@@ -662,8 +667,9 @@ body {
 }
 
 .business-card p {
-    color: var(--dark-gray);
+    color: #4a4a4a;
     font-size: 0.95rem;
+    line-height: 1.6;
 }
 
 /* Privacy Section */
@@ -691,8 +697,9 @@ body {
 }
 
 .privacy-item p {
-    color: var(--dark-gray);
+    color: #4a4a4a;
     font-size: 0.95rem;
+    line-height: 1.6;
 }
 
 /* Team Section */
@@ -757,8 +764,9 @@ body {
 }
 
 .member-bio {
-    color: var(--dark-gray);
+    color: #4a4a4a;
     font-size: 0.95rem;
+    line-height: 1.6;
 }
 
 /* CTA Section */
@@ -1050,11 +1058,19 @@ body {
         --spacing-xl: 4rem;
     }
 
+    .container {
+        padding: 0 1.25rem;
+    }
+
     .section {
         padding: var(--spacing-lg) 0;
     }
 
     .button {
         width: 100%;
+    }
+
+    .section-description {
+        font-size: 1.125rem;
     }
 }
