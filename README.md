@@ -112,25 +112,6 @@ Iskorly uses Google Cloud Vision OCR to automatically extract and score student 
 
 ---
 
-## API Requirements
-
-### Google Cloud Vision API
-- **Required** for OCR functionality
-- Free tier available, then pay-per-use
-- [Get API Key](https://console.cloud.google.com)
-
-### OCR.Space API (Optional)
-- **Optional** fallback for handwriting
-- Free tier: 25,000 requests/month
-- [Get API Key](https://ocr.space/ocrapi)
-
-### OpenRouter API (Optional)
-- **Optional** for Vercel reparse endpoint
-- Uses `meta-llama/llama-3.3-70b-instruct:free` (zero-cost)
-- [Get API Key](https://openrouter.ai/)
-
----
-
 ## Best Practices
 
 ### Photography Tips
@@ -171,12 +152,6 @@ This project is maintained for DepEd Philippines educational use. For bug report
 
 ---
 
-## License
-
-Educational use - DepEd Philippines
-
----
-
 ## Credits
 
 **Research Team:**
@@ -199,8 +174,5 @@ Educational use - DepEd Philippines
 For technical support or questions, please:
 - 📧 Open an issue on GitHub
 - 📖 Check the [documentation](project-docs/)
-- 🎓 Review the [DepEd presentation](project-docs/DEPED_PRESENTATION.md)
 
 ---
-
-**Made with ❤️ for teachers in the Philippines**
