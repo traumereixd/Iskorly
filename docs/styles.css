@@ -21,7 +21,7 @@
     --off-white: #fafafa;
     --light-gray: #f5f5f5;
     --gray: #e0e0e0;
-    --dark-gray: #757575;
+    --dark-gray: #4a4a4a;
     --black: #1a1a1a;
 
     /* Semantic Colors */
@@ -330,7 +330,7 @@ body {
 
 .section-description {
     font-size: 1.25rem;
-    color: #4a4a4a;
+    color: var(--dark-gray);
     max-width: 700px;
     margin: 0 auto;
 }
@@ -368,7 +368,7 @@ body {
 }
 
 .problem-card p {
-    color: #4a4a4a;
+    color: var(--dark-gray);
     line-height: 1.6;
 }
 
@@ -389,7 +389,7 @@ body {
 
 .solution-text p {
     margin-bottom: var(--spacing-sm);
-    color: #4a4a4a;
+    color: var(--dark-gray);
     line-height: 1.8;
 }
 
@@ -426,7 +426,7 @@ body {
 .screen-caption {
     margin-top: var(--spacing-sm);
     font-size: 0.875rem;
-    color: #4a4a4a;
+    color: var(--dark-gray);
 }
 
 /* Process Timeline */
@@ -467,7 +467,7 @@ body {
 }
 
 .step-content p {
-    color: #4a4a4a;
+    color: var(--dark-gray);
     line-height: 1.6;
 }
 
@@ -504,7 +504,7 @@ body {
 }
 
 .feature-card p {
-    color: #4a4a4a;
+    color: var(--dark-gray);
     font-size: 0.95rem;
     line-height: 1.6;
 }
@@ -535,13 +535,13 @@ body {
 .traction-label {
     font-size: 1rem;
     font-weight: 600;
-    color: #4a4a4a;
+    color: var(--dark-gray);
     margin-bottom: var(--spacing-xs);
 }
 
 .traction-detail {
     font-size: 0.9rem;
-    color: #4a4a4a;
+    color: var(--dark-gray);
     line-height: 1.6;
 }
 
@@ -567,7 +567,7 @@ body {
 .milestone-list li {
     padding: var(--spacing-xs) 0;
     font-size: 1rem;
-    color: #4a4a4a;
+    color: var(--dark-gray);
     line-height: 1.6;
 }
 
@@ -601,7 +601,7 @@ body {
 
 .screen-desc {
     font-size: 0.875rem;
-    color: #4a4a4a;
+    color: var(--dark-gray);
 }
 
 /* SDG Section */
@@ -641,7 +641,7 @@ body {
 
 .sdg-text p {
     margin-bottom: var(--spacing-sm);
-    color: #4a4a4a;
+    color: var(--dark-gray);
     line-height: 1.7;
 }
 
@@ -667,7 +667,7 @@ body {
 }
 
 .business-card p {
-    color: #4a4a4a;
+    color: var(--dark-gray);
     font-size: 0.95rem;
     line-height: 1.6;
 }
@@ -697,7 +697,7 @@ body {
 }
 
 .privacy-item p {
-    color: #4a4a4a;
+    color: var(--dark-gray);
     font-size: 0.95rem;
     line-height: 1.6;
 }
@@ -756,7 +756,7 @@ body {
 
 .member-role {
     font-weight: 600;
-    color: #4a4a4a;
+    color: var(--dark-gray);
     margin-bottom: var(--spacing-xs);
     text-transform: uppercase;
     font-size: 0.875rem;
@@ -764,7 +764,7 @@ body {
 }
 
 .member-bio {
-    color: #4a4a4a;
+    color: var(--dark-gray);
     font-size: 0.95rem;
     line-height: 1.6;
 }
