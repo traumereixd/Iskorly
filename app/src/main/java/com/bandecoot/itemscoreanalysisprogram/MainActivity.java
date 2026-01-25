@@ -963,7 +963,6 @@ public class MainActivity extends AppCompatActivity {
         buttonSettingsClose = findViewById(R.id.button_settings_close);
         switchOcrTwoColumn = findViewById(R.id.switch_ocr_two_column);
         switchOcrHighContrast = findViewById(R.id.switch_ocr_high_contrast);
-        switchOutlinedText = findViewById(R.id.switch_outlined_text);
         switchLargeText = findViewById(R.id.switch_large_text);
         
         // Load OCR settings from preferences

@@ -1409,28 +1409,6 @@
                             android:paddingEnd="4dp"
                             android:paddingBottom="12dp" />
 
-                        <!-- Outlined Text Switch -->
-                        <com.google.android.material.materialswitch.MaterialSwitch
-                            android:id="@+id/switch_outlined_text"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:checked="true"
-                            android:text="@string/settings_outlined_text_label"
-                            android:textAppearance="@style/TextAppearance.Iskorly.SwitchLabel"
-                            android:textSize="18sp"
-                            android:textStyle="bold"
-                            android:paddingTop="8dp"
-                            android:paddingBottom="4dp" />
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/settings_outlined_text_desc"
-                            android:textColor="?attr/colorOnSurfaceVariant"
-                            android:textSize="14sp"
-                            android:paddingStart="4dp"
-                            android:paddingEnd="4dp"
-                            android:paddingBottom="16dp" />
 
                         <!-- Large Text Switch -->
                         <LinearLayout
