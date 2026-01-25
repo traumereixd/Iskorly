@@ -83,28 +83,165 @@
 
     <!-- Tutorial -->
     <string name="tutorial_title">How to Use</string>
-    <string name="tutorial_text">Welcome to Iskorly \n
-• Fill in Student, Subgroup 1 (Section), and Subgroup 2 (Subject/Quiz).\n
-• Tap Start Scan or Import Photos to scan answer sheets.\n
-• Camera: Align the answer sheet and tap Scan. After capture, crop the image to focus on answers, then confirm.\n
-• Import Photos: Select one or multiple images from gallery for batch processing.\n
-• A popup will show the parsed answers filtered to your answer key. Tap any value to edit if needed.\n
-• Tap Confirm &amp; Score to see your score, then tap Save to store it in History.\n
-• Tap Scan Again to close the popup and return to the camera.\n
+    <string name="tutorial_text">ISKORLY TUTORIAL\n
 \n
-Setup Answer Key:\n
-• Setup Answer Key to manage multiple quizzes (Slots: New/Rename/Delete/Import/Export).\n
-• Add answers: enter Question # and Answer (A–Z or short text up to 40 chars) → Save.\n
+Welcome to Iskorly - your AI-powered answer sheet scanner and scorer.\n
 \n
-History &amp; Analysis:\n
-• History: Expand by Quiz and Section to view results.\n
-• Export CSV for sharing.\n
-• Masterlist: See per-question performance and common wrong answers.\n
+━━━ BEFORE YOU START ━━━\n
 \n
-Tips:\n
-• Good lighting, flat sheet, steady frame.\n
-• For handwriting: dark pen, avoid shadows, crop tightly.\n
-• Review parsed answers before confirming.\n</string>
+First, you need:\n
+• Student Name - Enter the student\'s full name\n
+• Subgroup 1 (Section) - e.g., \"Grade 7-A\" or \"Section Mango\"\n
+• Subgroup 2 (Exam) - e.g., \"Math Quiz 1\" or \"Midterm Exam\"\n
+• Answer Key - Set up your correct answers (see Setup below)\n
+\n
+━━━ SCANNING FLOW ━━━\n
+\n
+Step 1: TAP START SCAN\n
+- Camera opens and waits for you to capture the answer sheet\n
+- OR tap Import Photos to select multiple images from gallery\n
+\n
+Step 2: TAKE PHOTO\n
+- Position the answer sheet in good lighting\n
+- Keep it flat and fill the frame\n
+- Tap the Scan button to capture\n
+\n
+Step 3: CROP THE IMAGE\n
+- The cropper opens automatically after capture\n
+- Drag corners to focus on the answer area only\n
+- Use rotate buttons if sheet is sideways\n
+- Tap checkmark to confirm crop\n
+\n
+Step 4: OCR PARSES ANSWERS\n
+- App extracts text and matches to your answer key\n
+- Only questions in your key are shown\n
+- Results appear in a 2-column editable grid\n
+\n
+Step 5: EDIT ANSWERS (if needed)\n
+- Tap any cell to manually correct OCR errors\n
+- Green = Correct, Red = Wrong, Yellow = Blank\n
+\n
+Step 6: CONFIRM SCORE\n
+- Tap \"Confirm &amp; Score\" to calculate results\n
+- Score is displayed immediately\n
+\n
+Step 7: SAVE TO HISTORY\n
+- Tap Save to store the record\n
+- Tap Scan Again to process another sheet\n
+\n
+━━━ CROPPING TIPS ━━━\n
+\n
+• Free-Style Crop - Drag any corner to custom size\n
+• Rotate - Use left/right buttons for 90° turns\n
+• Aspect Ratio - Choose Free, 4:3, or 1:1 presets\n
+• Source Aspect - Keeps original photo proportions\n
+• Tip: Crop tightly around answers for best OCR accuracy\n
+\n
+━━━ SETTINGS ━━━\n
+\n
+Access from menu → Settings:\n
+\n
+• Two-Column OCR\n
+  What: Splits image into left/right halves for processing\n
+  When: Use for 1-60 two-column answer forms\n
+  Note: Improves accuracy on multi-column layouts\n
+\n
+• High-Contrast OCR\n
+  What: Applies adaptive thresholding to image\n
+  When: Use for faint handwriting or light pencil marks\n
+  Note: May reduce quality on clear printed text\n
+\n
+• Large Text Mode\n
+  What: Increases font size and button touch targets\n
+  When: Use for better readability (recommended for accessibility)\n
+  Note: Makes UI easier to read and interact with\n
+\n
+━━━ SETUP ANSWER KEY ━━━\n
+\n
+From menu → Setup:\n
+\n
+• Slots - Create different keys for different quizzes\n
+  - New: Add a new answer key slot\n
+  - Rename: Change slot name\n
+  - Delete: Remove unused slots\n
+  - Import/Export: Share keys between devices\n
+\n
+• Add Answers\n
+  - Enter Question # (e.g., 1, 2, 3...)\n
+  - Enter Answer (A-Z letter or text up to 40 chars)\n
+  - Tap Save to add to key\n
+\n
+• Remove - Enter question # to delete from key\n
+• Clear All - Delete entire answer key (use with caution)\n
+\n
+━━━ MASTERLIST &amp; HISTORY ━━━\n
+\n
+VIEW HISTORY:\n
+• Shows all saved records organized by Exam and Section\n
+• Tap to expand/collapse groups\n
+• Tap record to view details, rename, or delete\n
+• Filter by Exam or Section using dropdowns\n
+\n
+MASTERLIST (Item Analysis):\n
+• Aggregates per-question statistics across all records\n
+• Shows: Question # | Correct | Incorrect | % | Common Miss\n
+• Identifies difficult questions and common mistakes\n
+• Use for test improvement and item analysis\n
+\n
+EXPORT CSV:\n
+• From History, tap menu → Export CSV\n
+• Choose \"Entire History\" or \"Current Filters\"\n
+• File saved to Downloads folder\n
+• Open with Excel, Sheets, or any spreadsheet app\n
+\n
+━━━ TROUBLESHOOTING ━━━\n
+\n
+Camera Not Ready:\n
+- Wait a moment for camera to initialize\n
+- Check camera permissions in device settings\n
+- Restart app if camera doesn\'t open\n
+\n
+Crop Canceled:\n
+- If you tap X or back, crop is canceled\n
+- App falls back to original uncropped image\n
+- You can still proceed with OCR\n
+\n
+No Answers Parsed:\n
+- Check lighting - avoid shadows and glare\n
+- Ensure answer sheet is flat and in focus\n
+- Try cropping tighter around answer area\n
+- For handwriting: use dark pen, write clearly\n
+- Enable High-Contrast OCR in Settings for faint marks\n
+- Verify answer key is set up correctly\n
+\n
+OCR Returns Wrong Answers:\n
+- Manually edit in the answer grid before scoring\n
+- Try re-scanning with better lighting\n
+- Crop to exclude non-answer areas\n
+- Check if Two-Column OCR setting helps (for 2-column forms)\n
+\n
+━━━ BEST PRACTICES ━━━\n
+\n
+Photography:\n
+• Good, even lighting (no shadows or glare)\n
+• Keep answer sheet flat and parallel to camera\n
+• Fill frame but leave small margins\n
+• Use in-app crop to focus on answers only\n
+\n
+Handwritten Answers:\n
+• Use dark pen (black or blue, not light colors)\n
+• Write clearly in designated boxes/areas\n
+• Avoid cross-outs when possible\n
+• Crop tightly around answers for best results\n
+\n
+Batch Scanning:\n
+• Use Import Photos to select multiple images\n
+• Keep consistent lighting across all sheets\n
+• Same orientation for all images\n
+• Review merged results carefully\n
+• First non-blank answer wins in conflicts\n
+\n
+That\'s it! Tap OK to start using Iskorly.\n</string>
     
     <!-- Crop Activity Strings -->
     <string name="crop_rotate_left">Rotate 90 degrees left</string>
