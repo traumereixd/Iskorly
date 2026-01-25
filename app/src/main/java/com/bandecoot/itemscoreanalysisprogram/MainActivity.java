@@ -767,7 +767,7 @@ public class MainActivity extends AppCompatActivity {
         switchOcrTwoColumn = findViewById(R.id.switch_ocr_two_column);
         switchOcrHighContrast = findViewById(R.id.switch_ocr_high_contrast);
         switchLargeText = findViewById(R.id.switch_large_text);
-        forceSwitchTextBlack();
+//        forceSwitchTextBlack();
 
         // Initialize prefs EARLY
         historyPreferences = getSharedPreferences("TestHistoryPrefs", MODE_PRIVATE);
@@ -2684,7 +2684,7 @@ public class MainActivity extends AppCompatActivity {
         if (visibleView != null) {
             TextColorUtil.applyGlobalTextColors(visibleView);
             if (visibleView == settingsLayout) {
-                forceSwitchTextBlack();
+//                forceSwitchTextBlack();
             }
         }
     }
