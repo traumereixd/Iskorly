@@ -156,7 +156,7 @@
     // Analytics event stubs (no actual tracking)
     // These can be replaced with real analytics when needed
     window.trackEvent = function(category, action, label) {
-        console.log('Analytics Event:', { category, action, label });
+        // Silent tracking - no console output
         // Example: Google Analytics
         // if (typeof gtag !== 'undefined') {
         //     gtag('event', action, {
@@ -224,7 +224,6 @@
         mailtoLinks.forEach(link => {
             // Email addresses are already in the HTML for simplicity
             // In production, you might want to obfuscate them
-            console.log('Mailto link found:', link.href);
         });
     });
     
@@ -257,8 +256,6 @@
         const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
         trackEvent('Performance', 'page_load', `${loadTime}ms`);
     });
-    
-    console.log('Iskorly website initialized');
 
     // Formspree form submission handler
     const contactForm = document.getElementById('contactForm');
