@@ -8,7 +8,7 @@
 
 > **Iskorly** (formerly "Item Score Analysis App") - Faster Scoring. Smarter Teaching.
 
-🌐 **[Visit our website](https://traumereixd.github.io/Iskorly/)** | 📋 [QBO Materials](docs/qbo.md)
+🌐 **[Visit our website](https://iskorly.vercel.app/)** | 📋 [QBO Materials](docs/qbo.md)
 
 ---
 
