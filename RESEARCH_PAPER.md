@@ -21,7 +21,7 @@
 
 ## Abstract
 
-This research presents Iskorly, an AI-powered mobile application designed to address the time-consuming and error-prone nature of manual answer sheet scoring in Philippine classrooms. The application leverages Optical Character Recognition (OCR) technology through Google Cloud Vision API with OCR.Space as a fallback engine to automatically extract and score student answers from smartphone-captured images. The system features a teacher verification step, batch processing capabilities, and comprehensive item analysis tools including per-question statistics and difficulty heatmaps. Designed for Android devices (API 23+), Iskorly maintains a privacy-first approach by storing all student data locally on the device. The application targets a ≤2 percentage point accuracy gap compared to manual scoring while achieving ≥50% reduction in grading time. Initial validation demonstrates technical feasibility for deployment in resource-constrained educational environments, with potential to democratize advanced assessment technology in schools that cannot afford traditional Optical Mark Reader (OMR) systems. This research contributes to the field of educational technology by providing an accessible, scalable solution that enables data-driven instruction and reduces teacher workload in under-resourced Philippine schools.
+This research presents Iskorly, an AI-powered mobile application designed to address the time-consuming and error-prone nature of manual answer sheet scoring in Philippine classrooms. The application leverages Optical Character Recognition (OCR) technology through Google Cloud Vision API with OCR.Space as a fallback engine to automatically extract and score student answers from smartphone-captured images. The system features a teacher verification step, batch processing capabilities, and comprehensive item analysis tools including per-question statistics and difficulty heatmaps. Designed for Android devices (API 23+), Iskorly maintains a privacy-first approach by storing all student data locally on the device. The application targets a ≤2 percentage point accuracy gap compared to manual scoring while achieving an estimated 35-50% reduction in grading time. Initial validation demonstrates technical feasibility for deployment in resource-constrained educational environments, with potential to democratize advanced assessment technology in schools that cannot afford traditional Optical Mark Reader (OMR) systems. This research contributes to the field of educational technology by providing an accessible, scalable solution that enables data-driven instruction and reduces teacher workload in under-resourced Philippine schools.
 
 **Keywords:** Educational Technology, Optical Character Recognition, Mobile Learning, Assessment Technology, Item Analysis, Teacher Productivity, Android Application, AI in Education, Philippines Education
 
@@ -31,7 +31,7 @@ This research presents Iskorly, an AI-powered mobile application designed to add
 
 ### 1.1 Background and Context
 
-The Philippine education system faces significant challenges in providing timely formative assessment feedback to students. With typical class sizes ranging from 40 to 50 students per classroom, teachers spend substantial time on manual grading tasks that delay feedback delivery and limit opportunities for data-driven instructional improvements. Manual scoring of answer sheets is inherently time-consuming, taking approximately 30 seconds per student, which translates to 25 minutes for a class of 50 students. This administrative burden not only delays feedback by days or weeks but also reduces the time available for lesson planning, professional development, and individualized student support.
+The Philippine education system faces significant challenges in providing timely formative assessment feedback to students. With typical class sizes ranging from 40 to 50 students per classroom, teachers spend substantial time on manual grading tasks that delay feedback delivery and limit opportunities for data-driven instructional improvements. Manual scoring of answer sheets is inherently time-consuming, taking approximately 40-45 seconds per student (including reviewing the answer key, scoring, and recording), which translates to 30-35 minutes for a class of 50 students. This administrative burden not only delays feedback by days or weeks but also reduces the time available for lesson planning, professional development, and individualized student support.
 
 Traditional Optical Mark Reader (OMR) machines, which could automate this process, remain financially inaccessible to most Philippine schools, particularly those in under-resourced areas. The cost of these specialized machines, coupled with their maintenance requirements and the need for specific answer sheet formats, creates a significant barrier to adoption. Furthermore, manual grading provides no aggregated insights into item difficulty, common student misconceptions, or patterns of errors across the class—data that could inform targeted reteaching and curriculum improvements.
 
@@ -59,7 +59,7 @@ This research aims to:
 
 4. **Create** comprehensive item analysis tools (masterlist statistics, difficulty heatmaps, common wrong answer identification) to enable data-driven instruction.
 
-5. **Validate** the system's accuracy (target: ≤2 percentage point gap vs. manual scoring) and time efficiency (target: ≥50% reduction in grading time).
+5. **Validate** the system's accuracy (target: ≤2 percentage point gap vs. manual scoring) and time efficiency (target: 35-50% reduction in grading time).
 
 6. **Ensure** privacy-first design with local data storage and no transmission of personally identifiable information.
 
@@ -68,7 +68,7 @@ This research aims to:
 This research contributes to both the theoretical understanding and practical application of mobile-based educational technology in resource-constrained environments:
 
 **For Teachers:**
-- Reduces grading time by an estimated 68% (from 25 minutes to ~8 minutes per class)
+- Reduces grading time by an estimated 35-50% (from 30-35 minutes to ~18-25 minutes per class of 50 students)
 - Provides immediate access to item-level analytics for formative assessment
 - Enables identification of problematic questions requiring reteaching
 - Reduces administrative burden and potential for human error
