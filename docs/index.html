@@ -6,6 +6,7 @@
     <meta name="description" content="Iskorly - AI-powered answer sheet scanning, scoring, and analytics for educators. Free for teachers and students.">
     <meta name="keywords" content="education, teacher tools, answer sheet scanning, OCR, classroom analytics, Philippines, SDG 4">
     <meta name="robots" content="index,follow">
+    <meta name="theme-color" content="#5f432c">
     <link rel="canonical" href="https://traumereixd.github.io/Iskorly/">
 
     <!-- Open Graph / Facebook -->
@@ -13,14 +14,14 @@
     <meta property="og:url" content="https://traumereixd.github.io/Iskorly/">
     <meta property="og:title" content="Iskorly - Scan. Score. Analyze. Free for every teacher.">
     <meta property="og:description" content="Phone-based OCR answer sheet scoring with instant analytics. No OMR hardware needed. Always free for educators.">
-    <meta property="og:image" content="https://traumereixd.github.io/Iskorly/assets/Iskorly%20Logo.png">
+    <meta property="og:image" content="https://traumereixd.github.io/Iskorly/assets/iskorly-og.png">
 
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:url" content="https://traumereixd.github.io/Iskorly/">
     <meta property="twitter:title" content="Iskorly - Scan. Score. Analyze. Free for every teacher.">
     <meta property="twitter:description" content="Phone-based OCR answer sheet scoring with instant analytics. No OMR hardware needed. Always free for educators.">
-    <meta property="twitter:image" content="https://traumereixd.github.io/Iskorly/assets/Iskorly%20Logo.png">
+    <meta property="twitter:image" content="https://traumereixd.github.io/Iskorly/assets/iskorly-og.png">
 
     <title>Iskorly - Scan. Score. Analyze. Free for every teacher.</title>
     <link rel="icon" type="image/png" href="assets/Iskorly%20Logo.png">
@@ -28,14 +29,17 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+<!-- Skip to main content link for accessibility -->
+<a href="#main-content" class="skip-link">Skip to main content</a>
 <!-- Navigation -->
-<nav class="navbar" id="navbar">
+<header>
+<nav class="navbar" id="navbar" role="navigation" aria-label="Main navigation">
     <div class="container">
         <div class="nav-brand">
             <img src="assets/placeholder-logo.svg" alt="Iskorly Logo" class="logo" data-candidates='["assets/Iskorly Logo.png","assets/logo.svg","assets/placeholder-logo.svg"]'>
             <span class="brand-name">Iskorly</span>
         </div>
-        <button class="mobile-menu-toggle" aria-label="Toggle mobile menu" id="mobileMenuToggle">
+        <button class="mobile-menu-toggle" aria-label="Toggle mobile menu" aria-expanded="false" id="mobileMenuToggle">
             <span></span>
             <span></span>
             <span></span>
@@ -48,10 +52,14 @@
             <li><a href="#answer-strip">Answer Strip</a></li>
             <li><a href="#progress">Progress</a></li>
             <li><a href="#team">Team</a></li>
-            <li><a href="#contact" class="cta-button">Contact Us</a></li>
+            <li><a href="#contact" class="cta-button" aria-label="Contact us">Contact Us</a></li>
         </ul>
     </div>
 </nav>
+</header>
+
+<!-- Main Content -->
+<main id="main-content">
 
 <!-- Hero Section -->
 <section class="hero" id="hero">
@@ -60,8 +68,8 @@
             <h1 class="hero-title">Scan. Score. Analyze.<br>Free for every teacher.</h1>
             <p class="hero-subtitle">Transform your smartphone into a powerful answer sheet scanner with instant analytics. No expensive OMR hardware required.</p>
             <div class="hero-cta">
-                <a href="#contact" class="button button-primary">Join Our Pilot</a>
-                <a href="#solution" class="button button-secondary">See How It Works</a>
+                <a href="#contact" class="button button-primary" aria-label="Join our pilot program">Join Our Pilot</a>
+                <a href="#solution" class="button button-secondary" aria-label="See how Iskorly works">See How It Works</a>
             </div>
             <div class="hero-stats">
                 <div class="stat">
@@ -266,8 +274,8 @@
                 </ul>
                 <p><strong>How It Works:</strong> Print the strip, attach it to your exam margin, and have students shade their answers in the bubbles. When you scan with Iskorly, the strip provides a clean, consistent format that's easier for OCR to read than scattered handwriting.</p>
                 <div class="hero-cta">
-                    <a href="answer-strip/strip_v1.pdf" class="button button-primary" download>Download Strip (PDF)</a>
-                    <a href="answer-strip/guide.md" class="button button-secondary">Read Guide</a>
+                    <a href="answer-strip/strip_v1.pdf" class="button button-primary" download aria-label="Download Smart Answer Strip PDF">Download Strip (PDF)</a>
+                    <a href="answer-strip/guide.md" class="button button-secondary" aria-label="Read the Smart Answer Strip guide">Read Full Guide</a>
                 </div>
                 <p class="cta-note" style="margin-top: 1rem;"><em>Future versions will include optional "Strip Mode" for even faster scanning focused exclusively on the strip region.</em></p>
             </div>
@@ -428,19 +436,19 @@
         </div>
         <div class="team-grid">
             <div class="team-member fade-in">
-                <img src="assets/placeholder-logo.svg" alt="Jayson Sahagun, Developer" class="member-photo" data-candidates='["assets/Jayson Sahagun.png","assets/placeholder-logo.svg"]' loading="lazy">
+                <img src="assets/placeholder-logo.svg" alt="Photo of Jayson Sahagun, Developer" class="member-photo" data-candidates='["assets/Jayson Sahagun.png","assets/placeholder-logo.svg"]' loading="lazy">
                 <h3>Jayson Sahagun</h3>
                 <p class="member-role">Developer</p>
                 <p class="member-bio">App Builder, OCR integration, domain parser, and analytics implementation</p>
             </div>
             <div class="team-member fade-in">
-                <img src="assets/placeholder-logo.svg" alt="Myra Mia Medel, Graphic Designer" class="member-photo" data-candidates='["assets/Myra Mia Medel.png","assets/placeholder-logo.svg"]' loading="lazy">
+                <img src="assets/placeholder-logo.svg" alt="Photo of Myra Mia Medel, Graphic Designer" class="member-photo" data-candidates='["assets/Myra Mia Medel.png","assets/placeholder-logo.svg"]' loading="lazy">
                 <h3>Myra Mia Medel</h3>
                 <p class="member-role">Graphic Designer</p>
                 <p class="member-bio">Visual design, branding, and user interface design</p>
             </div>
             <div class="team-member fade-in">
-                <img src="assets/placeholder-logo.svg" alt="Queen Rheyceljoy Mahusay, Manager" class="member-photo" data-candidates='["assets/Rheycel Mahusay.png","assets/placeholder-logo.svg"]' loading="lazy">
+                <img src="assets/placeholder-logo.svg" alt="Photo of Queen Rheyceljoy Mahusay, Manager" class="member-photo" data-candidates='["assets/Rheycel Mahusay.png","assets/placeholder-logo.svg"]' loading="lazy">
                 <h3>Queen Rheyceljoy Mahusay</h3>
                 <p class="member-role">Manager</p>
                 <p class="member-bio">Teacher outreach, pilot coordination, and stakeholder engagement</p>
@@ -459,15 +467,15 @@
             <!-- Contact Details -->
             <div class="contact-details">
                 <p class="contact-item">
-                    <strong>Email:</strong> <a href="mailto:teamiskorly@gmail.com">teamiskorly@gmail.com</a>
+                    <strong>Email:</strong> <a href="mailto:teamiskorly@gmail.com" aria-label="Send email to teamiskorly@gmail.com">teamiskorly@gmail.com</a>
                 </p>
                 <p class="contact-item">
-                    <strong>Phone:</strong> <a href="tel:+639687336476">+63 968 733 6476</a>
+                    <strong>Phone:</strong> <a href="tel:+639687336476" aria-label="Call +63 968 733 6476">+63 968 733 6476</a>
                 </p>
             </div>
 
             <!-- Contact Form -->
-            <form id="contactForm" class="contact-form" action="https://formspree.io/f/mzzkjqkr" method="POST" data-formspree="https://formspree.io/f/mzzkjqkr">
+            <form id="contactForm" class="contact-form" action="https://formspree.io/f/mzzkjqkr" method="POST" data-formspree="https://formspree.io/f/mzzkjqkr" aria-label="Contact form">
                 <input type="hidden" name="_subject" value="New Contact from Iskorly Website">
                 <label>
                     <input type="text" name="_gotcha" style="display:none" tabindex="-1" autocomplete="off" aria-hidden="true">
@@ -488,7 +496,7 @@
                     <textarea id="message" name="message" rows="5" required placeholder="Tell us about your interest in Iskorly..."></textarea>
                 </div>
 
-                <button type="submit" class="button button-primary-light">Send Message</button>
+                <button type="submit" class="button button-primary-light" aria-label="Submit contact form">Send Message</button>
                 <br>
                 <p class="cta-note"> <strong> Powered by Formspree. We don’t store form data on our servers.</strong> </p>
                 <p id="formAlert" class="form-alert"></p>
@@ -499,8 +507,10 @@
     </div>
 </section>
 
+</main>
+
 <!-- Footer -->
-<footer class="footer">
+<footer class="footer" role="contentinfo">
     <div class="container">
         <div class="footer-content">
             <div class="footer-brand">
@@ -527,8 +537,8 @@
                 <div class="footer-column">
                     <h4>Resources</h4>
                     <ul>
-                        <li><a href="https://github.com/traumereixd/Iskorly" target="_blank" rel="noopener noreferrer">GitHub</a></li>
-                        <li><a href="answer-strip/guide.md">Answer Strip Guide</a></li>
+                        <li><a href="https://github.com/traumereixd/Iskorly" target="_blank" rel="noopener noreferrer" aria-label="Visit Iskorly GitHub repository">GitHub</a></li>
+                        <li><a href="answer-strip/guide.md" aria-label="Read the Answer Strip guide">Answer Strip Guide</a></li>
                     </ul>
                 </div>
             </div>
@@ -540,6 +550,6 @@
     </div>
 </footer>
 
-<script src="script.js"></script>
+<script src="script.js" defer></script>
 </body>
 </html>

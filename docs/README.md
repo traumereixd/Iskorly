@@ -60,7 +60,19 @@ git push origin main
 
 **Contact Email:**
 - Search for `mailto:` in `index.html`
-- Replace `jayson.sahagun@example.com` with actual email
+- The current email is `teamiskorly@gmail.com` (configured in contact section and form)
+- Replace with your preferred contact email if needed
+
+### Updating Open Graph/Social Sharing Images
+
+**OG Preview Image:**
+- The Open Graph (OG) preview image is located at `assets/iskorly-og.png`
+- **Important**: Use absolute URLs in meta tags, not relative paths:
+  - ✅ Correct: `https://traumereixd.github.io/Iskorly/assets/iskorly-og.png`
+  - ❌ Incorrect: `assets/iskorly-og.png` or GitHub blob URLs
+- Recommended size: 1200x630px for best display on social platforms
+- Update both `og:image` and `twitter:image` meta tags in `index.html` when changing the image
+- Test with [Facebook Sharing Debugger](https://developers.facebook.com/tools/debug/) and [Twitter Card Validator](https://cards-dev.twitter.com/validator)
 
 ### Updating Styles
 
@@ -120,13 +132,44 @@ php -S localhost:8000
 
 ## Accessibility
 
-The site includes:
-- Semantic HTML5 elements
-- ARIA labels on interactive elements
-- Keyboard navigation support
-- `prefers-reduced-motion` support
-- Adequate color contrast (WCAG AA)
-- Alt text for images
+The site includes several accessibility features to ensure it's usable by everyone:
+
+### Keyboard Navigation
+- **Skip Link**: Press Tab immediately after page load to reveal a "Skip to main content" link
+- All interactive elements (links, buttons, form fields) are keyboard accessible
+- Visible focus indicators on all interactive elements for easier navigation
+- Mobile menu can be closed with the Escape key
+
+### ARIA Labels & Semantic HTML
+- Proper landmark roles: `<header>`, `<nav>`, `<main>`, `<footer>`
+- ARIA labels on interactive elements:
+  - Mobile menu toggle has `aria-label="Toggle mobile menu"` and `aria-expanded` state
+  - All CTA buttons have descriptive `aria-label` attributes
+  - Contact form has `aria-label="Contact form"`
+- Semantic heading hierarchy (h1 → h2 → h3) for screen readers
+
+### Visual Accessibility
+- **Focus States**: High-contrast focus indicators (3px outline) for keyboard navigation
+- **Color Contrast**: All text meets WCAG AA standards for contrast ratios
+- **Reduced Motion**: Respects `prefers-reduced-motion` user preference
+- **Alt Text**: All images have descriptive alt text
+
+### Performance & Loading
+- Lazy loading on non-critical images (`loading="lazy"`)
+- Deferred JavaScript to improve page load time
+- Optimized image formats and sizes
+
+### Testing Accessibility
+Test keyboard navigation:
+1. Use Tab to navigate through all interactive elements
+2. Press Shift+Tab to navigate backwards
+3. Press Enter or Space to activate buttons/links
+4. Press Escape to close mobile menu
+
+Test with screen readers:
+- NVDA (Windows): Free screen reader
+- JAWS (Windows): Commercial screen reader
+- VoiceOver (macOS/iOS): Built-in screen reader (Cmd+F5 to enable)
 
 ## Browser Support
 
@@ -169,8 +212,15 @@ The current app screenshots are SVG placeholders. To replace with real screensho
 
 Update meta tags in `<head>` of `index.html`:
 - `og:url` - Your actual GitHub Pages URL
-- `og:image` - Path to a high-quality preview image (1200x630px recommended)
-- `twitter:image` - Same as og:image
+- `og:image` - **Must be an absolute URL** to a preview image (e.g., `https://traumereixd.github.io/Iskorly/assets/iskorly-og.png`)
+- `twitter:image` - Same as og:image (must also be absolute URL)
+- `theme-color` - Brand color for mobile browsers (#5f432c)
+
+**Important**: Social media platforms (Facebook, Twitter, LinkedIn) require absolute URLs for images. Relative paths or GitHub blob URLs will not work for previews.
+
+Current configuration:
+- OG image: `https://traumereixd.github.io/Iskorly/assets/iskorly-og.png`
+- Theme color: `#5f432c` (Iskorly brand brown)
 
 ## Troubleshooting
 
@@ -197,7 +247,7 @@ Update meta tags in `<head>` of `index.html`:
 
 For questions or issues with the website:
 - Open an issue on GitHub: https://github.com/traumereixd/Iskorly/issues
-- Contact: jayson.sahagun@example.com (update with actual contact)
+- Contact: teamiskorly@gmail.com
 
 ## License
 
@@ -205,4 +255,4 @@ Website content and assets for Iskorly © 2025. Educational use - DepEd Philippi
 
 ---
 
-*Last Updated: October 2025*
+*Last Updated: January 2026*

@@ -66,11 +66,14 @@
     
     if (mobileMenuToggle && navLinks) {
         mobileMenuToggle.addEventListener('click', function() {
-            navLinks.classList.toggle('active');
+            const isActive = navLinks.classList.toggle('active');
+            
+            // Update ARIA expanded state
+            mobileMenuToggle.setAttribute('aria-expanded', isActive);
             
             // Animate hamburger icon
             const spans = mobileMenuToggle.querySelectorAll('span');
-            if (navLinks.classList.contains('active')) {
+            if (isActive) {
                 spans[0].style.transform = 'rotate(45deg) translateY(7px)';
                 spans[1].style.opacity = '0';
                 spans[2].style.transform = 'rotate(-45deg) translateY(-7px)';
@@ -87,6 +90,7 @@
             link.addEventListener('click', function() {
                 if (window.innerWidth <= 768) {
                     navLinks.classList.remove('active');
+                    mobileMenuToggle.setAttribute('aria-expanded', 'false');
                     const spans = mobileMenuToggle.querySelectorAll('span');
                     spans[0].style.transform = 'none';
                     spans[1].style.opacity = '1';
@@ -198,33 +202,30 @@
         });
     }
     
-    // Load dynamic images on DOM ready
-    document.addEventListener('DOMContentLoaded', function() {
-        // Load brand logo
-        const brandLogo = document.querySelector('.logo');
-        if (brandLogo && brandLogo.hasAttribute('data-candidates')) {
-            loadFirstAvailable(brandLogo);
-        }
-        
-        // Load footer logo
-        const footerLogo = document.querySelector('.footer-logo');
-        if (footerLogo && footerLogo.hasAttribute('data-candidates')) {
-            loadFirstAvailable(footerLogo);
-        }
-        
-        // Load member photos
-        const memberPhotos = document.querySelectorAll('.member-photo');
-        memberPhotos.forEach(function(img) {
-            loadFirstAvailable(img);
-        });
-        
-        // Email obfuscation helper (update email addresses as needed)
-        // This is a simple example - replace with actual contact emails
-        const mailtoLinks = document.querySelectorAll('a[href*="mailto:"]');
-        mailtoLinks.forEach(link => {
-            // Email addresses are already in the HTML for simplicity
-            // In production, you might want to obfuscate them
-        });
+    // Load brand logo
+    const brandLogo = document.querySelector('.logo');
+    if (brandLogo && brandLogo.hasAttribute('data-candidates')) {
+        loadFirstAvailable(brandLogo);
+    }
+    
+    // Load footer logo
+    const footerLogo = document.querySelector('.footer-logo');
+    if (footerLogo && footerLogo.hasAttribute('data-candidates')) {
+        loadFirstAvailable(footerLogo);
+    }
+    
+    // Load member photos
+    const memberPhotos = document.querySelectorAll('.member-photo');
+    memberPhotos.forEach(function(img) {
+        loadFirstAvailable(img);
+    });
+    
+    // Email obfuscation helper (update email addresses as needed)
+    // This is a simple example - replace with actual contact emails
+    const mailtoLinks = document.querySelectorAll('a[href*="mailto:"]');
+    mailtoLinks.forEach(link => {
+        // Email addresses are already in the HTML for simplicity
+        // In production, you might want to obfuscate them
     });
     
     // Accessibility: Keyboard navigation for mobile menu
@@ -242,6 +243,7 @@
         if (e.key === 'Escape' && navLinks && navLinks.classList.contains('active')) {
             navLinks.classList.remove('active');
             if (mobileMenuToggle) {
+                mobileMenuToggle.setAttribute('aria-expanded', 'false');
                 const spans = mobileMenuToggle.querySelectorAll('span');
                 spans[0].style.transform = 'none';
                 spans[1].style.opacity = '1';
