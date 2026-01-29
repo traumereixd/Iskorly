@@ -1372,10 +1372,28 @@ public class MainActivity extends AppCompatActivity {
         // Add null checks for critical resources
         if (cameraPreviewTextureView == null) {
             Log.e(CAMERA_FLOW, "cameraPreviewTextureView is null");
+            waitingForJpeg.set(false);
+            cameraSessionReady = false;
+            runOnUiThread(() -> {
+                Toast.makeText(MainActivity.this, "Camera preview not available", Toast.LENGTH_SHORT).show();
+                if (captureResultButton != null) {
+                    captureResultButton.setText("Camera Error");
+                    captureResultButton.setEnabled(false);
+                }
+            });
             return;
         }
         if (imageReader == null) {
             Log.e(CAMERA_FLOW, "imageReader is null");
+            waitingForJpeg.set(false);
+            cameraSessionReady = false;
+            runOnUiThread(() -> {
+                Toast.makeText(MainActivity.this, "Image reader not available", Toast.LENGTH_SHORT).show();
+                if (captureResultButton != null) {
+                    captureResultButton.setText("Camera Error");
+                    captureResultButton.setEnabled(false);
+                }
+            });
             return;
         }
         
@@ -1471,7 +1489,7 @@ public class MainActivity extends AppCompatActivity {
                                             runOnUiThread(() -> {
                                                 Toast.makeText(MainActivity.this, "Failed to start camera preview", Toast.LENGTH_SHORT).show();
                                                 if (captureResultButton != null) {
-                                                    captureResultButton.setText("Retry");
+                                                    captureResultButton.setText("Camera Error");
                                                     captureResultButton.setEnabled(false);
                                                 }
                                             });
