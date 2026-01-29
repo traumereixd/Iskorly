@@ -1368,6 +1368,17 @@ public class MainActivity extends AppCompatActivity {
 
     private void openCameraPreview(int viewWidth, int viewHeight) {
         Log.d(CAMERA_FLOW, "Opening camera preview");
+        
+        // Add null checks for critical resources
+        if (cameraPreviewTextureView == null) {
+            Log.e(CAMERA_FLOW, "cameraPreviewTextureView is null");
+            return;
+        }
+        if (imageReader == null) {
+            Log.e(CAMERA_FLOW, "imageReader is null");
+            return;
+        }
+        
         CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         try {
             String cameraId = manager.getCameraIdList()[0];
@@ -1454,18 +1465,45 @@ public class MainActivity extends AppCompatActivity {
                                         } catch (CameraAccessException e) {
                                             Log.e(CAMERA_FLOW, "Failed to start camera preview", e);
                                             Log.e(TAG, "setRepeatingRequest", e);
+                                            // Reset waiting flag and show error to user
+                                            waitingForJpeg.set(false);
+                                            cameraSessionReady = false;
+                                            runOnUiThread(() -> {
+                                                Toast.makeText(MainActivity.this, "Failed to start camera preview", Toast.LENGTH_SHORT).show();
+                                                if (captureResultButton != null) {
+                                                    captureResultButton.setText("Retry");
+                                                    captureResultButton.setEnabled(false);
+                                                }
+                                            });
                                         }
                                     }
 
                                     @Override
                                     public void onConfigureFailed(@NonNull CameraCaptureSession session) {
                                         Log.e(CAMERA_FLOW, "Camera session configuration failed");
-                                        runOnUiThread(() -> Toast.makeText(MainActivity.this, "Failed to create camera session", Toast.LENGTH_SHORT).show());
+                                        waitingForJpeg.set(false);
+                                        cameraSessionReady = false;
+                                        runOnUiThread(() -> {
+                                            Toast.makeText(MainActivity.this, "Failed to create camera session", Toast.LENGTH_SHORT).show();
+                                            if (captureResultButton != null) {
+                                                captureResultButton.setText("Camera Error");
+                                                captureResultButton.setEnabled(false);
+                                            }
+                                        });
                                     }
                                 }, backgroundHandler);
                     } catch (CameraAccessException e) {
                         Log.e(CAMERA_FLOW, "Error creating camera session", e);
                         Log.e(TAG, "openCameraPreview create session", e);
+                        waitingForJpeg.set(false);
+                        cameraSessionReady = false;
+                        runOnUiThread(() -> {
+                            Toast.makeText(MainActivity.this, "Failed to create camera session", Toast.LENGTH_SHORT).show();
+                            if (captureResultButton != null) {
+                                captureResultButton.setText("Camera Error");
+                                captureResultButton.setEnabled(false);
+                            }
+                        });
                     }
                 }
 
@@ -1480,15 +1518,42 @@ public class MainActivity extends AppCompatActivity {
                     Log.e(CAMERA_FLOW, "Camera device error: " + error);
                     camera.close();
                     cameraDevice = null;
+                    waitingForJpeg.set(false);
+                    cameraSessionReady = false;
+                    runOnUiThread(() -> {
+                        Toast.makeText(MainActivity.this, "Camera error: " + error, Toast.LENGTH_SHORT).show();
+                        if (captureResultButton != null) {
+                            captureResultButton.setText("Camera Error");
+                            captureResultButton.setEnabled(false);
+                        }
+                    });
                 }
             }, backgroundHandler);
 
         } catch (CameraAccessException e) {
             Log.e(CAMERA_FLOW, "CameraAccessException in openCameraPreview", e);
             Log.e(TAG, "openCameraPreview", e);
+            waitingForJpeg.set(false);
+            cameraSessionReady = false;
+            runOnUiThread(() -> {
+                Toast.makeText(MainActivity.this, "Camera access error", Toast.LENGTH_SHORT).show();
+                if (captureResultButton != null) {
+                    captureResultButton.setText("Camera Error");
+                    captureResultButton.setEnabled(false);
+                }
+            });
         } catch (SecurityException se) {
             Log.e(CAMERA_FLOW, "SecurityException - camera permission missing", se);
             Log.e(TAG, "Camera permission", se);
+            waitingForJpeg.set(false);
+            cameraSessionReady = false;
+            runOnUiThread(() -> {
+                Toast.makeText(MainActivity.this, "Camera permission required", Toast.LENGTH_SHORT).show();
+                if (captureResultButton != null) {
+                    captureResultButton.setText("Permission Error");
+                    captureResultButton.setEnabled(false);
+                }
+            });
         }
     }
 
@@ -2616,10 +2681,19 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onPause() {
+        // Don't stop scan session on pause - only on stop/destroy
+        // This prevents stopping on minor interruptions (permissions, focus changes)
+        super.onPause();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        // Stop scan session when activity is stopping (unless crop is in progress)
         if (scanSessionActive && !cropInProgress) {
+            Log.d(CAMERA_FLOW, "onStop: stopping scan session");
             stopScanSession();
         }
-        super.onPause();
     }
 
     @Override
