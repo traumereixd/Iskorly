@@ -1293,9 +1293,9 @@ public class MainActivity extends AppCompatActivity {
         if (cameraPreviewTextureView != null) {
             cameraPreviewTextureView.setOpaque(true);
             cameraPreviewTextureView.setVisibility(View.VISIBLE);
-            cameraPreviewTextureView.setBackgroundColor(0xFF000000); // Black background
+            // TextureView doesn't support background drawables - parent container handles background
             cameraPreviewTextureView.bringToFront();
-            Log.d("SCAN_UI", "TextureView set to opaque with black background");
+            Log.d("SCAN_UI", "TextureView set to opaque (parent handles black background)");
         }
         
         sessionScoreTextView.setText(getString(R.string.live_score_placeholder));
@@ -2707,11 +2707,15 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         super.onStop();
-        // Stop scan session when activity is stopping (unless crop is in progress)
-        if (scanSessionActive && !cropInProgress) {
+        // Stop scan session only when not actively showing the scan view and not cropping
+        if (scanSessionActive && !cropInProgress && !isScanViewVisible()) {
             Log.d(CAMERA_FLOW, "onStop: stopping scan session");
             stopScanSession();
         }
+    }
+
+    private boolean isScanViewVisible() {
+        return scanSessionLayout != null && scanSessionLayout.getVisibility() == View.VISIBLE;
     }
 
     @Override
@@ -2759,7 +2763,7 @@ public class MainActivity extends AppCompatActivity {
                 }
                 if (cameraPreviewTextureView != null) {
                     cameraPreviewTextureView.setVisibility(View.VISIBLE);
-                    cameraPreviewTextureView.setBackgroundColor(0xFF000000); // Black background
+                    // TextureView doesn't support background drawables - parent container handles background
                     cameraPreviewTextureView.bringToFront();
                 }
                 break;
@@ -3416,6 +3420,10 @@ public class MainActivity extends AppCompatActivity {
      */
     private void processCroppedImage(android.net.Uri croppedUri) {
         Log.d(OCR_FLOW, "Processing cropped image: " + croppedUri);
+        if (croppedUri == null) {
+            Toast.makeText(this, "Failed to load cropped image", Toast.LENGTH_SHORT).show();
+            return;
+        }
         if (ocrProcessor == null) {
             Log.w(OCR_FLOW, "ocrProcessor was null; reinitializing");
             ocrProcessor = new OcrProcessor(
@@ -3425,8 +3433,26 @@ public class MainActivity extends AppCompatActivity {
             );
         }
         new Thread(() -> {
-            try (java.io.InputStream is = getContentResolver().openInputStream(croppedUri)) {
-                Bitmap bitmap = BitmapFactory.decodeStream(is);
+            try {
+                Bitmap bitmap = null;
+                final String scheme = croppedUri.getScheme();
+                if ("content".equalsIgnoreCase(scheme)) {
+                    try (java.io.InputStream is = getContentResolver().openInputStream(croppedUri)) {
+                        bitmap = BitmapFactory.decodeStream(is);
+                    }
+                } else if ("file".equalsIgnoreCase(scheme)) {
+                    bitmap = BitmapFactory.decodeFile(croppedUri.getPath());
+                } else {
+                    // Fallback: try content resolver first, then file path
+                    try (java.io.InputStream is = getContentResolver().openInputStream(croppedUri)) {
+                        bitmap = BitmapFactory.decodeStream(is);
+                    } catch (Exception ignored) {
+                        String path = croppedUri.getPath();
+                        if (path != null) {
+                            bitmap = BitmapFactory.decodeFile(path);
+                        }
+                    }
+                }
                 if (bitmap == null) {
                     runOnUiThread(() -> Toast.makeText(this, "Failed to load cropped image", Toast.LENGTH_SHORT).show());
                     return;
@@ -3483,7 +3509,11 @@ public class MainActivity extends AppCompatActivity {
 
             // Prepare distinct output file
             java.io.File outFile = new java.io.File(getCacheDir(), "cropped_" + System.currentTimeMillis() + ".jpg");
-            android.net.Uri outputUri = android.net.Uri.fromFile(outFile);
+            android.net.Uri outputUri = androidx.core.content.FileProvider.getUriForFile(
+                    this,
+                    getApplicationContext().getPackageName() + ".fileprovider",
+                    outFile
+            );
 
             // Configure uCrop options for original sizing, free-style behavior
             UCrop.Options options = new UCrop.Options();
