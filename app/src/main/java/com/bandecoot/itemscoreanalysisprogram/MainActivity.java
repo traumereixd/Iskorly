@@ -3420,6 +3420,10 @@ public class MainActivity extends AppCompatActivity {
      */
     private void processCroppedImage(android.net.Uri croppedUri) {
         Log.d(OCR_FLOW, "Processing cropped image: " + croppedUri);
+        if (croppedUri == null) {
+            Toast.makeText(this, "Failed to load cropped image", Toast.LENGTH_SHORT).show();
+            return;
+        }
         if (ocrProcessor == null) {
             Log.w(OCR_FLOW, "ocrProcessor was null; reinitializing");
             ocrProcessor = new OcrProcessor(
@@ -3431,10 +3435,6 @@ public class MainActivity extends AppCompatActivity {
         new Thread(() -> {
             try {
                 Bitmap bitmap = null;
-                if (croppedUri == null) {
-                    runOnUiThread(() -> Toast.makeText(this, "Failed to load cropped image", Toast.LENGTH_SHORT).show());
-                    return;
-                }
                 final String scheme = croppedUri.getScheme();
                 if ("content".equalsIgnoreCase(scheme)) {
                     try (java.io.InputStream is = getContentResolver().openInputStream(croppedUri)) {
@@ -3447,7 +3447,10 @@ public class MainActivity extends AppCompatActivity {
                     try (java.io.InputStream is = getContentResolver().openInputStream(croppedUri)) {
                         bitmap = BitmapFactory.decodeStream(is);
                     } catch (Exception ignored) {
-                        bitmap = BitmapFactory.decodeFile(croppedUri.getPath());
+                        String path = croppedUri.getPath();
+                        if (path != null) {
+                            bitmap = BitmapFactory.decodeFile(path);
+                        }
                     }
                 }
                 if (bitmap == null) {
