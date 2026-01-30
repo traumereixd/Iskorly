@@ -1293,9 +1293,9 @@ public class MainActivity extends AppCompatActivity {
         if (cameraPreviewTextureView != null) {
             cameraPreviewTextureView.setOpaque(true);
             cameraPreviewTextureView.setVisibility(View.VISIBLE);
-            // TextureView doesn't support background drawables - parent container handles background
+            cameraPreviewTextureView.setBackgroundColor(0xFF000000); // Black background
             cameraPreviewTextureView.bringToFront();
-            Log.d("SCAN_UI", "TextureView set to opaque (parent handles black background)");
+            Log.d("SCAN_UI", "TextureView set to opaque with black background");
         }
         
         sessionScoreTextView.setText(getString(R.string.live_score_placeholder));
@@ -2707,15 +2707,11 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         super.onStop();
-        // Stop scan session only when not actively showing the scan view and not cropping
-        if (scanSessionActive && !cropInProgress && !isScanViewVisible()) {
+        // Stop scan session when activity is stopping (unless crop is in progress)
+        if (scanSessionActive && !cropInProgress) {
             Log.d(CAMERA_FLOW, "onStop: stopping scan session");
             stopScanSession();
         }
-    }
-
-    private boolean isScanViewVisible() {
-        return scanSessionLayout != null && scanSessionLayout.getVisibility() == View.VISIBLE;
     }
 
     @Override
@@ -2732,7 +2728,7 @@ public class MainActivity extends AppCompatActivity {
         if (scanSessionLayout != null) scanSessionLayout.setVisibility(View.GONE);
         if (masterlistLayout != null) masterlistLayout.setVisibility(View.GONE);
         if (settingsLayout != null) settingsLayout.setVisibility(View.GONE);
-        
+
         View visibleView = null;
         switch (viewName) {
             case "main":
@@ -2756,14 +2752,15 @@ public class MainActivity extends AppCompatActivity {
             case "scan":
                 if (scanSessionLayout != null) {
                     scanSessionLayout.setVisibility(View.VISIBLE);
-                    scanSessionLayout.setBackgroundColor(0xFF000000); // Black background to avoid white flash
+                    // Use safe setter to avoid TextureView crash
+                    safeSetBackgroundColor(scanSessionLayout, 0xFF000000); // Black background on container
                     scanSessionLayout.bringToFront();
                     visibleView = scanSessionLayout;
                     Log.d("VIEW_TOGGLE", "Scan view made visible with black background");
                 }
                 if (cameraPreviewTextureView != null) {
                     cameraPreviewTextureView.setVisibility(View.VISIBLE);
-                    // TextureView doesn't support background drawables - parent container handles background
+                    // DO NOT set any background on TextureView
                     cameraPreviewTextureView.bringToFront();
                 }
                 break;
@@ -2774,12 +2771,17 @@ public class MainActivity extends AppCompatActivity {
                 }
                 break;
         }
-        
-        // Apply global text colors to newly visible view
+
+        // Apply global text colors, but NEVER on the scan view to avoid touching TextureView
         if (visibleView != null) {
-            TextColorUtil.applyGlobalTextColors(visibleView);
+            if (visibleView != scanSessionLayout) {
+                TextColorUtil.applyGlobalTextColors(visibleView);
+            } else {
+                // Limit to text inputs inside scan view only, to avoid TextureView modification
+                enforceBlackTextColorOnInputs();
+            }
             if (visibleView == settingsLayout) {
-//                forceSwitchTextBlack();
+                // forceSwitchTextBlack(); // left disabled by design
             }
         }
     }
@@ -3420,10 +3422,6 @@ public class MainActivity extends AppCompatActivity {
      */
     private void processCroppedImage(android.net.Uri croppedUri) {
         Log.d(OCR_FLOW, "Processing cropped image: " + croppedUri);
-        if (croppedUri == null) {
-            Toast.makeText(this, "Failed to load cropped image", Toast.LENGTH_SHORT).show();
-            return;
-        }
         if (ocrProcessor == null) {
             Log.w(OCR_FLOW, "ocrProcessor was null; reinitializing");
             ocrProcessor = new OcrProcessor(
@@ -3433,26 +3431,8 @@ public class MainActivity extends AppCompatActivity {
             );
         }
         new Thread(() -> {
-            try {
-                Bitmap bitmap = null;
-                final String scheme = croppedUri.getScheme();
-                if ("content".equalsIgnoreCase(scheme)) {
-                    try (java.io.InputStream is = getContentResolver().openInputStream(croppedUri)) {
-                        bitmap = BitmapFactory.decodeStream(is);
-                    }
-                } else if ("file".equalsIgnoreCase(scheme)) {
-                    bitmap = BitmapFactory.decodeFile(croppedUri.getPath());
-                } else {
-                    // Fallback: try content resolver first, then file path
-                    try (java.io.InputStream is = getContentResolver().openInputStream(croppedUri)) {
-                        bitmap = BitmapFactory.decodeStream(is);
-                    } catch (Exception ignored) {
-                        String path = croppedUri.getPath();
-                        if (path != null) {
-                            bitmap = BitmapFactory.decodeFile(path);
-                        }
-                    }
-                }
+            try (java.io.InputStream is = getContentResolver().openInputStream(croppedUri)) {
+                Bitmap bitmap = BitmapFactory.decodeStream(is);
                 if (bitmap == null) {
                     runOnUiThread(() -> Toast.makeText(this, "Failed to load cropped image", Toast.LENGTH_SHORT).show());
                     return;
@@ -3509,11 +3489,7 @@ public class MainActivity extends AppCompatActivity {
 
             // Prepare distinct output file
             java.io.File outFile = new java.io.File(getCacheDir(), "cropped_" + System.currentTimeMillis() + ".jpg");
-            android.net.Uri outputUri = androidx.core.content.FileProvider.getUriForFile(
-                    this,
-                    getApplicationContext().getPackageName() + ".fileprovider",
-                    outFile
-            );
+            android.net.Uri outputUri = android.net.Uri.fromFile(outFile);
 
             // Configure uCrop options for original sizing, free-style behavior
             UCrop.Options options = new UCrop.Options();
@@ -5584,6 +5560,20 @@ public class MainActivity extends AppCompatActivity {
      * - All regular text: BLACK for maximum readability
      * - All button text: WHITE for proper contrast with button backgrounds
      */
+
+    private void safeSetBackgroundColor(View v, int color) {
+        if (v == null) return;
+        if (v instanceof TextureView) {
+            // TextureView does NOT support background drawables; skip to avoid crash
+            Log.w(TAG, "Skipping background color on TextureView");
+            return;
+        }
+        try {
+            v.setBackgroundColor(color);
+        } catch (UnsupportedOperationException uoe) {
+            Log.w(TAG, "Background not supported for this view type", uoe);
+        }
+    }
     private void applyGlobalTextColors() {
         // Apply global colors to the entire view hierarchy
         View rootView = findViewById(android.R.id.content);
