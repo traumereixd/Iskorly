@@ -1,0 +1,75 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Kill Switch Admin</title>
+    <style>
+        body { font-family: Arial; max-width: 520px; margin: 40px auto; }
+        input, button { padding: 8px; margin: 6px 0; width: 100%; }
+    </style>
+</head>
+<body>
+<h2>Kill Switch Admin</h2>
+
+<div id="login">
+    <input id="email" placeholder="Email"/>
+    <input id="password" placeholder="Password" type="password"/>
+    <button onclick="login()">Login</button>
+</div>
+
+<div id="panel" style="display:none;">
+    <label><input type="checkbox" id="disabled"/> App Disabled</label>
+    <input id="message" placeholder="Message to show users"/>
+    <button onclick="save()">Save</button>
+    <button onclick="logout()">Logout</button>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyDCBZ_08kaOGSjJPd3co-cY52HjSJOrMZE",
+      authDomain: "iskorly-post-azure.firebaseapp.com",
+      projectId: "iskorly-post-azure",
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    window.login = async () => {
+      await signInWithEmailAndPassword(auth,
+        document.getElementById("email").value,
+        document.getElementById("password").value
+      );
+    };
+
+    window.logout = async () => signOut(auth);
+
+    async function loadStatus() {
+      const snap = await getDoc(doc(db, "app_config", "status"));
+      if (snap.exists()) {
+        const data = snap.data();
+        document.getElementById("disabled").checked = !!data.disabled;
+        document.getElementById("message").value = data.message || "";
+      }
+    }
+
+    window.save = async () => {
+      await setDoc(doc(db, "app_config", "status"), {
+        disabled: document.getElementById("disabled").checked,
+        message: document.getElementById("message").value
+      });
+      alert("Saved.");
+    };
+
+    onAuthStateChanged(auth, user => {
+      document.getElementById("login").style.display = user ? "none" : "block";
+      document.getElementById("panel").style.display = user ? "block" : "none";
+      if (user) loadStatus();
+    });
+</script>
+</body>
+</html>

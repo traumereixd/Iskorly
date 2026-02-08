@@ -47,14 +47,8 @@
     <string name="btn_retake">Retake</string>
     <string name="highlight_image_description">Selected image for highlight</string>
 
-    <string name="credits_text">Researchers:\n
-\nEspaño, Elijah Ria D.
-\nLolos, Kneel Charles B.
-\nMahusay, Queen Rheyceljoy F.
-\nMedel, Myra J.
-\nReyes, John Jharen R.
-\nSahagun, Jayson G.
-\nTagle, Steve Aldrei D.\n\nDeveloper: Sahagun, Jayson G.\n\nIskorly Alpha v1.1.1\nGoogle Cloud Vision (OCR) Powered</string>
+    <string name="credits_text">
+Developer: Jayson G. Sahagun\n\nDesigner: Myra J. Medel\n\n\nIskorly Alpha v1.2.1</string>
 
     <!-- Menu -->
     <string name="menu_setup">Setup</string>
