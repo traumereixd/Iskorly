@@ -52,6 +52,12 @@
             android:name=".SimpleCropActivity"
             android:exported="false"
             android:theme="@style/Theme.Iskorly.Cropper" />
+
+        <!-- Highlight selection overlay activity -->
+        <activity
+            android:name=".HighlightSelectionActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Iskorly" />
         
         <!-- uCrop Activity for image cropping -->
         <activity
