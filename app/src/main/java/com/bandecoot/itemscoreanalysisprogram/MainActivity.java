@@ -80,14 +80,16 @@ import okhttp3.Response;
 
 import android.content.res.ColorStateList;
 
+import com.yalantis.ucrop.UCrop;
+import com.yalantis.ucrop.UCropActivity;
 
 
 public class MainActivity extends AppCompatActivity {
     // Constants
     private static final String TAG = "ISA_VISION";
     private static final String CAMERA_FLOW = "CAMERA_FLOW";
-    private static final String HIGHLIGHT_FLOW = "HIGHLIGHT_FLOW";
-    private static final String HIGHLIGHT_FIX = "HIGHLIGHT_FIX";
+    private static final String CROP_FLOW = "CROP_FLOW";
+    private static final String CROP_FIX = "CROP_FIX";
     private static final String OCR_FLOW = "OCR_FLOW";
     private static final int CAMERA_PERMISSION_REQUEST_CODE = 200;
     private static final int CAMERA_WIDTH = 1280;
@@ -193,7 +195,7 @@ public class MainActivity extends AppCompatActivity {
 
     // State
     private boolean scanSessionActive = false;
-    private boolean highlightInProgress = false;
+    private boolean cropInProgress = false;
     private int lastCapturedJpegOrientation = 0;
     private volatile boolean cameraSessionReady = false; // Camera session readiness flag
     private boolean inScanSession = false; // Track if we're in an active scan session for back navigation
@@ -223,8 +225,8 @@ public class MainActivity extends AppCompatActivity {
     private int galleryTotalImages;
     private int galleryProcessedImages;
     
-    // Highlight selection launcher (Lens-style overlay)
-    private ActivityResultLauncher<Intent> highlightLauncher;
+    // Simple crop launcher (Feature #2.1 enhanced)
+    private ActivityResultLauncher<Intent> cropLauncher;
     private android.net.Uri lastCapturedImageUri;
     private java.io.File lastCapturedFile; // Store file reference for URI permissions
     private boolean isProcessingGalleryQueue = false; // Flag to track gallery queue processing
@@ -1096,10 +1098,10 @@ public class MainActivity extends AppCompatActivity {
                 this::onPhotosImported
         );
         
-        // Highlight selection launcher (Lens-style overlay)
-        highlightLauncher = registerForActivityResult(
+        // Simple crop launcher (Feature #2.1 enhanced) - Custom SimpleCropActivity
+        cropLauncher = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
-                this::onHighlightResult
+                this::onCropResult
         );
 
         // Buttons (main)
@@ -1673,14 +1675,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private final ImageReader.OnImageAvailableListener onJpegAvailableListener = reader -> {
-        Log.d(HIGHLIGHT_FLOW, "onJpegAvailableListener invoked");
+        Log.d(CROP_FLOW, "onJpegAvailableListener invoked");
         
-        // Ignore JPEG callbacks while highlight is in progress to prevent double-capture loop
-        if (highlightInProgress) {
+        // Ignore JPEG callbacks while crop is in progress to prevent double-crop loop
+        if (cropInProgress) {
             Image discard = reader.acquireLatestImage();
             if (discard != null) discard.close();
             waitingForJpeg.set(false);
-            Log.d(HIGHLIGHT_FLOW, "Ignoring JPEG callback - highlight already in progress");
+            Log.d(CROP_FLOW, "Ignoring JPEG callback - crop already in progress");
             return;
         }
         
@@ -1712,12 +1714,12 @@ public class MainActivity extends AppCompatActivity {
                     getApplicationContext().getPackageName() + ".fileprovider",
                     lastCapturedFile
             );
-            Log.d(HIGHLIGHT_FIX, "Saved raw JPEG: " + lastCapturedFile.getAbsolutePath() + " size=" + lastCapturedFile.length());
-            Log.d(HIGHLIGHT_FIX, "lastCapturedImageUri=" + lastCapturedImageUri);
+            Log.d(CROP_FIX, "Saved raw JPEG: " + lastCapturedFile.getAbsolutePath() + " size=" + lastCapturedFile.length());
+            Log.d(CROP_FIX, "lastCapturedImageUri=" + lastCapturedImageUri);
 
-            runOnUiThread(() -> startHighlightActivity(lastCapturedImageUri, true));
+            runOnUiThread(() -> startCropActivity(lastCapturedImageUri));
         } catch (Exception e) {
-            Log.e(HIGHLIGHT_FIX, "Failed saving JPEG / launching highlight", e);
+            Log.e(CROP_FIX, "Failed saving JPEG / launching crop", e);
             runOnUiThread(() -> {
                 Toast.makeText(this, "Capture save failed", Toast.LENGTH_SHORT).show();
                 if (lastCapturedImageUri != null) processFallbackAutoCrop(lastCapturedImageUri);
@@ -2730,8 +2732,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         super.onStop();
-        // Stop scan session when activity is stopping (unless highlight is in progress)
-        if (scanSessionActive && !highlightInProgress) {
+        // Stop scan session when activity is stopping (unless crop is in progress)
+        if (scanSessionActive && !cropInProgress) {
             Log.d(CAMERA_FLOW, "onStop: stopping scan session");
             stopScanSession();
         }
@@ -3240,7 +3242,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // ---------------------------
-    // Multi-image import and highlight handlers (Feature #2 & #2.1)
+    // Multi-image import and crop handlers (Feature #2 & #2.1)
     // ---------------------------
     
     /**
@@ -3254,8 +3256,8 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         
-        Log.d(TAG, "Importing " + uris.size() + " photo(s) - mandatory highlight flow");
-        Log.d(OCR_FLOW, "Multi-image import started with " + uris.size() + " images (highlight required)");
+        Log.d(TAG, "Importing " + uris.size() + " photo(s) - mandatory crop flow");
+        Log.d(OCR_FLOW, "Multi-image import started with " + uris.size() + " images (crop required)");
         
         // Ensure OcrProcessor is initialized
         if (ocrProcessor == null) {
@@ -3273,8 +3275,8 @@ public class MainActivity extends AppCompatActivity {
         isProcessingGalleryQueue = true;
         
         // Show initial message
-        Toast.makeText(this,
-            String.format(Locale.US, "Processing %d image(s) - highlight each to continue", galleryTotalImages),
+        Toast.makeText(this, 
+            String.format(Locale.US, "Processing %d image(s) - crop each to continue", galleryTotalImages),
             Toast.LENGTH_LONG).show();
         
         // Start processing the first image
@@ -3283,7 +3285,7 @@ public class MainActivity extends AppCompatActivity {
     
     /**
      * Process the next image in the gallery import queue.
-     * Each image requires mandatory highlight selection before OCR.
+     * Each image requires mandatory crop before OCR.
      */
     private void processNextGalleryImage() {
         if (galleryImportQueue == null || galleryImportQueue.isEmpty()) {
@@ -3300,9 +3302,9 @@ public class MainActivity extends AppCompatActivity {
         
         Log.d(TAG, "Processing gallery image " + (galleryProcessedImages + 1) + " of " + galleryTotalImages);
         
-        // Launch highlight selection for this image
-        // The highlight result handler will process the selected region and continue the queue
-        startHighlightActivity(nextUri, false);
+        // Launch crop activity for this image
+        // The crop result handler will process the cropped image and continue the queue
+        startCropActivity(nextUri);
     }
     
     /**
@@ -3348,17 +3350,28 @@ public class MainActivity extends AppCompatActivity {
     }
     
     /**
-     * Handle highlight result.
+     * Handle crop result from uCrop or SimpleCropActivity fallback.
      * Handles both camera captures and gallery import queue.
      */
-    private void onHighlightResult(androidx.activity.result.ActivityResult result) {
-        highlightInProgress = false;
+    private void onCropResult(androidx.activity.result.ActivityResult result) {
+        cropInProgress = false;
         Intent data = result.getData();
 
         if (result.getResultCode() == RESULT_OK && data != null) {
-            android.net.Uri selectedUri = data.getData();
-            if (selectedUri != null) {
-                Log.d(HIGHLIGHT_FLOW, "Highlight succeeded, processing cropped image: " + selectedUri);
+            // Prefer uCrop result first
+            android.net.Uri croppedUri = null;
+            try { 
+                croppedUri = UCrop.getOutput(data); 
+            } catch (IllegalArgumentException | IllegalStateException e) {
+                // UCrop.getOutput may fail if data doesn't contain uCrop result
+                Log.d(CROP_FLOW, "Not a uCrop result, trying fallback");
+            }
+            if (croppedUri == null) {
+                // Legacy fallback for SimpleCropActivity
+                croppedUri = data.getData();
+            }
+            if (croppedUri != null) {
+                Log.d(CROP_FLOW, "Crop succeeded, processing cropped image: " + croppedUri);
                 if (ocrProcessor == null) {
                     Log.w(OCR_FLOW, "ocrProcessor null on crop result - reinitializing");
                     ocrProcessor = new OcrProcessor(
@@ -3370,29 +3383,20 @@ public class MainActivity extends AppCompatActivity {
                 
                 // Check if this is part of gallery import queue
                 if (isProcessingGalleryQueue) {
-                    processCroppedImageForGalleryQueue(selectedUri);
+                    processCroppedImageForGalleryQueue(croppedUri);
                 } else {
                     // Regular camera capture flow
-                    processCroppedImage(selectedUri);
+                    processCroppedImage(croppedUri);
                 }
             } else {
-                Toast.makeText(this, "Highlight failed (no URI)", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Crop failed (no URI)", Toast.LENGTH_SHORT).show();
                 handleCropFailure();
             }
-        } else if (result.getResultCode() == HighlightSelectionActivity.RESULT_RETAKE) {
-            Log.d(HIGHLIGHT_FLOW, "Highlight retake requested");
-            if (isProcessingGalleryQueue) {
-                handleCropCancellation();
-            } else {
-                lastCapturedImageUri = null;
-                lastCapturedFile = null;
-                Toast.makeText(this, "Retake capture", Toast.LENGTH_SHORT).show();
-            }
         } else if (result.getResultCode() == RESULT_CANCELED) {
-            Log.d(HIGHLIGHT_FLOW, "Highlight canceled");
+            Log.d(CROP_FLOW, "Crop canceled");
             handleCropCancellation();
         } else {
-            Toast.makeText(this, "Highlight failed, using fallback", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Crop failed, using fallback", Toast.LENGTH_SHORT).show();
             handleCropFailure();
         }
     }
@@ -3532,39 +3536,82 @@ public class MainActivity extends AppCompatActivity {
         try {
             return Bitmap.createBitmap(src, marginW, marginH, cw, ch);
         } catch (Exception e) {
-            Log.w(HIGHLIGHT_FLOW, "simpleAutoCrop failed, returning original", e);
+            Log.w(CROP_FLOW, "simpleAutoCrop failed, returning original", e);
             return src;
         }
     }
     /**
-     * Start highlight selection activity for the captured image.
+     * Start crop activity for the captured image.
+     * Uses uCrop as primary crop flow:
+     * - 4:3 default aspect ratio with free-style enabled
+     * - Rotate-only controls, grid hidden, frame shown
+     * - Bitmap limits: maxBitmapSize 4096, maxResultSize 2048x2048
+     * - Falls back to SimpleCropActivity if uCrop fails
      */
-    private void startHighlightActivity(android.net.Uri sourceUri, boolean allowRetake) {
+    private void startCropActivity(android.net.Uri sourceUri) {
         try {
             if (sourceUri == null) {
-                Log.e(HIGHLIGHT_FIX, "startHighlightActivity called with null sourceUri");
+                Log.e(CROP_FIX, "startCropActivity called with null sourceUri");
                 Toast.makeText(this, "Capture error", Toast.LENGTH_SHORT).show();
                 return;
             }
-            highlightInProgress = true;
-            Intent intent = new Intent(this, HighlightSelectionActivity.class);
-            intent.putExtra(HighlightSelectionActivity.EXTRA_IMAGE_URI, sourceUri.toString());
-            intent.putExtra(HighlightSelectionActivity.EXTRA_ALLOW_RETAKE, allowRetake);
-            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            highlightLauncher.launch(intent);
+            cropInProgress = true;
+
+            // Prepare distinct output file
+            java.io.File outFile = new java.io.File(getCacheDir(), "cropped_" + System.currentTimeMillis() + ".jpg");
+            android.net.Uri outputUri = android.net.Uri.fromFile(outFile);
+
+            // Configure uCrop options for original sizing, free-style behavior
+            UCrop.Options options = new UCrop.Options();
+            options.setFreeStyleCropEnabled(true);      // allow free-style crop
+            options.setHideBottomControls(false);       // show controls
+            options.setCompressionQuality(90);
+            // Keep maxBitmapSize guard where available
+            try { 
+                options.setMaxBitmapSize(4096); 
+            } catch (NoSuchMethodError e) { 
+                // Method may not exist in some uCrop versions
+                Log.d(CROP_FIX, "setMaxBitmapSize not available in this uCrop version");
+            }
+
+            // Visual behavior: rotate-only and hide grid
+            options.setShowCropGrid(false);             // hide crop grid
+            options.setShowCropFrame(true);             // keep frame/border
+            options.setAllowedGestures(UCropActivity.NONE, UCropActivity.ROTATE, UCropActivity.NONE);
+
+            // Theme to match app palette
+            options.setToolbarTitle("Crop");
+            options.setToolbarColor(getResources().getColor(R.color.brand_brown, getTheme()));
+            options.setStatusBarColor(getResources().getColor(R.color.brand_brown, getTheme()));
+            options.setActiveControlsWidgetColor(getResources().getColor(R.color.secondary_emerald, getTheme()));
+            options.setRootViewBackgroundColor(getResources().getColor(R.color.surface, getTheme()));
+            options.setCropFrameColor(getResources().getColor(R.color.outline, getTheme()));
+
+            // Launch uCrop with source image aspect ratio and free style enabled
+            // Remove withMaxResultSize to preserve near-original size
+            Intent uCropIntent = UCrop.of(sourceUri, outputUri)
+                    .useSourceImageAspectRatio()  // Use original aspect ratio instead of fixed 4:3
+                    .withOptions(options)
+                    .getIntent(this);
+            
+            // Grant URI permissions to avoid SecurityException
+            uCropIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+
+            cropLauncher.launch(uCropIntent);
         } catch (Exception e) {
-            highlightInProgress = false;
-            Log.e(HIGHLIGHT_FIX, "startHighlightActivity exception", e);
-            Toast.makeText(this, "Highlight not available (fallback)", Toast.LENGTH_SHORT).show();
+            cropInProgress = false;
+            Log.e(CROP_FIX, "startCropActivity (uCrop) exception", e);
+            Toast.makeText(this, "Crop not available (fallback)", Toast.LENGTH_SHORT).show();
             processFallbackAutoCrop(sourceUri);
         }
+
     }
 
     /**
      * Fallback auto-crop when crop is unavailable or disabled.
      */
     private void processFallbackAutoCrop(android.net.Uri sourceUri) {
-        Log.w(HIGHLIGHT_FIX, "Fallback auto-crop invoked (primary crop not used)");
+        Log.w(CROP_FIX, "Fallback auto-crop invoked (primary crop not used)");
         try {
             InputStream is = getContentResolver().openInputStream(sourceUri);
             Bitmap original = BitmapFactory.decodeStream(is);
@@ -3591,8 +3638,8 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         } catch (Exception ex) {
-            Log.e(HIGHLIGHT_FLOW, "Fallback auto crop failed", ex);
-            Log.e(HIGHLIGHT_FIX, "Fallback exception", ex);
+            Log.e(CROP_FLOW, "Fallback auto crop failed", ex);
+            Log.e(CROP_FIX, "Fallback exception", ex);
             Toast.makeText(this, "Processing failed", Toast.LENGTH_SHORT).show();
         }
     }
@@ -6035,3 +6082,4 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 }
+
