@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -76,6 +77,149 @@ public class OcrProcessor {
                 .connectTimeout(20, TimeUnit.SECONDS)
                 .readTimeout(60, TimeUnit.SECONDS)
                 .build();
+    }
+    
+    /**
+     * Process bitmap through multi-variant Vision-only OCR pipeline with enhanced metadata.
+     * Returns ParseResult with confidence scoring and gap detection.
+     * 
+     * @param bitmap Input bitmap
+     * @return ParseResult with answers, confidence scores, and missing question info
+     */
+    public ParseResult processImageEnhanced(Bitmap bitmap) {
+        if (bitmap == null) {
+            Log.e(TAG, "Bitmap is null");
+            return new ParseResult(new LinkedHashMap<>(), new HashMap<>(), new ArrayList<>());
+        }
+        
+        // Reuse existing multi-variant processing to get best OCR text
+        HashMap<Integer, String> answers = processImage(bitmap);
+        
+        // Convert to LinkedHashMap to maintain order
+        LinkedHashMap<Integer, String> orderedAnswers = new LinkedHashMap<>(answers);
+        
+        // Compute confidence and detect gaps using Parser's enhanced features
+        // We'll need to re-parse with enhanced method, but we can reuse the result if available
+        // For now, compute confidence for existing answers
+        Map<Integer, AnswerConfidence> confidenceMap = new HashMap<>();
+        java.util.Set<String> allowedSet = buildAllowedSet(answerKey);
+        
+        for (Map.Entry<Integer, String> entry : orderedAnswers.entrySet()) {
+            int q = entry.getKey();
+            String answer = entry.getValue();
+            AnswerConfidence conf = computeAnswerConfidence(answer, q, allowedSet);
+            confidenceMap.put(q, conf);
+        }
+        
+        // Detect missing questions
+        List<Integer> missing = detectMissingQuestions(orderedAnswers, answerKey);
+        
+        Log.d(TAG, "Enhanced result: " + orderedAnswers.size() + " answers, " + 
+              missing.size() + " missing, " + countLowConfidence(confidenceMap) + " low-confidence");
+        
+        return new ParseResult(orderedAnswers, confidenceMap, missing);
+    }
+    
+    /**
+     * Helper to build allowed answer set (delegate to Parser)
+     */
+    private java.util.Set<String> buildAllowedSet(Map<Integer, String> answerKey) {
+        // Build set of allowed answers from answer key
+        java.util.Set<String> allowed = new java.util.HashSet<>();
+        for (String ans : answerKey.values()) {
+            if (ans == null || ans.trim().isEmpty()) continue;
+            allowed.add(ans.trim());
+            allowed.add(ans.trim().toUpperCase(Locale.US));
+        }
+        return allowed;
+    }
+    
+    /**
+     * Helper to compute answer confidence (delegate to enhanced parsing logic)
+     */
+    private AnswerConfidence computeAnswerConfidence(String answer, int questionNumber, 
+                                                     java.util.Set<String> allowedSet) {
+        if (answer == null || answer.trim().isEmpty()) {
+            return new AnswerConfidence(questionNumber, answer, 0.0f, new String[]{"EMPTY"});
+        }
+        
+        float score = 1.0f;
+        List<String> flags = new ArrayList<>();
+        
+        String trimmed = answer.trim();
+        
+        // Check length bounds
+        if (trimmed.length() < 1) {
+            score -= 0.5f;
+            flags.add("TOO_SHORT");
+        } else if (trimmed.length() > 40) {
+            score -= 0.3f;
+            flags.add("TOO_LONG");
+        }
+        
+        // Check for unusual characters
+        if (trimmed.matches(".*[^\\p{L}\\p{N}''\\-\\s].*")) {
+            score -= 0.2f;
+            flags.add("UNUSUAL_CHARS");
+        }
+        
+        // Check allowed set match
+        boolean inAllowedSet = allowedSet != null && allowedSet.contains(trimmed);
+        if (!inAllowedSet) {
+            score -= 0.3f;
+            flags.add("NOT_IN_ALLOWED_SET");
+        }
+        
+        // Clamp score to [0, 1]
+        score = Math.max(0.0f, Math.min(1.0f, score));
+        
+        return new AnswerConfidence(questionNumber, trimmed, score, 
+                                   flags.toArray(new String[0]));
+    }
+    
+    /**
+     * Helper to detect missing questions
+     */
+    private List<Integer> detectMissingQuestions(Map<Integer, String> answers, 
+                                                  Map<Integer, String> answerKey) {
+        List<Integer> missing = new ArrayList<>();
+        
+        if (answers == null || answers.isEmpty() || answerKey == null || answerKey.isEmpty()) {
+            return missing;
+        }
+        
+        // Get the range of questions in answer key
+        int minKey = Integer.MAX_VALUE;
+        int maxKey = Integer.MIN_VALUE;
+        for (Integer q : answerKey.keySet()) {
+            if (q < minKey) minKey = q;
+            if (q > maxKey) maxKey = q;
+        }
+        
+        // Find missing questions in the range
+        for (int q = minKey; q <= maxKey; q++) {
+            if (answerKey.containsKey(q)) {
+                String answer = answers.get(q);
+                if (answer == null || answer.trim().isEmpty()) {
+                    missing.add(q);
+                }
+            }
+        }
+        
+        return missing;
+    }
+    
+    /**
+     * Count low-confidence answers
+     */
+    private int countLowConfidence(Map<Integer, AnswerConfidence> confidenceMap) {
+        int count = 0;
+        for (AnswerConfidence conf : confidenceMap.values()) {
+            if (conf.isLowConfidence()) {
+                count++;
+            }
+        }
+        return count;
     }
     
     /**
