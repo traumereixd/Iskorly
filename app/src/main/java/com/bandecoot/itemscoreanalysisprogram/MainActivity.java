@@ -219,10 +219,17 @@ public class MainActivity extends AppCompatActivity {
     // Multi-image import launcher (Feature #2)
     private ActivityResultLauncher<String> importPhotosLauncher;
     
+    // Gallery import queue for mandatory crop processing
+    private java.util.Queue<android.net.Uri> galleryImportQueue;
+    private HashMap<Integer, String> galleryMergedAnswers;
+    private int galleryTotalImages;
+    private int galleryProcessedImages;
+    
     // Simple crop launcher (Feature #2.1 enhanced)
     private ActivityResultLauncher<Intent> cropLauncher;
     private android.net.Uri lastCapturedImageUri;
     private java.io.File lastCapturedFile; // Store file reference for URI permissions
+    private boolean isProcessingGalleryQueue = false; // Flag to track gallery queue processing
 
     // CSV Export
     private ActivityResultLauncher<String> createCsvLauncher;
@@ -3231,8 +3238,8 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         
-        Log.d(TAG, "Importing " + uris.size() + " photo(s)");
-        Log.d(OCR_FLOW, "Multi-image import started with " + uris.size() + " images");
+        Log.d(TAG, "Importing " + uris.size() + " photo(s) - mandatory crop flow");
+        Log.d(OCR_FLOW, "Multi-image import started with " + uris.size() + " images (crop required)");
         
         // Ensure OcrProcessor is initialized
         if (ocrProcessor == null) {
@@ -3242,141 +3249,91 @@ public class MainActivity extends AppCompatActivity {
             Log.d(OCR_FLOW, "OcrProcessor initialized for multi-import");
         }
         
-        // Show progress dialog
-        android.app.ProgressDialog progressDialog = new android.app.ProgressDialog(this);
-        progressDialog.setTitle("Processing Images");
-        progressDialog.setMessage(String.format(Locale.US, "Processing %d image(s)…", uris.size()));
-        progressDialog.setCancelable(false);
-        progressDialog.show();
+        // Initialize gallery import queue
+        galleryImportQueue = new java.util.LinkedList<>(uris);
+        galleryMergedAnswers = new HashMap<>();
+        galleryTotalImages = uris.size();
+        galleryProcessedImages = 0;
+        isProcessingGalleryQueue = true;
         
-        // Process images on background thread
-        new Thread(() -> {
-            HashMap<Integer, String> mergedAnswers = new HashMap<>();
-            int processedCount = 0;
-            
-            for (android.net.Uri uri : uris) {
-                Bitmap bitmap = null;
-                try {
-                    // Feature #7: Load bitmap with downsampling to reduce memory usage
-                    java.io.InputStream inputStream = getContentResolver().openInputStream(uri);
-                    
-                    // First pass: get image dimensions
-                    BitmapFactory.Options opts = new BitmapFactory.Options();
-                    opts.inJustDecodeBounds = true;
-                    BitmapFactory.decodeStream(inputStream, null, opts);
-                    if (inputStream != null) inputStream.close();
-                    
-                    // Calculate appropriate sample size based on device/display
-                    // Target max dimension of 2048px for OCR processing
-                    int maxDim = Math.max(opts.outWidth, opts.outHeight);
-                    int sampleSize = 1;
-                    final int targetMaxDim = 2048;
-                    while (maxDim / sampleSize > targetMaxDim) {
-                        sampleSize *= 2;
-                    }
-                    
-                    // Second pass: decode with sample size
-                    inputStream = getContentResolver().openInputStream(uri);
-                    opts.inJustDecodeBounds = false;
-                    opts.inSampleSize = sampleSize;
-                    bitmap = BitmapFactory.decodeStream(inputStream, null, opts);
-                    if (inputStream != null) inputStream.close();
-                    
-                    if (bitmap == null) {
-                        Log.e(TAG, "Failed to decode image from URI: " + uri);
-                        Log.e(OCR_FLOW, "Failed to decode bitmap from URI");
-                        continue;
-                    }
-                    
-                    Log.d(TAG, "Loaded image " + (processedCount + 1) + ": " + bitmap.getWidth() + "x" + bitmap.getHeight() + " (sample: " + sampleSize + ")");
-                    
-                    // Use OcrProcessor to handle enhancement, OCR, and parsing
-                    Log.d(OCR_FLOW, "Processing image " + (processedCount + 1) + " with OcrProcessor");
-                    HashMap<Integer, String> parsed = ocrProcessor.processImage(bitmap);
-                    
-                    // Feature #7: Strictly recycle bitmap immediately after use
-                    if (bitmap != null && !bitmap.isRecycled()) {
-                        bitmap.recycle();
-                        bitmap = null;
-                    }
-                    
-                    // Merge: first non-blank value wins
-                    for (Map.Entry<Integer, String> entry : parsed.entrySet()) {
-                        if (!mergedAnswers.containsKey(entry.getKey()) || 
-                            mergedAnswers.get(entry.getKey()).isEmpty()) {
-                            mergedAnswers.put(entry.getKey(), entry.getValue());
-                        }
-                    }
-                    
-                    processedCount++;
-                    
-                    // Feature #7: Add GC hint at safe points (every 5 images)
-                    if (processedCount % 5 == 0) {
-                        System.gc();
-                        Log.d(TAG, "GC hint issued after " + processedCount + " images");
-                    }
-                    
-                } catch (OutOfMemoryError oom) {
-                    Log.e(TAG, "OOM while processing image: " + uri, oom);
-                    Log.e(OCR_FLOW, "OOM in multi-import for image " + (processedCount + 1), oom);
-                    
-                    // Emergency cleanup
-                    if (bitmap != null && !bitmap.isRecycled()) {
-                        bitmap.recycle();
-                        bitmap = null;
-                    }
-                    System.gc();
-                    
-                } catch (Exception e) {
-                    Log.e(TAG, "Error processing image: " + uri, e);
-                    Log.e(OCR_FLOW, "Error in multi-import for image " + (processedCount + 1), e);
-                    
-                    // Cleanup on error
-                    if (bitmap != null && !bitmap.isRecycled()) {
-                        bitmap.recycle();
-                        bitmap = null;
-                    }
-                }
+        // Show initial message
+        Toast.makeText(this, 
+            String.format(Locale.US, "Processing %d image(s) - crop each to continue", galleryTotalImages),
+            Toast.LENGTH_LONG).show();
+        
+        // Start processing the first image
+        processNextGalleryImage();
+    }
+    
+    /**
+     * Process the next image in the gallery import queue.
+     * Each image requires mandatory crop before OCR.
+     */
+    private void processNextGalleryImage() {
+        if (galleryImportQueue == null || galleryImportQueue.isEmpty()) {
+            // All images processed
+            finishGalleryImport();
+            return;
+        }
+        
+        android.net.Uri nextUri = galleryImportQueue.poll();
+        if (nextUri == null) {
+            finishGalleryImport();
+            return;
+        }
+        
+        Log.d(TAG, "Processing gallery image " + (galleryProcessedImages + 1) + " of " + galleryTotalImages);
+        
+        // Launch crop activity for this image
+        // The crop result handler will process the cropped image and continue the queue
+        startCropActivity(nextUri);
+    }
+    
+    /**
+     * Finish gallery import after all images have been processed.
+     */
+    private void finishGalleryImport() {
+        isProcessingGalleryQueue = false;
+        
+        if (galleryMergedAnswers == null || galleryMergedAnswers.isEmpty()) {
+            Log.d(OCR_FLOW, "Gallery import complete: no answers detected");
+            Toast.makeText(this, "Import complete - no answers detected", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        Log.d(OCR_FLOW, "Gallery import complete: " + galleryProcessedImages + " images, " + 
+              galleryMergedAnswers.size() + " answers");
+        
+        // Update UI with merged results
+        lastDetectedAnswers = galleryMergedAnswers;
+        populateParsedAnswersEditable();
+        
+        // Show status
+        int filled = 0;
+        int total = currentAnswerKey.size();
+        for (Integer q : currentAnswerKey.keySet()) {
+            if (galleryMergedAnswers.containsKey(q) && !galleryMergedAnswers.get(q).isEmpty()) {
+                filled++;
             }
-            
-            // Final cleanup
-            System.gc();
-            
-            final int finalProcessed = processedCount;
-            final HashMap<Integer, String> finalMerged = mergedAnswers;
-            Log.d(OCR_FLOW, "Multi-image import complete: " + finalProcessed + " images, " + finalMerged.size() + " answers");
-            
-            // Update UI on main thread
-            runOnUiThread(() -> {
-                progressDialog.dismiss();
-                
-                lastDetectedAnswers = finalMerged;
-                populateParsedAnswersEditable();
-                
-                // Show status
-                int filled = 0;
-                int total = currentAnswerKey.size();
-                for (Integer q : currentAnswerKey.keySet()) {
-                    if (finalMerged.containsKey(q) && !finalMerged.get(q).isEmpty()) {
-                        filled++;
-                    }
-                }
-                
-                String statusMsg = String.format(Locale.US, 
-                    "Processed %d image(s) • Filled %d / %d answers", 
-                    finalProcessed, filled, total);
-                parsedLabel.setText(statusMsg);
-                
-                sessionScoreTextView.setText(getString(R.string.live_score_placeholder));
-                
-                Toast.makeText(this, statusMsg, Toast.LENGTH_LONG).show();
-            });
-            
-        }).start();
+        }
+        
+        String statusMsg = String.format(Locale.US, 
+            "Processed %d image(s) • Filled %d / %d answers", 
+            galleryProcessedImages, filled, total);
+        parsedLabel.setText(statusMsg);
+        
+        sessionScoreTextView.setText(getString(R.string.live_score_placeholder));
+        
+        Toast.makeText(this, statusMsg, Toast.LENGTH_LONG).show();
+        
+        // Clean up
+        galleryImportQueue = null;
+        galleryMergedAnswers = null;
     }
     
     /**
      * Handle crop result from uCrop or SimpleCropActivity fallback.
+     * Handles both camera captures and gallery import queue.
      */
     private void onCropResult(androidx.activity.result.ActivityResult result) {
         cropInProgress = false;
@@ -3405,16 +3362,111 @@ public class MainActivity extends AppCompatActivity {
                             new HashMap<>(currentAnswerKey)
                     );
                 }
-                processCroppedImage(croppedUri);
+                
+                // Check if this is part of gallery import queue
+                if (isProcessingGalleryQueue) {
+                    processCroppedImageForGalleryQueue(croppedUri);
+                } else {
+                    // Regular camera capture flow
+                    processCroppedImage(croppedUri);
+                }
             } else {
                 Toast.makeText(this, "Crop failed (no URI)", Toast.LENGTH_SHORT).show();
+                handleCropFailure();
             }
         } else if (result.getResultCode() == RESULT_CANCELED) {
             Log.d(CROP_FLOW, "Crop canceled");
+            handleCropCancellation();
         } else {
             Toast.makeText(this, "Crop failed, using fallback", Toast.LENGTH_SHORT).show();
-            if (lastCapturedImageUri != null) processFallbackAutoCrop(lastCapturedImageUri);
+            handleCropFailure();
         }
+    }
+    
+    /**
+     * Handle crop cancellation - abort gallery queue if in progress.
+     */
+    private void handleCropCancellation() {
+        if (isProcessingGalleryQueue) {
+            // User canceled during gallery import
+            Toast.makeText(this, 
+                String.format(Locale.US, "Gallery import canceled (%d of %d processed)", 
+                    galleryProcessedImages, galleryTotalImages),
+                Toast.LENGTH_LONG).show();
+            
+            // Finish with whatever we have so far
+            finishGalleryImport();
+        }
+    }
+    
+    /**
+     * Handle crop failure - continue gallery queue or show error.
+     */
+    private void handleCropFailure() {
+        if (isProcessingGalleryQueue) {
+            // Skip this image and continue with next
+            Toast.makeText(this, "Skipping failed image", Toast.LENGTH_SHORT).show();
+            processNextGalleryImage();
+        } else if (lastCapturedImageUri != null) {
+            // Camera capture fallback
+            processFallbackAutoCrop(lastCapturedImageUri);
+        }
+    }
+    
+    /**
+     * Process cropped image from gallery import queue.
+     * Merges results and continues with next image.
+     */
+    private void processCroppedImageForGalleryQueue(android.net.Uri croppedUri) {
+        Log.d(OCR_FLOW, "Processing cropped gallery image " + (galleryProcessedImages + 1) + 
+              " of " + galleryTotalImages);
+        
+        new Thread(() -> {
+            try (java.io.InputStream is = getContentResolver().openInputStream(croppedUri)) {
+                Bitmap bitmap = BitmapFactory.decodeStream(is);
+                if (bitmap == null) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(this, "Failed to load cropped image - skipping", Toast.LENGTH_SHORT).show();
+                        processNextGalleryImage();
+                    });
+                    return;
+                }
+                
+                // Process with handwriting-optimized OCR
+                HashMap<Integer, String> parsed = processImageWithSettings(bitmap);
+                bitmap.recycle();
+                
+                // Merge results (first non-blank value wins)
+                if (parsed != null) {
+                    for (Map.Entry<Integer, String> entry : parsed.entrySet()) {
+                        if (!galleryMergedAnswers.containsKey(entry.getKey()) || 
+                            galleryMergedAnswers.get(entry.getKey()).isEmpty()) {
+                            galleryMergedAnswers.put(entry.getKey(), entry.getValue());
+                        }
+                    }
+                }
+                
+                galleryProcessedImages++;
+                
+                runOnUiThread(() -> {
+                    // Show progress
+                    Toast.makeText(this, 
+                        String.format(Locale.US, "Processed %d of %d images", 
+                            galleryProcessedImages, galleryTotalImages),
+                        Toast.LENGTH_SHORT).show();
+                    
+                    // Continue with next image
+                    processNextGalleryImage();
+                });
+                
+            } catch (Exception e) {
+                Log.e(OCR_FLOW, "Failed to process gallery image", e);
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "Failed to process image - skipping", Toast.LENGTH_SHORT).show();
+                    processNextGalleryImage();
+                });
+            }
+        }).start();
     }
     
     /**
