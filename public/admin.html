@@ -349,7 +349,9 @@
 
     <script>
         // Firebase Configuration
-        // Replace with your actual Firebase config
+        // IMPORTANT: Replace with your actual Firebase config
+        // Keep these credentials secure and do NOT commit real API keys to version control!
+        // Store real values in environment variables or secure configuration management
         const firebaseConfig = {
             apiKey: "AIzaSyBXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
             authDomain: "iskorly-app.firebaseapp.com",
@@ -501,9 +503,13 @@
                 // Update Firebase Realtime Database
                 await database.ref('app-status').set(statusData);
 
-                // Also update the public JSON file path
-                // Note: This requires Cloud Functions or manual update
-                // The app-status.json is served statically and needs separate update mechanism
+                // IMPORTANT: The changes above update the Realtime Database only.
+                // To update the static app-status.json file that the Android app reads,
+                // you must MANUALLY update public/app-status.json and redeploy Firebase Hosting:
+                //   1. Edit public/app-status.json with the new status
+                //   2. Run: firebase deploy --only hosting
+                // Alternative: Implement a Cloud Function to automatically sync Database → JSON
+                // See KILL_SWITCH_SETUP.md for Cloud Function implementation example
                 
                 currentStatus.message = statusData.message;
                 updateUI();

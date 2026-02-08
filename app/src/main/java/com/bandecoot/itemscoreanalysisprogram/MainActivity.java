@@ -779,8 +779,8 @@ public class MainActivity extends AppCompatActivity {
         Log.d(TAG, "Checking kill-switch endpoint: " + killSwitchUrl);
         
         // First, check cached state (for offline scenarios)
-        boolean cachedDisabled = appPreferences.getBoolean(PREF_KILL_SWITCH_DISABLED, false);
-        String cachedMessage = appPreferences.getString(PREF_KILL_SWITCH_MESSAGE, "");
+        final boolean cachedDisabled = appPreferences.getBoolean(PREF_KILL_SWITCH_DISABLED, false);
+        final String cachedMessage = appPreferences.getString(PREF_KILL_SWITCH_MESSAGE, "");
         
         // Try to fetch fresh status in background
         new Thread(() -> {
@@ -808,23 +808,23 @@ public class MainActivity extends AppCompatActivity {
                     
                     Log.d(TAG, "Kill-switch status: disabled=" + disabled + ", message=" + message);
                     
-                    // If app is disabled, show blocking dialog
-                    if (disabled) {
+                    // If app is disabled and wasn't previously shown, show blocking dialog
+                    if (disabled && !cachedDisabled) {
                         runOnUiThread(() -> showKillSwitchDialog(message));
+                    } else if (disabled) {
+                        // App is still disabled, confirm the cached state is shown
+                        Log.d(TAG, "App remains disabled, dialog already shown from cache");
                     }
                 } else {
                     Log.w(TAG, "Kill-switch endpoint returned error: " + response.code());
-                    // Use cached state on error
+                    // Use cached state on error only if we haven't shown it yet
                     if (cachedDisabled) {
-                        runOnUiThread(() -> showKillSwitchDialog(cachedMessage));
+                        Log.d(TAG, "Using cached disabled state due to network error");
                     }
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Error checking kill-switch", e);
-                // Use cached state on error
-                if (cachedDisabled) {
-                    runOnUiThread(() -> showKillSwitchDialog(cachedMessage));
-                }
+                // Use cached state on error - already handled below
             }
         }).start();
         
