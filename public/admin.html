@@ -509,8 +509,9 @@
                 const docRef = doc(firestore, 'app_config', 'status');
                 await setDoc(docRef, statusData);
 
-                // The Cloud Function at functions/index.js automatically reads from this Firestore
-                // document and serves it to the Android app via the /appStatus endpoint.
+                // Automatic sync happens via Cloud Functions:
+                // 1. The appStatus function serves this Firestore data to the Android app
+                // 2. The syncKillSwitchToStorage trigger automatically syncs to Cloud Storage
                 // No manual JSON file update or redeployment is needed.
                 
                 currentStatus.message = statusData.message;
