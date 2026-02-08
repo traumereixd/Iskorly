@@ -1603,7 +1603,7 @@
                         <!-- OCR Engine Settings Button -->
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/button_ocr_engine_settings"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            style="@style/Widget.Material3.Button"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="16dp"

@@ -317,7 +317,7 @@ That\'s it! Tap OK to start using Iskorly.\n</string>
     <string name="correct_answer_prefix">Correct: %s</string>
     
     <!-- OCR Engine Settings -->
-    <string name="menu_ocr_settings">OCR Settings</string>
+    <string name="menu_ocr_settings">OCR Engines</string>
     <string name="ocr_settings_title">OCR Engine Settings</string>
     <string name="ocr_engine_label">OCR Engine</string>
     <string name="ocr_engine_azure">Azure Read API</string>

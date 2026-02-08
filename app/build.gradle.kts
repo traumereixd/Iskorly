@@ -29,7 +29,10 @@ android {
             else -> ""
         }
         buildConfigField("String", "GCLOUD_VISION_API_KEY", "\"$visionKey\"")
-        
+
+
+
+
         // Azure Vision API key and endpoint
         val azureKeyFromProp = (project.findProperty("AZURE_VISION_KEY") as? String)?.trim()
         val azureKeyFromLocal = props.getProperty("AZURE_VISION_KEY")?.trim()
@@ -62,7 +65,7 @@ android {
         // OCR multi-variant configuration
         buildConfigField("int", "MAX_VARIANTS", "8")
         buildConfigField("float", "EARLY_EXIT_FILLED_THRESHOLD", "0.70f")
-        
+
         // Optional AI re-parser endpoint for low-confidence results
         val reparseEndpoint = props.getProperty("REPARSE_ENDPOINT")?.trim() ?: ""
         buildConfigField("String", "REPARSE_ENDPOINT", "\"$reparseEndpoint\"")
@@ -92,6 +95,8 @@ android {
     }
     kotlinOptions { jvmTarget = "11" }
 }
+
+
 
 dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
