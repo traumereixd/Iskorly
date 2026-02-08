@@ -682,6 +682,8 @@ public class OcrProcessor {
      * Close and cleanup resources.
      */
     public void close() {
-        // Nothing to close for now
+        if (ocrEngine != null) {
+            ocrEngine.close();
+        }
     }
 }

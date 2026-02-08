@@ -31,7 +31,7 @@ public class AzureReadOcrEngine implements OcrEngine {
     private static final long POLL_INTERVAL_MS = 1000; // 1 second
     
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
-    private final Executor executor = Executors.newSingleThreadExecutor();
+    private final java.util.concurrent.ExecutorService executor = Executors.newSingleThreadExecutor();
     private final OkHttpClient client = new OkHttpClient();
 
     @Override 
@@ -213,5 +213,7 @@ public class AzureReadOcrEngine implements OcrEngine {
     }
 
     @Override 
-    public void close() {}
+    public void close() {
+        executor.shutdown();
+    }
 }
