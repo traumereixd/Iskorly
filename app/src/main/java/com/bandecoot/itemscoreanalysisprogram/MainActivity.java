@@ -115,7 +115,7 @@ public class MainActivity extends AppCompatActivity {
     private Button confirmParsedButton, importPhotosButton, masterlistButton, masterlistBackButton, exportCsvButton;
     private Button manageAutocompleteButton, exportMasterlistCsvButton, masterlistResetAllButton;
     private Button masterlistBySectionButton, masterlistAllButton, btnSlotSaveSet;
-    private Button buttonSettings, buttonSettingsClose;
+    private Button buttonSettings, buttonSettingsClose, buttonOcrEngineSettings;
     private com.google.android.material.materialswitch.MaterialSwitch switchOcrTwoColumn, switchOcrHighContrast;
     private com.google.android.material.materialswitch.MaterialSwitch switchOutlinedText, switchLargeText;
     private TextView currentKeyTextView, sessionScoreTextView, parsedLabel, masterlistInfoTextView;
@@ -159,6 +159,9 @@ public class MainActivity extends AppCompatActivity {
     private static final String PREF_RECENT_EXAMS = "recent_exams";
     private static final String PREF_OCR_TWO_COLUMN = "ocr_two_column_enabled";
     private static final String PREF_OCR_HIGH_CONTRAST = "ocr_high_contrast_enabled";
+    private static final String PREF_OCR_ENGINE = "ocr_engine_selection"; // "azure" or "google"
+    private static final String OCR_ENGINE_AZURE = "azure";
+    private static final String OCR_ENGINE_GOOGLE = "google";
     private static final String PREF_OUTLINED_TEXT = "outlined_text_enabled";
     private static final String PREF_LARGE_TEXT = "large_text_enabled";
     private static final String PREF_RANGE_HINTS = "range_hints";
@@ -966,6 +969,7 @@ public class MainActivity extends AppCompatActivity {
         settingsLayout = findViewById(R.id.settings_layout);
         buttonSettings = findViewById(R.id.button_settings);
         buttonSettingsClose = findViewById(R.id.button_settings_close);
+        buttonOcrEngineSettings = findViewById(R.id.button_ocr_engine_settings);
         switchOcrTwoColumn = findViewById(R.id.switch_ocr_two_column);
         switchOcrHighContrast = findViewById(R.id.switch_ocr_high_contrast);
         switchLargeText = findViewById(R.id.switch_large_text);
@@ -982,6 +986,12 @@ public class MainActivity extends AppCompatActivity {
                 v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
                 showSettings();
             });
+            // Long-press to open OCR engine settings
+            buttonSettings.setOnLongClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+                showOcrEngineSettings();
+                return true;
+            });
         }
         
         // Settings close button listener
@@ -989,6 +999,14 @@ public class MainActivity extends AppCompatActivity {
             buttonSettingsClose.setOnClickListener(v -> {
                 v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
                 hideSettings();
+            });
+        }
+        
+        // OCR Engine Settings button listener
+        if (buttonOcrEngineSettings != null) {
+            buttonOcrEngineSettings.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                showOcrEngineSettings();
             });
         }
         
@@ -1182,10 +1200,10 @@ public class MainActivity extends AppCompatActivity {
             toggleView("main");
         });
 
-        // Disable scan if Vision key missing
-        if (BuildConfig.GCLOUD_VISION_API_KEY == null || BuildConfig.GCLOUD_VISION_API_KEY.trim().isEmpty()) {
+        // Disable scan if selected OCR engine's key is missing
+        if (!isSelectedEngineKeyAvailable()) {
             startScanButton.setEnabled(false);
-            Toast.makeText(this, "Vision API key missing (add GCLOUD_VISION_API_KEY to local.properties).", Toast.LENGTH_LONG).show();
+            showOcrKeyMissingError();
         }
 
         // Confirm parsed edits -> compute score
@@ -1330,12 +1348,8 @@ public class MainActivity extends AppCompatActivity {
 
         Log.d(CAMERA_FLOW, "Starting scan session, button disabled until camera ready");
         
-        // Initialize OcrProcessor with current answer key
-        // OCR.Space key is not used in the active flow (Vision-only pipeline)
-        String visionKey = BuildConfig.GCLOUD_VISION_API_KEY;
-        String ocrSpaceKey = ""; // Empty key - OCR.Space fallback not used in active flow
-        ocrProcessor = new OcrProcessor(visionKey, ocrSpaceKey, new HashMap<>(currentAnswerKey));
-        Log.d(OCR_FLOW, "OcrProcessor initialized with " + currentAnswerKey.size() + " answer key entries (Vision-only mode)");
+        // Initialize OcrProcessor with selected engine and current answer key
+        initializeOcrProcessorWithSelectedEngine();
         
         startBackgroundThread();
         // ... rest unchanged
@@ -3259,10 +3273,7 @@ public class MainActivity extends AppCompatActivity {
         
         // Ensure OcrProcessor is initialized
         if (ocrProcessor == null) {
-            String visionKey = BuildConfig.GCLOUD_VISION_API_KEY;
-            String ocrSpaceKey = BuildConfig.OCR_SPACE_API_KEY;
-            ocrProcessor = new OcrProcessor(visionKey, ocrSpaceKey, new HashMap<>(currentAnswerKey));
-            Log.d(OCR_FLOW, "OcrProcessor initialized for multi-import");
+            initializeOcrProcessorWithSelectedEngine();
         }
         
         // Initialize gallery import queue
@@ -3361,11 +3372,7 @@ public class MainActivity extends AppCompatActivity {
                 Log.d(HIGHLIGHT_FLOW, "Highlight succeeded, processing cropped image: " + selectedUri);
                 if (ocrProcessor == null) {
                     Log.w(OCR_FLOW, "ocrProcessor null on crop result - reinitializing");
-                    ocrProcessor = new OcrProcessor(
-                            BuildConfig.GCLOUD_VISION_API_KEY,
-                            BuildConfig.OCR_SPACE_API_KEY,
-                            new HashMap<>(currentAnswerKey)
-                    );
+                    initializeOcrProcessorWithSelectedEngine();
                 }
                 
                 // Check if this is part of gallery import queue
@@ -3490,11 +3497,7 @@ public class MainActivity extends AppCompatActivity {
         Log.d(OCR_FLOW, "Processing cropped image: " + croppedUri);
         if (ocrProcessor == null) {
             Log.w(OCR_FLOW, "ocrProcessor was null; reinitializing");
-            ocrProcessor = new OcrProcessor(
-                    BuildConfig.GCLOUD_VISION_API_KEY,
-                    BuildConfig.OCR_SPACE_API_KEY,
-                    new HashMap<>(currentAnswerKey)
-            );
+            initializeOcrProcessorWithSelectedEngine();
         }
         new Thread(() -> {
             try (java.io.InputStream is = getContentResolver().openInputStream(croppedUri)) {
@@ -5820,6 +5823,128 @@ public class MainActivity extends AppCompatActivity {
         if (settingsLayout != null) {
             settingsLayout.setVisibility(View.GONE);
         }
+    }
+    
+    /**
+     * Create OCR engine based on selected preference.
+     * Defaults to Azure Read API.
+     */
+    private com.bandecoot.itemscoreanalysisprogram.ocr.OcrEngine createSelectedOcrEngine() {
+        String engine = getSelectedOcrEngine();
+        
+        if (OCR_ENGINE_GOOGLE.equals(engine)) {
+            return new com.bandecoot.itemscoreanalysisprogram.ocr.CloudVisionOcrEngine();
+        } else {
+            // Default to Azure (OCR_ENGINE_AZURE)
+            return new com.bandecoot.itemscoreanalysisprogram.ocr.AzureReadOcrEngine();
+        }
+    }
+    
+    /**
+     * Initialize OcrProcessor with selected engine and current answer key.
+     */
+    private void initializeOcrProcessorWithSelectedEngine() {
+        if (ocrProcessor != null) {
+            ocrProcessor.close();
+        }
+        
+        com.bandecoot.itemscoreanalysisprogram.ocr.OcrEngine ocrEngine = createSelectedOcrEngine();
+        ocrProcessor = new OcrProcessor(this, ocrEngine, new HashMap<>(currentAnswerKey));
+        
+        Log.d(OCR_FLOW, "OcrProcessor initialized with " + ocrEngine.name() + " and " + 
+                currentAnswerKey.size() + " answer key entries");
+    }
+    
+    /**
+     * Show OCR engine selection dialog.
+     */
+    private void showOcrEngineSettings() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.ocr_settings_title);
+        
+        // Get current engine selection (default to Azure as per new requirement)
+        String currentEngine = appPreferences.getString(PREF_OCR_ENGINE, OCR_ENGINE_AZURE);
+        
+        // Radio button options
+        final String[] engines = {OCR_ENGINE_AZURE, OCR_ENGINE_GOOGLE};
+        final String[] engineNames = {
+            getString(R.string.ocr_engine_azure),
+            getString(R.string.ocr_engine_google)
+        };
+        
+        int checkedItem = currentEngine.equals(OCR_ENGINE_AZURE) ? 0 : 1;
+        
+        builder.setSingleChoiceItems(engineNames, checkedItem, (dialog, which) -> {
+            String selectedEngine = engines[which];
+            
+            // Save selection
+            appPreferences.edit().putString(PREF_OCR_ENGINE, selectedEngine).apply();
+            
+            Log.d(TAG, "OCR engine selected: " + selectedEngine);
+            
+            // Re-initialize OCR processor with new engine
+            reinitializeOcrProcessor();
+            
+            Toast.makeText(this, R.string.ocr_settings_saved, Toast.LENGTH_SHORT).show();
+            dialog.dismiss();
+        });
+        
+        builder.setNegativeButton(R.string.btn_cancel, null);
+        builder.create().show();
+    }
+    
+    /**
+     * Get the selected OCR engine from preferences.
+     * Defaults to Azure as per requirement.
+     */
+    private String getSelectedOcrEngine() {
+        return appPreferences.getString(PREF_OCR_ENGINE, OCR_ENGINE_AZURE);
+    }
+    
+    /**
+     * Check if the selected OCR engine's API key is available.
+     * Returns true if key is available, false otherwise.
+     */
+    private boolean isSelectedEngineKeyAvailable() {
+        String engine = getSelectedOcrEngine();
+        
+        if (OCR_ENGINE_AZURE.equals(engine)) {
+            String azureKey = BuildConfig.AZURE_VISION_KEY == null ? "" : BuildConfig.AZURE_VISION_KEY.trim();
+            String azureEndpoint = BuildConfig.AZURE_VISION_ENDPOINT == null ? "" : BuildConfig.AZURE_VISION_ENDPOINT.trim();
+            return !azureKey.isEmpty() && !azureEndpoint.isEmpty();
+        } else {
+            String googleKey = BuildConfig.GCLOUD_VISION_API_KEY == null ? "" : BuildConfig.GCLOUD_VISION_API_KEY.trim();
+            return !googleKey.isEmpty();
+        }
+    }
+    
+    /**
+     * Show error message for missing OCR API key.
+     */
+    private void showOcrKeyMissingError() {
+        String engine = getSelectedOcrEngine();
+        String message;
+        
+        if (OCR_ENGINE_AZURE.equals(engine)) {
+            message = getString(R.string.ocr_key_missing_azure);
+        } else {
+            message = getString(R.string.ocr_key_missing_google);
+        }
+        
+        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+    }
+    
+    /**
+     * Re-initialize OCR processor when engine selection changes.
+     */
+    private void reinitializeOcrProcessor() {
+        if (ocrProcessor != null) {
+            ocrProcessor.close();
+            ocrProcessor = null;
+        }
+        
+        // Will be re-initialized when needed with the new engine
+        Log.d(OCR_FLOW, "OCR processor will be re-initialized with selected engine");
     }
     
     // ---------------------------

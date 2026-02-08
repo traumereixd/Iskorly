@@ -1600,6 +1600,16 @@
                                 android:textColor="@color/on_primary" />
                         </LinearLayout>
 
+                        <!-- OCR Engine Settings Button -->
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/button_ocr_engine_settings"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp"
+                            android:text="@string/menu_ocr_settings"
+                            android:textColor="@color/brand_brown" />
+
                         <!-- Close Button -->
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/button_settings_close"
