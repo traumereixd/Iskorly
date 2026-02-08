@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iskorly Admin - App Control</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .login-section, .control-section {
+            display: none;
+        }
+
+        .login-section.active, .control-section.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(245, 87, 108, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(79, 172, 254, 0.4);
+        }
+
+        .status-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .status-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+        }
+
+        .status-badge {
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .status-badge.enabled {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-badge.disabled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .message-preview {
+            margin-top: 12px;
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #666;
+            border-left: 3px solid #667eea;
+        }
+
+        .message-preview strong {
+            display: block;
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 6px;
+        }
+
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 100px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-left: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .toggle-container {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .toggle-container .btn {
+            flex: 1;
+        }
+
+        .logout-btn {
+            margin-top: 16px;
+            background: transparent;
+            color: #666;
+            border: 2px solid #e0e0e0;
+        }
+
+        .logout-btn:hover {
+            background: #f8f9fa;
+            border-color: #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎓 Iskorly Admin</h1>
+            <p>App Control Panel</p>
+        </div>
+
+        <div class="content">
+            <!-- Login Section -->
+            <div class="login-section active" id="loginSection">
+                <div class="alert alert-danger" id="loginError"></div>
+                
+                <div class="form-group">
+                    <label for="password">Admin Password</label>
+                    <input type="password" id="password" placeholder="Enter admin password" autocomplete="current-password">
+                </div>
+
+                <button class="btn btn-primary" id="loginBtn">
+                    Sign In
+                </button>
+            </div>
+
+            <!-- Control Section -->
+            <div class="control-section" id="controlSection">
+                <div class="alert alert-success" id="saveSuccess"></div>
+                <div class="alert alert-danger" id="saveError"></div>
+
+                <div class="status-card">
+                    <div class="status-indicator">
+                        <span class="status-label">Current Status</span>
+                        <span class="status-badge enabled" id="statusBadge">Enabled</span>
+                    </div>
+                    <div class="message-preview">
+                        <strong>User Message:</strong>
+                        <div id="messagePreview"></div>
+                    </div>
+                </div>
+
+                <div class="toggle-container">
+                    <button class="btn btn-success" id="enableBtn">
+                        ✓ Enable App
+                    </button>
+                    <button class="btn btn-danger" id="disableBtn">
+                        ✕ Disable App
+                    </button>
+                </div>
+
+                <div class="form-group">
+                    <label for="messageInput">User Message</label>
+                    <textarea id="messageInput" placeholder="Enter message shown to users..."></textarea>
+                </div>
+
+                <button class="btn btn-primary" id="saveBtn">
+                    Save Changes
+                </button>
+
+                <button class="btn logout-btn" id="logoutBtn">
+                    Sign Out
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
+
+    <script>
+        // Firebase Configuration
+        // Replace with your actual Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyBXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            authDomain: "iskorly-app.firebaseapp.com",
+            databaseURL: "https://iskorly-app-default-rtdb.firebaseio.com",
+            projectId: "iskorly-app",
+            storageBucket: "iskorly-app.appspot.com",
+            messagingSenderId: "123456789012",
+            appId: "1:123456789012:web:abcdef1234567890abcdef",
+            measurementId: "G-XXXXXXXXXX"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const database = firebase.database();
+        const analytics = firebase.analytics();
+
+        // Analytics helper
+        function logEvent(eventName, params = {}) {
+            analytics.logEvent(eventName, params);
+            console.log('Analytics Event:', eventName, params);
+        }
+
+        // DOM Elements
+        const loginSection = document.getElementById('loginSection');
+        const controlSection = document.getElementById('controlSection');
+        const passwordInput = document.getElementById('password');
+        const loginBtn = document.getElementById('loginBtn');
+        const loginError = document.getElementById('loginError');
+        const saveSuccess = document.getElementById('saveSuccess');
+        const saveError = document.getElementById('saveError');
+        const statusBadge = document.getElementById('statusBadge');
+        const messagePreview = document.getElementById('messagePreview');
+        const enableBtn = document.getElementById('enableBtn');
+        const disableBtn = document.getElementById('disableBtn');
+        const messageInput = document.getElementById('messageInput');
+        const saveBtn = document.getElementById('saveBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        let currentStatus = {
+            disabled: false,
+            message: ''
+        };
+
+        // Login Handler
+        loginBtn.addEventListener('click', async () => {
+            const password = passwordInput.value.trim();
+            
+            if (!password) {
+                showError(loginError, 'Please enter a password');
+                logEvent('login_attempt', { success: false, reason: 'empty_password' });
+                return;
+            }
+
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = 'Signing In<span class="loading"></span>';
+
+            try {
+                // Use a fixed email for admin login
+                const email = 'admin@iskorly.app';
+                await auth.signInWithEmailAndPassword(email, password);
+                
+                logEvent('login_success', { method: 'password' });
+                loginSection.classList.remove('active');
+                controlSection.classList.add('active');
+                loadCurrentStatus();
+            } catch (error) {
+                console.error('Login error:', error);
+                let errorMsg = 'Invalid password. Please try again.';
+                
+                if (error.code === 'auth/too-many-requests') {
+                    errorMsg = 'Too many failed attempts. Please try again later.';
+                }
+                
+                showError(loginError, errorMsg);
+                logEvent('login_failure', { error: error.code });
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = 'Sign In';
+            }
+        });
+
+        // Load Current Status
+        async function loadCurrentStatus() {
+            try {
+                const snapshot = await database.ref('app-status').once('value');
+                const data = snapshot.val();
+                
+                if (data) {
+                    currentStatus = {
+                        disabled: data.disabled || false,
+                        message: data.message || ''
+                    };
+                }
+                
+                updateUI();
+            } catch (error) {
+                console.error('Error loading status:', error);
+                showError(saveError, 'Failed to load current status');
+            }
+        }
+
+        // Update UI
+        function updateUI() {
+            const isDisabled = currentStatus.disabled;
+            
+            statusBadge.textContent = isDisabled ? 'Disabled' : 'Enabled';
+            statusBadge.className = 'status-badge ' + (isDisabled ? 'disabled' : 'enabled');
+            
+            messageInput.value = currentStatus.message;
+            messagePreview.textContent = currentStatus.message || '(No message set)';
+            
+            enableBtn.disabled = !isDisabled;
+            disableBtn.disabled = isDisabled;
+        }
+
+        // Enable App
+        enableBtn.addEventListener('click', () => {
+            currentStatus.disabled = false;
+            updateUI();
+            logEvent('toggle_change', { action: 'enable' });
+        });
+
+        // Disable App
+        disableBtn.addEventListener('click', () => {
+            currentStatus.disabled = true;
+            updateUI();
+            logEvent('toggle_change', { action: 'disable' });
+        });
+
+        // Update message preview on input
+        messageInput.addEventListener('input', () => {
+            messagePreview.textContent = messageInput.value || '(No message set)';
+        });
+
+        // Save Changes
+        saveBtn.addEventListener('click', async () => {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = 'Saving<span class="loading"></span>';
+
+            hideAlerts();
+
+            try {
+                const statusData = {
+                    disabled: currentStatus.disabled,
+                    message: messageInput.value.trim()
+                };
+
+                // Update Firebase Realtime Database
+                await database.ref('app-status').set(statusData);
+
+                // Also update the public JSON file path
+                // Note: This requires Cloud Functions or manual update
+                // The app-status.json is served statically and needs separate update mechanism
+                
+                currentStatus.message = statusData.message;
+                updateUI();
+                
+                showSuccess(saveSuccess, 'Changes saved successfully!');
+                logEvent('save_status', { 
+                    disabled: statusData.disabled,
+                    has_message: !!statusData.message 
+                });
+            } catch (error) {
+                console.error('Save error:', error);
+                showError(saveError, 'Failed to save changes. Please try again.');
+                logEvent('save_failure', { error: error.message });
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = 'Save Changes';
+            }
+        });
+
+        // Logout
+        logoutBtn.addEventListener('click', async () => {
+            await auth.signOut();
+            controlSection.classList.remove('active');
+            loginSection.classList.add('active');
+            passwordInput.value = '';
+            hideAlerts();
+            logEvent('logout');
+        });
+
+        // Password input enter key
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                loginBtn.click();
+            }
+        });
+
+        // Helper Functions
+        function showError(element, message) {
+            element.textContent = message;
+            element.classList.add('show');
+            setTimeout(() => element.classList.remove('show'), 5000);
+        }
+
+        function showSuccess(element, message) {
+            element.textContent = message;
+            element.classList.add('show');
+            setTimeout(() => element.classList.remove('show'), 5000);
+        }
+
+        function hideAlerts() {
+            loginError.classList.remove('show');
+            saveSuccess.classList.remove('show');
+            saveError.classList.remove('show');
+        }
+
+        // Check auth state on load
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                loginSection.classList.remove('active');
+                controlSection.classList.add('active');
+                loadCurrentStatus();
+            }
+        });
+
+        // Log page view
+        logEvent('page_view', { page: 'admin' });
+    </script>
+</body>
+</html>
