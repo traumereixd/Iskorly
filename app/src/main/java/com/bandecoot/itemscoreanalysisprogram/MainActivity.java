@@ -808,12 +808,10 @@ public class MainActivity extends AppCompatActivity {
                     
                     Log.d(TAG, "Kill-switch status: disabled=" + disabled + ", message=" + message);
                     
-                    // If app is disabled and wasn't previously shown, show blocking dialog
-                    if (disabled && !cachedDisabled) {
+                    // If app is disabled, show blocking dialog
+                    // Always show when disabled=true to prevent bypass by app restart
+                    if (disabled) {
                         runOnUiThread(() -> showKillSwitchDialog(message));
-                    } else if (disabled) {
-                        // App is still disabled, confirm the cached state is shown
-                        Log.d(TAG, "App remains disabled, dialog already shown from cache");
                     }
                 } else {
                     Log.w(TAG, "Kill-switch endpoint returned error: " + response.code());
@@ -848,8 +846,7 @@ public class MainActivity extends AppCompatActivity {
                 .setMessage(message)
                 .setCancelable(false)
                 .setPositiveButton("Exit", (dialog, which) -> {
-                    finish();
-                    System.exit(0);
+                    finishAffinity();  // Gracefully close all activities in the task
                 });
         
         AlertDialog dialog = builder.create();
