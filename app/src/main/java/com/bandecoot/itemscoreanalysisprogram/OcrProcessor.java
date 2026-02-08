@@ -119,7 +119,7 @@ public class OcrProcessor {
         }
         
         // Fill remaining slots with other variants (up to MAX_VARIANTS)
-        addVariant(variants, "handwriting", ImagePreprocessor.preprocessForHandwriting(bitmap));
+        // Note: addVariant() checks for duplicates, so these will only be added if not already present
         addVariant(variants, "standard", ImageUtil.enhanceForOcr(bitmap));
         addVariant(variants, "grayscale", ImagePreprocessor.toGrayscale(bitmap));
         addVariant(variants, "sharpened", ImagePreprocessor.preprocessSharpened(bitmap));
@@ -127,6 +127,7 @@ public class OcrProcessor {
         addVariant(variants, "adaptive_histogram", ImagePreprocessor.preprocessAdaptiveHistogram(bitmap));
         addVariant(variants, "light", ImagePreprocessor.preprocessLight(bitmap));
         addVariant(variants, "classroom", ImagePreprocessor.preprocessForClassroom(bitmap));
+        addVariant(variants, "handwriting", ImagePreprocessor.preprocessForHandwriting(bitmap));
         addVariant(variants, "original", bitmap.copy(bitmap.getConfig(), false));
         
         if (variants.isEmpty()) {

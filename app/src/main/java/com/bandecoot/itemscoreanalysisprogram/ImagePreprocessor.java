@@ -16,6 +16,10 @@ import android.util.Log;
 public final class ImagePreprocessor {
     private static final String TAG = "ImagePreprocessor";
     
+    // Deskew detection constants
+    private static final int DESKEW_SAMPLE_POINTS = 200; // Target number of sample points for edge detection
+    private static final int MIN_EDGE_GRADIENT_THRESHOLD = 30; // Minimum gradient magnitude to consider as edge
+    
     private ImagePreprocessor() {}
     
     /**
@@ -727,7 +731,12 @@ public final class ImagePreprocessor {
         int height = gray.getHeight();
         
         // Sample edges to find dominant angle
-        int sampleStep = Math.max(2, width / 200); // Sample ~200 points wide
+        // Use adaptive sampling based on image dimensions to maintain consistent density
+        int imageArea = width * height;
+        int targetSamples = DESKEW_SAMPLE_POINTS * DESKEW_SAMPLE_POINTS; // ~40,000 samples
+        int totalPixels = width * height;
+        int sampleStep = (int) Math.ceil(Math.sqrt((double) totalPixels / targetSamples));
+        sampleStep = Math.max(2, Math.min(sampleStep, Math.min(width, height) / 20)); // Clamp to reasonable range
         
         // Count edge pixels at different angles
         int[] angleVotes = new int[181]; // -90 to +90 degrees
@@ -747,7 +756,7 @@ public final class ImagePreprocessor {
                 int dy = bBright - cBright;
                 
                 // Only consider significant edges
-                if (Math.abs(dx) + Math.abs(dy) > 30) {
+                if (Math.abs(dx) + Math.abs(dy) > MIN_EDGE_GRADIENT_THRESHOLD) {
                     // Calculate angle
                     double angle = Math.toDegrees(Math.atan2(dy, dx));
                     int angleIndex = (int) (angle + 90); // Map -90..90 to 0..180
