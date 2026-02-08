@@ -1,4 +1,4 @@
 {
-  "disabled": true,
-  "message": "App temporarily disabled."
+  "disabled": false,
+  "message": "App enabled"
 }
