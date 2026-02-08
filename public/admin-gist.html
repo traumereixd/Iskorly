@@ -322,7 +322,7 @@
                     <input type="password" id="password" placeholder="Enter admin password" autocomplete="current-password">
                 </div>
 
-                <button class="btn btn-primary" id="loginBtn">
+                <button class="btn btn-primary" id="loginBtn" aria-live="polite">
                     Sign In
                 </button>
 
@@ -363,7 +363,7 @@
                     <textarea id="messageInput" placeholder="Enter message shown to users..."></textarea>
                 </div>
 
-                <button class="btn btn-primary" id="saveBtn">
+                <button class="btn btn-primary" id="saveBtn" aria-live="polite">
                     Save Changes to Gist
                 </button>
 
@@ -413,6 +413,11 @@
         // APPLICATION CODE
         // ========================================
 
+        // Helper function to generate raw Gist URL
+        function getRawGistUrl() {
+            return `https://gist.githubusercontent.com/raw/${CONFIG.GIST_ID}/${CONFIG.GIST_FILENAME}`;
+        }
+
         // DOM Elements
         const loginSection = document.getElementById('loginSection');
         const controlSection = document.getElementById('controlSection');
@@ -440,8 +445,7 @@
 
         // Update Gist URL display
         if (CONFIG.GIST_ID !== 'CHANGE_ME_GIST_ID') {
-            const rawGistUrl = `https://gist.githubusercontent.com/raw/${CONFIG.GIST_ID}/${CONFIG.GIST_FILENAME}`;
-            gistUrlElement.textContent = `Public Gist URL: ${rawGistUrl}`;
+            gistUrlElement.textContent = `Public Gist URL: ${getRawGistUrl()}`;
         }
 
         // Login Handler
@@ -459,6 +463,7 @@
             }
 
             loginBtn.disabled = true;
+            loginBtn.setAttribute('aria-busy', 'true');
             loginBtn.innerHTML = 'Signing In<span class="loading"></span>';
 
             try {
@@ -477,6 +482,7 @@
                 showError(loginError, 'Login error: ' + error.message);
             } finally {
                 loginBtn.disabled = false;
+                loginBtn.removeAttribute('aria-busy');
                 loginBtn.innerHTML = 'Sign In';
             }
         });
@@ -555,6 +561,7 @@
             }
 
             saveBtn.disabled = true;
+            saveBtn.setAttribute('aria-busy', 'true');
             saveBtn.innerHTML = 'Saving to Gist<span class="loading"></span>';
 
             hideAlerts();
@@ -598,6 +605,7 @@
                 showError(saveError, 'Failed to save changes: ' + error.message);
             } finally {
                 saveBtn.disabled = false;
+                saveBtn.removeAttribute('aria-busy');
                 saveBtn.innerHTML = 'Save Changes to Gist';
             }
         });
