@@ -634,4 +634,174 @@ public final class ImagePreprocessor {
         Log.d(TAG, "Applied histogram equalization");
         return result;
     }
+    
+    /**
+     * Preprocessing optimized for handwriting OCR.
+     * Applies aggressive binarization, contrast enhancement, and sharpening
+     * to improve handwritten text recognition accuracy.
+     * 
+     * Pipeline:
+     * 1. Grayscale conversion
+     * 2. Adaptive binarization (Otsu)
+     * 3. Sharpening to enhance letter edges
+     * 4. High contrast boost
+     * 
+     * @param src Source bitmap
+     * @return Preprocessed bitmap optimized for handwriting OCR
+     */
+    public static Bitmap preprocessForHandwriting(Bitmap src) {
+        if (src == null) return null;
+        
+        Log.d(TAG, "Starting handwriting preprocessing pipeline");
+        
+        // Step 1: Grayscale
+        Bitmap gray = toGrayscale(src);
+        if (gray == null) return null;
+        
+        // Step 2: Otsu binarization for clean text separation
+        Bitmap binarized = otsuBinarization(gray);
+        gray.recycle();
+        if (binarized == null) return null;
+        
+        // Step 3: Sharpen to enhance letter edges
+        Bitmap sharpened = applySharpen(binarized);
+        if (sharpened == null) {
+            // If sharpening fails, continue with binarized
+            sharpened = binarized;
+        } else {
+            binarized.recycle();
+        }
+        
+        // Step 4: High contrast boost for better character definition
+        Bitmap contrasted = applyUltraContrast(sharpened);
+        sharpened.recycle();
+        
+        Log.d(TAG, "Handwriting preprocessing complete");
+        return contrasted;
+    }
+    
+    /**
+     * Normalize skewed/rotated handwriting by detecting and correcting text angle.
+     * Uses simplified Hough transform to find dominant text orientation.
+     * 
+     * @param src Source bitmap
+     * @return Deskewed bitmap with corrected text orientation
+     */
+    public static Bitmap deskewHandwriting(Bitmap src) {
+        if (src == null) return null;
+        
+        Log.d(TAG, "Starting deskew for handwriting");
+        
+        // Convert to grayscale for edge detection
+        Bitmap gray = toGrayscale(src);
+        if (gray == null) return null;
+        
+        // Detect skew angle using edge analysis
+        float skewAngle = detectSkewAngle(gray);
+        
+        Log.d(TAG, "Detected skew angle: " + skewAngle + " degrees");
+        
+        // Only correct if angle is significant (>0.5 degrees)
+        if (Math.abs(skewAngle) < 0.5f) {
+            Log.d(TAG, "Skew angle too small, no correction needed");
+            return gray;
+        }
+        
+        // Rotate to correct skew
+        Bitmap deskewed = rotateImage(gray, -skewAngle);
+        gray.recycle();
+        
+        Log.d(TAG, "Deskew complete");
+        return deskewed;
+    }
+    
+    /**
+     * Detect skew angle of text in image using edge-based analysis.
+     * Simplified Hough transform approach focusing on horizontal text lines.
+     * 
+     * @param gray Grayscale bitmap
+     * @return Detected skew angle in degrees (positive = clockwise)
+     */
+    private static float detectSkewAngle(Bitmap gray) {
+        int width = gray.getWidth();
+        int height = gray.getHeight();
+        
+        // Sample edges to find dominant angle
+        int sampleStep = Math.max(2, width / 200); // Sample ~200 points wide
+        
+        // Count edge pixels at different angles
+        int[] angleVotes = new int[181]; // -90 to +90 degrees
+        
+        for (int y = sampleStep; y < height - sampleStep; y += sampleStep) {
+            for (int x = sampleStep; x < width - sampleStep; x += sampleStep) {
+                int center = gray.getPixel(x, y);
+                int right = gray.getPixel(x + sampleStep, y);
+                int bottom = gray.getPixel(x, y + sampleStep);
+                
+                int cBright = getBrightness(center);
+                int rBright = getBrightness(right);
+                int bBright = getBrightness(bottom);
+                
+                // Calculate gradient
+                int dx = rBright - cBright;
+                int dy = bBright - cBright;
+                
+                // Only consider significant edges
+                if (Math.abs(dx) + Math.abs(dy) > 30) {
+                    // Calculate angle
+                    double angle = Math.toDegrees(Math.atan2(dy, dx));
+                    int angleIndex = (int) (angle + 90); // Map -90..90 to 0..180
+                    angleIndex = Math.max(0, Math.min(180, angleIndex));
+                    angleVotes[angleIndex]++;
+                }
+            }
+        }
+        
+        // Find peak angle (most common edge orientation)
+        int maxVotes = 0;
+        int peakAngle = 90; // Default to horizontal
+        
+        for (int i = 0; i < angleVotes.length; i++) {
+            if (angleVotes[i] > maxVotes) {
+                maxVotes = angleVotes[i];
+                peakAngle = i;
+            }
+        }
+        
+        // Convert back to -90..90 range
+        float skewAngle = peakAngle - 90;
+        
+        // For horizontal text, we expect edges to be mostly vertical (90°)
+        // Adjust based on deviation from horizontal
+        if (Math.abs(skewAngle) > 45) {
+            // Likely detecting vertical edges of letters, not skew
+            skewAngle = 0;
+        }
+        
+        return skewAngle;
+    }
+    
+    /**
+     * Rotate image by specified angle.
+     * 
+     * @param src Source bitmap
+     * @param angle Rotation angle in degrees (positive = clockwise)
+     * @return Rotated bitmap
+     */
+    private static Bitmap rotateImage(Bitmap src, float angle) {
+        if (src == null) return null;
+        
+        android.graphics.Matrix matrix = new android.graphics.Matrix();
+        matrix.postRotate(angle);
+        
+        try {
+            Bitmap rotated = Bitmap.createBitmap(
+                    src, 0, 0, src.getWidth(), src.getHeight(), matrix, true);
+            Log.d(TAG, "Rotated image by " + angle + " degrees");
+            return rotated;
+        } catch (OutOfMemoryError e) {
+            Log.e(TAG, "OOM during rotation", e);
+            return src.copy(src.getConfig(), false);
+        }
+    }
 }

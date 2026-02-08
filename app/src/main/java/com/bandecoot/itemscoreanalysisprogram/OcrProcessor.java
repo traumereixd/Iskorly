@@ -79,40 +79,47 @@ public class OcrProcessor {
         List<PreprocessVariant> variants = new ArrayList<>();
         
         // Adaptive variant selection based on image quality
+        // Always try handwriting-optimized preprocessing first as a priority variant
         if (quality.isBlurry) {
-            // Prioritize sharpening and ultra-contrast for blurry images (common with handwriting)
-            Log.d(TAG, "Image is blurry - prioritizing sharpening and ultra-contrast variants for handwriting");
+            // Prioritize handwriting preprocessing and sharpening for blurry images
+            Log.d(TAG, "Image is blurry - prioritizing handwriting and sharpening variants");
+            addVariant(variants, "handwriting", ImagePreprocessor.preprocessForHandwriting(bitmap));
             addVariant(variants, "ultra_contrast", ImagePreprocessor.preprocessUltraHighContrast(bitmap));
             addVariant(variants, "sharpened", ImagePreprocessor.preprocessSharpened(bitmap));
             addVariant(variants, "classroom", ImagePreprocessor.preprocessForClassroom(bitmap));
         } else if (quality.isLowLight || quality.contrast < 0.15f) {
-            // Prioritize contrast enhancement for low-light/low-contrast images (handwriting-friendly)
-            Log.d(TAG, "Image has low light/contrast - prioritizing contrast variants for handwriting");
+            // Prioritize handwriting and contrast enhancement for low-light/low-contrast images
+            Log.d(TAG, "Image has low light/contrast - prioritizing handwriting and contrast variants");
+            addVariant(variants, "handwriting", ImagePreprocessor.preprocessForHandwriting(bitmap));
             addVariant(variants, "ultra_contrast", ImagePreprocessor.preprocessUltraHighContrast(bitmap));
             addVariant(variants, "sharpened", ImagePreprocessor.preprocessSharpened(bitmap));
             addVariant(variants, "adaptive_histogram", ImagePreprocessor.preprocessAdaptiveHistogram(bitmap));
             addVariant(variants, "classroom", ImagePreprocessor.preprocessForClassroom(bitmap));
         } else if (quality.isHighLight) {
-            // Prioritize adaptive methods for overexposed images
+            // Prioritize adaptive methods for overexposed images, with handwriting as fallback
             Log.d(TAG, "Image is overexposed - prioritizing adaptive variants");
             addVariant(variants, "adaptive_histogram", ImagePreprocessor.preprocessAdaptiveHistogram(bitmap));
+            addVariant(variants, "handwriting", ImagePreprocessor.preprocessForHandwriting(bitmap));
             addVariant(variants, "classroom", ImagePreprocessor.preprocessForClassroom(bitmap));
             addVariant(variants, "light", ImagePreprocessor.preprocessLight(bitmap));
         } else if (quality.brightness > 100 && quality.brightness < 180 && quality.contrast > 0.20f) {
-            // Good quality image - use lighter preprocessing first
-            Log.d(TAG, "Image quality is good - using lighter preprocessing");
+            // Good quality image - try handwriting preprocessing alongside lighter variants
+            Log.d(TAG, "Image quality is good - using handwriting and lighter preprocessing");
+            addVariant(variants, "handwriting", ImagePreprocessor.preprocessForHandwriting(bitmap));
             addVariant(variants, "light", ImagePreprocessor.preprocessLight(bitmap));
             addVariant(variants, "original", bitmap.copy(bitmap.getConfig(), false));
             addVariant(variants, "standard", ImageUtil.enhanceForOcr(bitmap));
         } else {
-            // Default: try classroom preprocessing first
-            Log.d(TAG, "Using default preprocessing priority");
+            // Default: try handwriting preprocessing first
+            Log.d(TAG, "Using default preprocessing priority with handwriting");
+            addVariant(variants, "handwriting", ImagePreprocessor.preprocessForHandwriting(bitmap));
             addVariant(variants, "classroom", ImagePreprocessor.preprocessForClassroom(bitmap));
             addVariant(variants, "light", ImagePreprocessor.preprocessLight(bitmap));
             addVariant(variants, "adaptive_histogram", ImagePreprocessor.preprocessAdaptiveHistogram(bitmap));
         }
         
         // Fill remaining slots with other variants (up to MAX_VARIANTS)
+        addVariant(variants, "handwriting", ImagePreprocessor.preprocessForHandwriting(bitmap));
         addVariant(variants, "standard", ImageUtil.enhanceForOcr(bitmap));
         addVariant(variants, "grayscale", ImagePreprocessor.toGrayscale(bitmap));
         addVariant(variants, "sharpened", ImagePreprocessor.preprocessSharpened(bitmap));
