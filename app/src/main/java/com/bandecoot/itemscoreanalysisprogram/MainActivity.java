@@ -1212,10 +1212,13 @@ public class MainActivity extends AppCompatActivity {
         handleNavigationIntent();
         
         // Apply global text colors (BLACK for text, WHITE for buttons) for optimal legibility
-        View rootView = findViewById(android.R.id.content);
-        if (rootView != null) {
-            TextColorUtil.applyGlobalTextColors(rootView);
-        }
+        // Apply only to non-scan overlays (scan session has its own styling)
+        if (mainLayout != null) TextColorUtil.applyGlobalTextColors(mainLayout);
+        if (answerKeyLayout != null) TextColorUtil.applyGlobalTextColors(answerKeyLayout);
+        if (testHistoryLayout != null) TextColorUtil.applyGlobalTextColors(testHistoryLayout);
+        if (masterlistLayout != null) TextColorUtil.applyGlobalTextColors(masterlistLayout);
+        if (settingsLayout != null) TextColorUtil.applyGlobalTextColors(settingsLayout);
+
     }
     
     /**
@@ -1292,26 +1295,41 @@ public class MainActivity extends AppCompatActivity {
 
     private void startScanSession() {
         scanSessionActive = true;
-        inScanSession = true; // Set flag for back navigation
-        cameraSessionReady = false; // Reset readiness flag
+        inScanSession = true;
+        cameraSessionReady = false;
         toggleView("scan");
-        
-        // Ensure TextureView is opaque and visible to avoid white flash
+
         if (cameraPreviewTextureView != null) {
             cameraPreviewTextureView.setOpaque(true);
             cameraPreviewTextureView.setVisibility(View.VISIBLE);
-            cameraPreviewTextureView.setBackgroundColor(0xFF000000); // Black background
+            // REMOVE if still present:
+            // cameraPreviewTextureView.setBackgroundColor(0xFF000000);
             cameraPreviewTextureView.bringToFront();
-            Log.d("SCAN_UI", "TextureView set to opaque with black background");
+            Log.d("SCAN_UI", "TextureView set to opaque");
         }
-        
+
         sessionScoreTextView.setText(getString(R.string.live_score_placeholder));
-        if (resultsCard != null) resultsCard.setVisibility(View.GONE);
         if (captureResultButton != null) {
             captureResultButton.setVisibility(View.VISIBLE);
+            captureResultButton.setAlpha(1f);
+            captureResultButton.setBackgroundTintList(
+                    androidx.core.content.ContextCompat.getColorStateList(this, R.color.brand_brown));
+            captureResultButton.setTextColor(
+                    androidx.core.content.ContextCompat.getColor(this, R.color.on_primary));
             captureResultButton.setText("Opening...");
-            captureResultButton.setEnabled(false); // Disable until session is ready
+            captureResultButton.setEnabled(false);
         }
+        if (importPhotosButton != null) {
+            importPhotosButton.setVisibility(View.VISIBLE);
+            importPhotosButton.setAlpha(1f);
+            importPhotosButton.setBackgroundTintList(
+                    androidx.core.content.ContextCompat.getColorStateList(this, R.color.brand_brown));
+            importPhotosButton.setTextColor(
+                    androidx.core.content.ContextCompat.getColor(this, R.color.on_primary));
+        }
+        sessionScoreTextView.setText(getString(R.string.live_score_placeholder));
+        if (resultsCard != null) resultsCard.setVisibility(View.GONE);
+
         Log.d(CAMERA_FLOW, "Starting scan session, button disabled until camera ready");
         
         // Initialize OcrProcessor with current answer key
@@ -3222,7 +3240,7 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Failed to save record.", Toast.LENGTH_LONG).show();
         }
     }
-    
+
     // ---------------------------
     // Multi-image import and crop handlers (Feature #2 & #2.1)
     // ---------------------------
@@ -5627,13 +5645,13 @@ public class MainActivity extends AppCompatActivity {
         }
     }
     private void applyGlobalTextColors() {
-        // Apply global colors to the entire view hierarchy
-        View rootView = findViewById(android.R.id.content);
-        if (rootView != null) {
-            TextColorUtil.applyGlobalTextColors(rootView);
-        }
-        
-        Log.d(TAG, "Applied global text colors (BLACK for text, WHITE for buttons)");
+        // Apply per known containers, skipping scanSessionLayout (contains TextureView)
+        if (mainLayout != null) TextColorUtil.applyGlobalTextColors(mainLayout);
+        if (answerKeyLayout != null) TextColorUtil.applyGlobalTextColors(answerKeyLayout);
+        if (testHistoryLayout != null) TextColorUtil.applyGlobalTextColors(testHistoryLayout);
+        if (masterlistLayout != null) TextColorUtil.applyGlobalTextColors(masterlistLayout);
+        if (settingsLayout != null) TextColorUtil.applyGlobalTextColors(settingsLayout);
+        Log.d(TAG, "Applied global text colors to non-scan layouts");
     }
     
     /**
