@@ -778,12 +778,15 @@ public class MainActivity extends AppCompatActivity {
         
         Log.d(TAG, "Checking kill-switch endpoint: " + killSwitchUrl);
         
-        // First, check cached state (for offline scenarios)
+        // Check cached state (for offline scenarios)
         final boolean cachedDisabled = appPreferences.getBoolean(PREF_KILL_SWITCH_DISABLED, false);
         final String cachedMessage = appPreferences.getString(PREF_KILL_SWITCH_MESSAGE, "");
         
         // Try to fetch fresh status in background
         new Thread(() -> {
+            boolean shouldShowDialog = false;
+            String messageToShow = cachedMessage;
+            
             try {
                 Request request = new Request.Builder()
                         .url(killSwitchUrl)
@@ -808,28 +811,26 @@ public class MainActivity extends AppCompatActivity {
                     
                     Log.d(TAG, "Kill-switch status: disabled=" + disabled + ", message=" + message);
                     
-                    // If app is disabled, show blocking dialog
-                    // Always show when disabled=true to prevent bypass by app restart
-                    if (disabled) {
-                        runOnUiThread(() -> showKillSwitchDialog(message));
-                    }
+                    // Use fresh status
+                    shouldShowDialog = disabled;
+                    messageToShow = message;
                 } else {
                     Log.w(TAG, "Kill-switch endpoint returned error: " + response.code());
-                    // Use cached state on error only if we haven't shown it yet
-                    if (cachedDisabled) {
-                        Log.d(TAG, "Using cached disabled state due to network error");
-                    }
+                    // Fall back to cached state on error
+                    shouldShowDialog = cachedDisabled;
                 }
             } catch (Exception e) {
                 Log.e(TAG, "Error checking kill-switch", e);
-                // Use cached state on error - already handled below
+                // Fall back to cached state on error
+                shouldShowDialog = cachedDisabled;
+            }
+            
+            // Show dialog if app is disabled (either from fresh fetch or cached fallback)
+            if (shouldShowDialog) {
+                final String finalMessage = messageToShow;
+                runOnUiThread(() -> showKillSwitchDialog(finalMessage));
             }
         }).start();
-        
-        // If cached state indicates app is disabled, show dialog immediately (for offline)
-        if (cachedDisabled) {
-            showKillSwitchDialog(cachedMessage);
-        }
     }
     
     /**
