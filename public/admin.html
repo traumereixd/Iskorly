@@ -341,21 +341,19 @@
         </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
+    <!-- Firebase SDK - Modular -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAnalytics, logEvent as firebaseLogEvent } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
 
-    <script>
-        // Firebase Configuration
-        // IMPORTANT: Replace with your actual Firebase config
-        // Keep these credentials secure and do NOT commit real API keys to version control!
-        // Store real values in environment variables or secure configuration management
+        // Your web app's Firebase configuration
+        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
         const firebaseConfig = {
             apiKey: "AIzaSyDCBZ_08kaOGSjJPd3co-cY52HjSJOrMZE",
             authDomain: "iskorly-post-azure.firebaseapp.com",
-            databaseURL: "https://iskorly-app-default-rtdb.firebaseio.com",
             projectId: "iskorly-post-azure",
             storageBucket: "iskorly-post-azure.firebasestorage.app",
             messagingSenderId: "177532222029",
@@ -364,14 +362,14 @@
         };
 
         // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const database = firebase.database();
-        const analytics = firebase.analytics();
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const firestore = getFirestore(app);
+        const analytics = getAnalytics(app);
 
         // Analytics helper
         function logEvent(eventName, params = {}) {
-            analytics.logEvent(eventName, params);
+            firebaseLogEvent(analytics, eventName, params);
             console.log('Analytics Event:', eventName, params);
         }
 
@@ -412,7 +410,7 @@
             try {
                 // Use a fixed email for admin login
                 const email = 'admin@iskorly.app';
-                await auth.signInWithEmailAndPassword(email, password);
+                await signInWithEmailAndPassword(auth, email, password);
                 
                 logEvent('login_success', { method: 'password' });
                 loginSection.classList.remove('active');
@@ -437,20 +435,27 @@
         // Load Current Status
         async function loadCurrentStatus() {
             try {
-                const snapshot = await database.ref('app-status').once('value');
-                const data = snapshot.val();
+                const docRef = doc(firestore, 'app_config', 'status');
+                const snapshot = await getDoc(docRef);
                 
-                if (data) {
+                if (snapshot.exists()) {
+                    const data = snapshot.data();
                     currentStatus = {
                         disabled: data.disabled || false,
                         message: data.message || ''
+                    };
+                } else {
+                    // Document doesn't exist, use defaults
+                    currentStatus = {
+                        disabled: false,
+                        message: ''
                     };
                 }
                 
                 updateUI();
             } catch (error) {
                 console.error('Error loading status:', error);
-                showError(saveError, 'Failed to load current status');
+                showError(saveError, 'Failed to load current status: ' + error.message);
             }
         }
 
@@ -500,16 +505,13 @@
                     message: messageInput.value.trim()
                 };
 
-                // Update Firebase Realtime Database
-                await database.ref('app-status').set(statusData);
+                // Update Firestore
+                const docRef = doc(firestore, 'app_config', 'status');
+                await setDoc(docRef, statusData);
 
-                // IMPORTANT: The changes above update the Realtime Database only.
-                // To update the static app-status.json file that the Android app reads,
-                // you must MANUALLY update public/app-status.json and redeploy Firebase Hosting:
-                //   1. Edit public/app-status.json with the new status
-                //   2. Run: firebase deploy --only hosting
-                // Alternative: Implement a Cloud Function to automatically sync Database → JSON
-                // See KILL_SWITCH_SETUP.md for Cloud Function implementation example
+                // The Cloud Function at functions/index.js automatically reads from this Firestore
+                // document and serves it to the Android app via the /appStatus endpoint.
+                // No manual JSON file update or redeployment is needed.
                 
                 currentStatus.message = statusData.message;
                 updateUI();
@@ -521,7 +523,7 @@
                 });
             } catch (error) {
                 console.error('Save error:', error);
-                showError(saveError, 'Failed to save changes. Please try again.');
+                showError(saveError, 'Failed to save changes: ' + error.message);
                 logEvent('save_failure', { error: error.message });
             } finally {
                 saveBtn.disabled = false;
@@ -531,7 +533,7 @@
 
         // Logout
         logoutBtn.addEventListener('click', async () => {
-            await auth.signOut();
+            await signOut(auth);
             controlSection.classList.remove('active');
             loginSection.classList.add('active');
             passwordInput.value = '';
@@ -566,7 +568,7 @@
         }
 
         // Check auth state on load
-        auth.onAuthStateChanged(user => {
+        onAuthStateChanged(auth, (user) => {
             if (user) {
                 loginSection.classList.remove('active');
                 controlSection.classList.add('active');
