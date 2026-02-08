@@ -315,4 +315,15 @@ That\'s it! Tap OK to start using Iskorly.\n</string>
     
     <!-- Correctness Hints -->
     <string name="correct_answer_prefix">Correct: %s</string>
+    
+    <!-- OCR Engine Settings -->
+    <string name="menu_ocr_settings">OCR Settings</string>
+    <string name="ocr_settings_title">OCR Engine Settings</string>
+    <string name="ocr_engine_label">OCR Engine</string>
+    <string name="ocr_engine_azure">Azure Read API</string>
+    <string name="ocr_engine_google">Google Vision</string>
+    <string name="ocr_engine_description">Select the OCR engine to use for text recognition</string>
+    <string name="ocr_settings_saved">OCR settings saved</string>
+    <string name="ocr_key_missing_azure">Azure Vision API key/endpoint missing. Add AZURE_VISION_KEY and AZURE_VISION_ENDPOINT to local.properties.</string>
+    <string name="ocr_key_missing_google">Google Vision API key missing. Add GCLOUD_VISION_API_KEY to local.properties.</string>
 </resources>

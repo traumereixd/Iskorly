@@ -30,6 +30,25 @@ android {
         }
         buildConfigField("String", "GCLOUD_VISION_API_KEY", "\"$visionKey\"")
         
+        // Azure Vision API key and endpoint
+        val azureKeyFromProp = (project.findProperty("AZURE_VISION_KEY") as? String)?.trim()
+        val azureKeyFromLocal = props.getProperty("AZURE_VISION_KEY")?.trim()
+        val azureKey = when {
+            !azureKeyFromProp.isNullOrEmpty() -> azureKeyFromProp
+            !azureKeyFromLocal.isNullOrEmpty() -> azureKeyFromLocal
+            else -> ""
+        }
+        buildConfigField("String", "AZURE_VISION_KEY", "\"$azureKey\"")
+        
+        val azureEndpointFromProp = (project.findProperty("AZURE_VISION_ENDPOINT") as? String)?.trim()
+        val azureEndpointFromLocal = props.getProperty("AZURE_VISION_ENDPOINT")?.trim()
+        val azureEndpoint = when {
+            !azureEndpointFromProp.isNullOrEmpty() -> azureEndpointFromProp
+            !azureEndpointFromLocal.isNullOrEmpty() -> azureEndpointFromLocal
+            else -> ""
+        }
+        buildConfigField("String", "AZURE_VISION_ENDPOINT", "\"$azureEndpoint\"")
+        
         // OCR.Space API key (optional fallback for handwriting)
         val ocrSpaceKeyFromProp = (project.findProperty("OCR_SPACE_API_KEY") as? String)?.trim()
         val ocrSpaceKeyFromLocal = props.getProperty("OCR_SPACE_API_KEY")?.trim()
