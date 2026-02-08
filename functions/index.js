@@ -7,6 +7,7 @@ const fs = require("fs").promises;
 admin.initializeApp();
 
 const bucket = admin.storage().bucket();
+const STORAGE_FILE_NAME = "app-status.json";
 
 // HTTP endpoint to serve kill-switch status from Firestore
 exports.appStatus = functions.https.onRequest(async (req, res) => {
@@ -50,7 +51,7 @@ exports.syncKillSwitchToStorage = functions.firestore
         console.log("Syncing kill-switch status to Storage:", statusData);
 
         // Create temporary file with the JSON content
-        const tempFilePath = path.join(os.tmpdir(), "app-status.json");
+        const tempFilePath = path.join(os.tmpdir(), STORAGE_FILE_NAME);
         await fs.writeFile(
             tempFilePath,
             JSON.stringify(statusData, null, 2),
@@ -58,9 +59,9 @@ exports.syncKillSwitchToStorage = functions.firestore
         );
 
         // Upload to the storage bucket as a public file
-        const file = bucket.file("app-status.json");
+        const file = bucket.file(STORAGE_FILE_NAME);
         await bucket.upload(tempFilePath, {
-          destination: "app-status.json",
+          destination: STORAGE_FILE_NAME,
           metadata: {
             contentType: "application/json",
             cacheControl: "no-cache, no-store, must-revalidate",
@@ -74,8 +75,7 @@ exports.syncKillSwitchToStorage = functions.firestore
         await fs.unlink(tempFilePath);
 
         console.log("Successfully synced kill-switch status to Storage");
-        console.log("Access at: https://storage.googleapis.com/" +
-                    bucket.name + "/app-status.json");
+        console.log(`Access at: https://storage.googleapis.com/${bucket.name}/${STORAGE_FILE_NAME}`);
         return null;
       } catch (error) {
         console.error("Error syncing kill-switch status:", error);
