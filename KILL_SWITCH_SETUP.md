@@ -32,14 +32,21 @@ A modern, user-friendly web interface for controlling the app status:
 
 ### 2. Kill-Switch Endpoint
 
-**Location:** Firebase Cloud Function at `functions/index.js`
+**Location:** Firebase Cloud Functions at `functions/index.js`
 
-The kill-switch status is now stored in **Firestore** and served via a Cloud Function:
+The kill-switch status is stored in **Firestore** and automatically synced to multiple endpoints:
+
+**Primary Storage:**
 - **Firestore Collection:** `app_config`
 - **Document:** `status`
 - **Fields:** `disabled` (boolean), `message` (string)
 
-The Cloud Function serves the status at the `/appStatus` endpoint that the Android app checks on startup.
+**Access Points:**
+1. **Cloud Function Endpoint:** `/appStatus` - Serves status directly from Firestore
+2. **Cloud Storage File:** `app-status.json` - Auto-synced public file in Storage bucket
+
+**Automatic Sync:**
+A Firestore trigger (`syncKillSwitchToStorage`) automatically updates the Cloud Storage file whenever the Firestore document changes. This ensures both endpoints always serve the same data without manual intervention.
 
 **Example Firestore Document:**
 ```json
@@ -49,7 +56,7 @@ The Cloud Function serves the status at the `/appStatus` endpoint that the Andro
 }
 ```
 
-**Static Fallback:** `public/app-status.json` (for backward compatibility)
+**Legacy Hosting File:** `public/app-status.json` remains for backward compatibility but is not automatically updated. For automatic sync, use the Cloud Storage file or Cloud Function endpoint.
 
 **Fields:**
 - `disabled` (boolean): If `true`, the app will be blocked
@@ -136,10 +143,17 @@ Add the kill-switch endpoint URL to `local.properties`:
 
 ```properties
 # Kill-Switch Configuration
+# Option 1: Use Cloud Function endpoint (recommended - always fresh from Firestore)
 KILL_SWITCH_URL=https://YOUR_PROJECT.web.app/appStatus
+
+# Option 2: Use Cloud Storage file (auto-synced by Cloud Function)
+# KILL_SWITCH_URL=https://storage.googleapis.com/YOUR_PROJECT.appspot.com/app-status.json
 ```
 
-**Note:** The Cloud Function serves the status at `/appStatus`. If `KILL_SWITCH_URL` is not set or is blank, the app will skip the kill-switch check and continue normally.
+**Note:** 
+- The Cloud Function serves the status at `/appStatus` directly from Firestore.
+- A Firestore trigger (`syncKillSwitchToStorage`) automatically syncs changes to a public Cloud Storage JSON file at `app-status.json` for alternative access.
+- If `KILL_SWITCH_URL` is not set or is blank, the app will skip the kill-switch check and continue normally.
 
 ### Step 6: Build Android App
 
@@ -166,8 +180,11 @@ KILL_SWITCH_URL=https://YOUR_PROJECT.web.app/appStatus
 3. **Load Status:** Fetches current status from Firebase Firestore (`app_config/status` document)
 4. **Toggle/Edit:** Admin can change enabled/disabled state and message
 5. **Save:** Updates Firestore document
-6. **Cloud Function:** Automatically serves updated status to Android app via `/appStatus` endpoint
-7. **Analytics:** Logs all actions for monitoring
+6. **Automatic Sync:** Firestore trigger (`syncKillSwitchToStorage`) automatically syncs to Cloud Storage
+7. **Cloud Function:** Automatically serves updated status to Android app via `/appStatus` endpoint
+8. **Analytics:** Logs all actions for monitoring
+
+**Note:** Changes made in the admin page are **immediately available** to the Android app through both the Cloud Function endpoint and the auto-synced Cloud Storage file. No manual deployment or file editing required!
 
 ## Usage
 
@@ -178,7 +195,7 @@ KILL_SWITCH_URL=https://YOUR_PROJECT.web.app/appStatus
 3. Click "✓ Enable App"
 4. (Optional) Update the user message
 5. Click "Save Changes"
-6. Changes are immediately available to Android app via Cloud Function
+6. Changes are **immediately** and **automatically** available to Android app
 
 ### Disabling the App
 
@@ -187,9 +204,13 @@ KILL_SWITCH_URL=https://YOUR_PROJECT.web.app/appStatus
 3. Click "✕ Disable App"
 4. Enter a message explaining why (e.g., "Undergoing maintenance. Will be back soon!")
 5. Click "Save Changes"
-6. Changes are immediately available to Android app via Cloud Function
+6. Changes are **immediately** and **automatically** available to Android app
 
-**Note:** Changes are saved to Firestore and automatically served to the Android app by the Cloud Function at `functions/index.js`. No manual file updates or redeployment needed!
+**Automatic Sync:** Changes are saved to Firestore and automatically:
+- Served to the Android app via the Cloud Function (`/appStatus` endpoint)
+- Synced to Cloud Storage file (`app-status.json`) by the `syncKillSwitchToStorage` trigger
+- **No manual file updates or redeployment needed!**
+
 
 ## Security Considerations
 
@@ -272,7 +293,11 @@ Please update to the latest version from the Play Store.
 
 ## Cloud Function Implementation
 
-The project includes a Cloud Function at `functions/index.js` that serves the kill-switch status to the Android app:
+The project includes two Cloud Functions at `functions/index.js`:
+
+### 1. HTTP Endpoint: `appStatus`
+
+Serves the kill-switch status directly from Firestore:
 
 ```javascript
 exports.appStatus = functions.https.onRequest(async (req, res) => {
@@ -300,6 +325,29 @@ This function:
 - Serves it via HTTP endpoint (`/appStatus`)
 - Sets cache control headers to prevent caching
 - Provides fallback values on error
+
+### 2. Firestore Trigger: `syncKillSwitchToStorage`
+
+Automatically syncs Firestore changes to Cloud Storage:
+
+```javascript
+exports.syncKillSwitchToStorage = functions.firestore
+  .document("app_config/status")
+  .onWrite(async (change, context) => {
+    // Reads the updated status from Firestore
+    // Writes it to a public Cloud Storage file: app-status.json
+    // Makes the file publicly accessible
+  });
+```
+
+This trigger:
+- Activates whenever `app_config/status` is created, updated, or deleted
+- Creates/updates a public JSON file in Cloud Storage bucket
+- Makes the file accessible at: `https://storage.googleapis.com/{bucket}/app-status.json`
+- Ensures the static file is always in sync with Firestore
+- Runs automatically without manual intervention
+
+**Result:** Admin page changes propagate automatically to both the Cloud Function endpoint and the Cloud Storage file, eliminating the need for manual file updates or redeployment.
 
 ## Support
 

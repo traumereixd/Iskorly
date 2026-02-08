@@ -28,9 +28,10 @@ exports.appStatus = functions.https.onRequest(async (req, res) => {
   }
 });
 
-// Firestore trigger to sync kill-switch status to public/app-status.json
-// This ensures the static hosting file stays in sync with Firestore
-exports.syncKillSwitchToHosting = functions.firestore
+// Firestore trigger to sync kill-switch status to Storage bucket
+// This ensures a public JSON file stays in sync with Firestore
+// The file can be accessed at: https://storage.googleapis.com/{bucket}/app-status.json
+exports.syncKillSwitchToStorage = functions.firestore
     .document("app_config/status")
     .onWrite(async (change, context) => {
       try {
@@ -46,7 +47,7 @@ exports.syncKillSwitchToHosting = functions.firestore
           message: data.message || "App temporarily disabled.",
         };
 
-        console.log("Syncing kill-switch status to hosting:", statusData);
+        console.log("Syncing kill-switch status to Storage:", statusData);
 
         // Create temporary file with the JSON content
         const tempFilePath = path.join(os.tmpdir(), "app-status.json");
@@ -56,24 +57,25 @@ exports.syncKillSwitchToHosting = functions.firestore
             "utf8"
         );
 
-        // Upload to the default storage bucket at public/app-status.json
-        // This file path matches the Firebase Hosting public directory structure
+        // Upload to the storage bucket as a public file
+        const file = bucket.file("app-status.json");
         await bucket.upload(tempFilePath, {
-          destination: "public/app-status.json",
+          destination: "app-status.json",
           metadata: {
             contentType: "application/json",
             cacheControl: "no-cache, no-store, must-revalidate",
-            metadata: {
-              firebaseStorageDownloadTokens: "public",
-            },
           },
-          public: true,
         });
+
+        // Make the file publicly readable
+        await file.makePublic();
 
         // Clean up temp file
         await fs.unlink(tempFilePath);
 
-        console.log("Successfully synced kill-switch status to public/app-status.json");
+        console.log("Successfully synced kill-switch status to Storage");
+        console.log("Access at: https://storage.googleapis.com/" +
+                    bucket.name + "/app-status.json");
         return null;
       } catch (error) {
         console.error("Error syncing kill-switch status:", error);
