@@ -12,19 +12,19 @@ const bucket = admin.storage().bucket();
 exports.appStatus = functions.https.onRequest(async (req, res) => {
   try {
     const snap = await admin.firestore()
-      .collection("app_config")
-      .doc("status")
-      .get();
+        .collection("app_config")
+        .doc("status")
+        .get();
 
-    const data = snap.exists ? snap.data() : { disabled: false, message: "" };
+    const data = snap.exists ? snap.data() : {disabled: false, message: ""};
 
     res.set("Cache-Control", "no-cache, no-store, must-revalidate");
     res.json({
       disabled: !!data.disabled,
-      message: data.message || "App temporarily disabled."
+      message: data.message || "App temporarily disabled.",
     });
   } catch (e) {
-    res.status(500).json({ disabled: false, message: "" });
+    res.status(500).json({disabled: false, message: ""});
   }
 });
 
@@ -54,7 +54,7 @@ exports.syncKillSwitchToStorage = functions.firestore
         await fs.writeFile(
             tempFilePath,
             JSON.stringify(statusData, null, 2),
-            "utf8"
+            "utf8",
         );
 
         // Upload to the storage bucket as a public file
