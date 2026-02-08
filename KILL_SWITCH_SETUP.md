@@ -32,16 +32,24 @@ A modern, user-friendly web interface for controlling the app status:
 
 ### 2. Kill-Switch Endpoint
 
-**Location:** `public/app-status.json`
+**Location:** Firebase Cloud Function at `functions/index.js`
 
-JSON endpoint that the Android app checks on startup:
+The kill-switch status is now stored in **Firestore** and served via a Cloud Function:
+- **Firestore Collection:** `app_config`
+- **Document:** `status`
+- **Fields:** `disabled` (boolean), `message` (string)
 
+The Cloud Function serves the status at the `/appStatus` endpoint that the Android app checks on startup.
+
+**Example Firestore Document:**
 ```json
 {
   "disabled": false,
   "message": "The app is currently enabled and functioning normally."
 }
 ```
+
+**Static Fallback:** `public/app-status.json` (for backward compatibility)
 
 **Fields:**
 - `disabled` (boolean): If `true`, the app will be blocked
@@ -58,21 +66,22 @@ The Android app checks this endpoint on every app startup and caches the result 
 1. Firebase project created
 2. Firebase Hosting enabled
 3. Firebase Authentication enabled (for admin login)
-4. Firebase Realtime Database enabled (for status storage)
+4. Firebase Firestore enabled (for status storage)
+5. Firebase Cloud Functions deployed
 
 ### Step 1: Configure Firebase
 
 1. Create a Firebase project at https://console.firebase.google.com
 2. Enable Firebase Hosting
 3. Enable Firebase Authentication (Email/Password provider)
-4. Enable Firebase Realtime Database
-5. Update `public/admin.html` with your Firebase configuration:
+4. Enable Firebase Firestore
+5. Enable Firebase Cloud Functions
+6. Update `public/admin.html` with your Firebase configuration:
 
 ```javascript
 const firebaseConfig = {
     apiKey: "YOUR_API_KEY",
     authDomain: "YOUR_PROJECT.firebaseapp.com",
-    databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
     projectId: "YOUR_PROJECT",
     storageBucket: "YOUR_PROJECT.appspot.com",
     messagingSenderId: "YOUR_MESSAGING_ID",
@@ -88,22 +97,23 @@ In Firebase Console → Authentication → Users:
 2. Set a strong password
 3. This account will be used to log into the admin panel
 
-### Step 3: Configure Database Rules
+### Step 3: Configure Firestore Security Rules
 
-In Firebase Console → Realtime Database → Rules:
+In Firebase Console → Firestore Database → Rules:
 
-```json
-{
-  "rules": {
-    "app-status": {
-      ".read": true,
-      ".write": "auth != null && auth.token.email == 'admin@iskorly.app'"
+```
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /app_config/status {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.email == 'admin@iskorly.app';
     }
   }
 }
 ```
 
-### Step 4: Deploy to Firebase Hosting
+### Step 4: Deploy Cloud Functions and Hosting
 
 ```bash
 # Install Firebase CLI
@@ -113,10 +123,10 @@ npm install -g firebase-tools
 firebase login
 
 # Initialize (if not already done)
-firebase init hosting
+firebase init functions hosting
 
-# Deploy
-firebase deploy --only hosting
+# Deploy functions and hosting
+firebase deploy
 ```
 
 ### Step 5: Configure Android App
@@ -125,10 +135,10 @@ Add the kill-switch endpoint URL to `local.properties`:
 
 ```properties
 # Kill-Switch Configuration
-KILL_SWITCH_URL=https://YOUR_PROJECT.web.app/app-status.json
+KILL_SWITCH_URL=https://YOUR_PROJECT.web.app/appStatus
 ```
 
-**Note:** If `KILL_SWITCH_URL` is not set or is blank, the app will skip the kill-switch check and continue normally.
+**Note:** The Cloud Function serves the status at `/appStatus`. If `KILL_SWITCH_URL` is not set or is blank, the app will skip the kill-switch check and continue normally.
 
 ### Step 6: Build Android App
 
@@ -152,10 +162,11 @@ KILL_SWITCH_URL=https://YOUR_PROJECT.web.app/app-status.json
 
 1. **Login:** Admin enters password
 2. **Authentication:** Firebase Auth validates credentials
-3. **Load Status:** Fetches current status from Firebase Realtime Database
+3. **Load Status:** Fetches current status from Firebase Firestore (`app_config/status` document)
 4. **Toggle/Edit:** Admin can change enabled/disabled state and message
-5. **Save:** Updates Firebase Realtime Database
-6. **Analytics:** Logs all actions for monitoring
+5. **Save:** Updates Firestore document
+6. **Cloud Function:** Automatically serves updated status to Android app via `/appStatus` endpoint
+7. **Analytics:** Logs all actions for monitoring
 
 ## Usage
 
@@ -166,7 +177,7 @@ KILL_SWITCH_URL=https://YOUR_PROJECT.web.app/app-status.json
 3. Click "✓ Enable App"
 4. (Optional) Update the user message
 5. Click "Save Changes"
-6. Update `public/app-status.json` manually or via Cloud Functions
+6. Changes are immediately available to Android app via Cloud Function
 
 ### Disabling the App
 
@@ -175,18 +186,17 @@ KILL_SWITCH_URL=https://YOUR_PROJECT.web.app/app-status.json
 3. Click "✕ Disable App"
 4. Enter a message explaining why (e.g., "Undergoing maintenance. Will be back soon!")
 5. Click "Save Changes"
-6. Update `public/app-status.json` manually or via Cloud Functions
+6. Changes are immediately available to Android app via Cloud Function
 
-**Important:** Currently, changes in the admin panel update the Realtime Database. To update the static JSON file served to the app, you need to either:
-- Manually update `public/app-status.json` and redeploy
-- Implement a Cloud Function to sync Database → JSON file
+**Note:** Changes are saved to Firestore and automatically served to the Android app by the Cloud Function at `functions/index.js`. No manual file updates or redeployment needed!
 
 ## Security Considerations
 
 ✅ **Implemented:**
 - Password-protected admin access
 - CORS headers for app-status endpoint
-- Database rules restrict write access to admin only
+- Firestore security rules restrict write access to admin only
+- Cloud Function serves status with proper cache control headers
 - Client-side caching prevents repeated requests
 - Non-cancelable dialog prevents bypass
 
@@ -220,14 +230,16 @@ KILL_SWITCH_URL=https://YOUR_PROJECT.web.app/app-status.json
 ### Changes Not Taking Effect
 
 **Possible causes:**
-1. Static JSON file not updated
-2. App using cached status
-3. User offline when change was made
+1. Cloud Function not deployed
+2. Firestore document not updated
+3. App using cached status
+4. User offline when change was made
 
 **Solution:**
-- Redeploy Firebase Hosting after updating JSON
+- Deploy Cloud Functions: `firebase deploy --only functions`
+- Verify Firestore document in Firebase Console
 - Clear app data to reset cache
-- Wait for next app restart when online
+- Wait for next app startup when online
 
 ## Monitoring
 

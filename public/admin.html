@@ -341,17 +341,16 @@
         </div>
     </div>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
+    <!-- Firebase SDK - Modular -->
+    <script type="module">
+        // Import the functions you need from the SDKs you need
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAnalytics, logEvent as firebaseLogEvent } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics.js";
 
-    <script>
-        // Firebase Configuration
-        // IMPORTANT: Replace with your actual Firebase config
-        // Keep these credentials secure and do NOT commit real API keys to version control!
-        // Store real values in environment variables or secure configuration management
+        // Your web app's Firebase configuration
+        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
         const firebaseConfig = {
             apiKey: "AIzaSyDCBZ_08kaOGSjJPd3co-cY52HjSJOrMZE",
             authDomain: "iskorly-post-azure.firebaseapp.com",
@@ -363,14 +362,14 @@
         };
 
         // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const firestore = firebase.firestore();
-        const analytics = firebase.analytics();
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const firestore = getFirestore(app);
+        const analytics = getAnalytics(app);
 
         // Analytics helper
         function logEvent(eventName, params = {}) {
-            analytics.logEvent(eventName, params);
+            firebaseLogEvent(analytics, eventName, params);
             console.log('Analytics Event:', eventName, params);
         }
 
@@ -411,7 +410,7 @@
             try {
                 // Use a fixed email for admin login
                 const email = 'admin@iskorly.app';
-                await auth.signInWithEmailAndPassword(email, password);
+                await signInWithEmailAndPassword(auth, email, password);
                 
                 logEvent('login_success', { method: 'password' });
                 loginSection.classList.remove('active');
@@ -436,10 +435,10 @@
         // Load Current Status
         async function loadCurrentStatus() {
             try {
-                const docRef = firestore.collection('app_config').doc('status');
-                const snapshot = await docRef.get();
+                const docRef = doc(firestore, 'app_config', 'status');
+                const snapshot = await getDoc(docRef);
                 
-                if (snapshot.exists) {
+                if (snapshot.exists()) {
                     const data = snapshot.data();
                     currentStatus = {
                         disabled: data.disabled || false,
@@ -507,8 +506,8 @@
                 };
 
                 // Update Firestore
-                const docRef = firestore.collection('app_config').doc('status');
-                await docRef.set(statusData);
+                const docRef = doc(firestore, 'app_config', 'status');
+                await setDoc(docRef, statusData);
 
                 // The Cloud Function at functions/index.js automatically reads from this Firestore
                 // document and serves it to the Android app via the /appStatus endpoint.
@@ -534,7 +533,7 @@
 
         // Logout
         logoutBtn.addEventListener('click', async () => {
-            await auth.signOut();
+            await signOut(auth);
             controlSection.classList.remove('active');
             loginSection.classList.add('active');
             passwordInput.value = '';
@@ -569,7 +568,7 @@
         }
 
         // Check auth state on load
-        auth.onAuthStateChanged(user => {
+        onAuthStateChanged(auth, (user) => {
             if (user) {
                 loginSection.classList.remove('active');
                 controlSection.classList.add('active');
