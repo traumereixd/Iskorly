@@ -414,8 +414,12 @@
         // ========================================
 
         // Helper function to generate raw Gist URL
+        // Note: Replace USERNAME with your GitHub username
+        // You can find the correct URL by clicking "Raw" on your Gist
         function getRawGistUrl() {
-            return `https://gist.githubusercontent.com/raw/${CONFIG.GIST_ID}/${CONFIG.GIST_FILENAME}`;
+            // Format: https://gist.githubusercontent.com/USERNAME/GIST_ID/raw/FILENAME
+            // The USERNAME is optional but recommended for clarity
+            return `https://gist.githubusercontent.com/${CONFIG.GIST_ID}/raw/${CONFIG.GIST_FILENAME}`;
         }
 
         // DOM Elements

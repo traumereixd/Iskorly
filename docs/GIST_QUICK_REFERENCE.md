@@ -33,7 +33,8 @@ const CONFIG = {
 ### 4. Configure Android App
 ```properties
 # Edit local.properties
-KILL_SWITCH_URL=https://gist.githubusercontent.com/raw/GIST_ID/iskorly-status.json
+# Get the raw URL by clicking "Raw" on your Gist
+KILL_SWITCH_URL=https://gist.githubusercontent.com/GIST_ID/raw/iskorly-status.json
 ```
 
 ### 5. Deploy & Test
@@ -58,9 +59,12 @@ firebase deploy --only hosting        # Option A: Firebase
 ## 🔗 Important URLs
 
 - **Gist URL:** `https://gist.github.com/username/GIST_ID`
-- **Raw URL:** `https://gist.githubusercontent.com/raw/GIST_ID/iskorly-status.json`
+- **Raw URL:** `https://gist.githubusercontent.com/GIST_ID/raw/FILENAME` (simpler)
+- **Raw URL (alt):** `https://gist.githubusercontent.com/USERNAME/GIST_ID/raw/FILENAME` (with username)
 - **Token Settings:** `https://github.com/settings/tokens?type=beta`
 - **Admin Page:** `file:///path/to/admin-gist.html` or your hosting URL
+
+**Tip:** Click "Raw" on your Gist page to get the exact raw URL for your setup.
 
 ## 🔑 Required Permissions
 

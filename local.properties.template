@@ -41,11 +41,13 @@ AZURE_VISION_ENDPOINT=https://your-region.api.cognitive.microsoft.com/
 # 
 # Option 1: GitHub Gist (Recommended - Free)
 # Create a public Gist at https://gist.github.com with a JSON file
-# Use the raw URL format: https://gist.githubusercontent.com/raw/GIST_ID/FILENAME
+# Get the raw URL by clicking "Raw" button on your Gist page
+# Format: https://gist.githubusercontent.com/GIST_ID/raw/FILENAME
+# Or with username: https://gist.githubusercontent.com/USERNAME/GIST_ID/raw/FILENAME
 # See GIST_KILL_SWITCH_SETUP.md for complete setup instructions
 #
 # Example:
-# KILL_SWITCH_URL=https://gist.githubusercontent.com/raw/abc123def456/iskorly-status.json
+# KILL_SWITCH_URL=https://gist.githubusercontent.com/abc123def456/raw/iskorly-status.json
 
 # Option 2: Firebase Cloud Function (Legacy)
 # If using Firebase hosting with Cloud Functions

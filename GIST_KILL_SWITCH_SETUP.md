@@ -147,18 +147,20 @@ Add the Gist URL to `local.properties`:
 
 ```properties
 # GitHub Gist Kill-Switch Configuration
-# Replace with your actual Gist ID
-# Format: https://gist.githubusercontent.com/raw/GIST_ID/FILENAME
-KILL_SWITCH_URL=https://gist.githubusercontent.com/raw/abc123def456/iskorly-status.json
+# Get the raw URL by clicking "Raw" button on your Gist page
+# Format: https://gist.githubusercontent.com/USERNAME/GIST_ID/raw/FILENAME
+# Example (without username - also works):
+KILL_SWITCH_URL=https://gist.githubusercontent.com/abc123def456/raw/iskorly-status.json
 ```
 
 **Important:**
 - Use the **raw Gist URL** (gist.githubusercontent.com, not gist.github.com)
-- The URL format is: `https://gist.githubusercontent.com/raw/{GIST_ID}/{FILENAME}`
+- The URL format is: `https://gist.githubusercontent.com/{GIST_ID}/raw/{FILENAME}`
+- Or with username: `https://gist.githubusercontent.com/{USERNAME}/{GIST_ID}/raw/{FILENAME}`
 - You can find this URL by:
   1. Opening your Gist on github.com
   2. Clicking the "Raw" button
-  3. Copying the URL (remove the revision hash if present)
+  3. Copying the URL from your browser
 
 ### Step 6: Build and Test Android App
 
@@ -407,9 +409,13 @@ This keeps secrets server-side while maintaining the free Gist storage.
 ### Example Gist URL Structure
 
 ```
-Gist Page:    https://gist.github.com/traumereixd/abc123def456
-Raw URL:      https://gist.githubusercontent.com/raw/abc123def456/iskorly-status.json
+Gist Page:    https://gist.github.com/username/abc123def456
+Raw URL:      https://gist.githubusercontent.com/abc123def456/raw/iskorly-status.json
+              OR
+              https://gist.githubusercontent.com/username/abc123def456/raw/iskorly-status.json
 ```
+
+Both raw URL formats work. The simpler format (without username) is shown above.
 
 ### Example local.properties
 
@@ -419,7 +425,10 @@ AZURE_VISION_KEY=your-azure-key-here
 AZURE_VISION_ENDPOINT=https://your-region.api.cognitive.microsoft.com/
 
 # Kill-Switch URL (updated for Gist)
-KILL_SWITCH_URL=https://gist.githubusercontent.com/raw/abc123def456/iskorly-status.json
+# Get the raw URL by clicking "Raw" on your Gist page
+# Format: https://gist.githubusercontent.com/GIST_ID/raw/FILENAME
+# Or with username: https://gist.githubusercontent.com/USERNAME/GIST_ID/raw/FILENAME
+KILL_SWITCH_URL=https://gist.githubusercontent.com/abc123def456/raw/iskorly-status.json
 
 # Optional: AI re-parser endpoint
 REPARSE_ENDPOINT=https://your-ai-endpoint.com/reparse
