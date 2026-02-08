@@ -1,8 +1,12 @@
-# Kill-Switch Setup Guide
+# Kill-Switch Setup Guide (Firebase - Legacy)
+
+> ⚠️ **Note:** This document describes the Firebase-based kill-switch implementation. For a **free, simpler alternative**, see [GIST_KILL_SWITCH_SETUP.md](GIST_KILL_SWITCH_SETUP.md) which uses GitHub Gist instead of Firebase.
 
 ## Overview
 
-The Iskorly app now includes a remote kill-switch feature that allows administrators to remotely disable the app with a custom message to users. This is useful for maintenance, emergency situations, or controlled rollouts.
+The Iskorly app includes a remote kill-switch feature that allows administrators to remotely disable the app with a custom message to users. This is useful for maintenance, emergency situations, or controlled rollouts.
+
+**This guide describes the Firebase implementation.** If you prefer a free alternative without Firebase, use the [GitHub Gist-based implementation](GIST_KILL_SWITCH_SETUP.md) instead.
 
 ## Components
 

@@ -1,0 +1,85 @@
+# Iskorly local.properties Template
+# 
+# This file contains API keys and configuration that should NOT be committed to version control.
+# Copy this file to local.properties and fill in your actual values.
+# 
+# ⚠️ IMPORTANT: local.properties is in .gitignore and will not be committed
+
+# ============================================
+# Azure Vision OCR Configuration (Required)
+# ============================================
+# Get your Azure Vision API credentials from:
+# https://portal.azure.com -> Cognitive Services -> Computer Vision
+#
+# Note: The app requires either Azure Vision or Google Cloud Vision for OCR
+
+AZURE_VISION_KEY=your-azure-vision-api-key-here
+AZURE_VISION_ENDPOINT=https://your-region.api.cognitive.microsoft.com/
+
+# ============================================
+# Google Cloud Vision OCR (Alternative)
+# ============================================
+# Alternative OCR engine. Get credentials from:
+# https://console.cloud.google.com/apis/credentials
+#
+# Uncomment if using Google Cloud Vision instead of Azure
+
+# GCLOUD_VISION_API_KEY=your-google-cloud-vision-api-key-here
+
+# ============================================
+# OCR.Space API (Optional Fallback)
+# ============================================
+# Fallback OCR service for handwriting recognition
+# Get free API key from: https://ocr.space/ocrapi
+
+# OCR_SPACE_API_KEY=your-ocr-space-api-key-here
+
+# ============================================
+# Kill-Switch URL (Optional but Recommended)
+# ============================================
+# Remote kill-switch for app control
+# 
+# Option 1: GitHub Gist (Recommended - Free)
+# Create a public Gist at https://gist.github.com with a JSON file
+# Get the raw URL by clicking "Raw" button on your Gist page
+# Format: https://gist.githubusercontent.com/GIST_ID/raw/FILENAME
+# Or with username: https://gist.githubusercontent.com/USERNAME/GIST_ID/raw/FILENAME
+# See GIST_KILL_SWITCH_SETUP.md for complete setup instructions
+#
+# Example:
+# KILL_SWITCH_URL=https://gist.githubusercontent.com/abc123def456/raw/iskorly-status.json
+
+# Option 2: Firebase Cloud Function (Legacy)
+# If using Firebase hosting with Cloud Functions
+# See KILL_SWITCH_SETUP.md for Firebase setup instructions
+#
+# Example:
+# KILL_SWITCH_URL=https://your-project.web.app/appStatus
+
+# Option 3: Firebase Cloud Storage (Legacy)
+# If using Firebase Storage with auto-sync
+#
+# Example:
+# KILL_SWITCH_URL=https://storage.googleapis.com/your-project.appspot.com/app-status.json
+
+# Option 4: Any other JSON endpoint
+# You can use any HTTPS endpoint that returns JSON in the format:
+# {"disabled": false, "message": "App is running"}
+
+KILL_SWITCH_URL=
+
+# ============================================
+# AI Re-parser Endpoint (Optional)
+# ============================================
+# Optional AI endpoint for re-parsing low-confidence OCR results
+# Leave empty if not using this feature
+
+REPARSE_ENDPOINT=
+
+# ============================================
+# Notes
+# ============================================
+# - If KILL_SWITCH_URL is empty or blank, the kill-switch check is skipped
+# - At least one OCR provider (Azure Vision or Google Cloud Vision) is required
+# - API keys must be valid for the app to function properly
+# - Keep this file secure and never commit it to version control

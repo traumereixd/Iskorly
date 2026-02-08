@@ -18,3 +18,7 @@ app/src/main/res/drawable-nodpi/*.png
 # Local config with secrets (DO NOT COMMIT)
 local.properties
 nohup.out
+
+# Configured admin pages (contain secrets)
+public/admin-gist-configured.html
+**/admin-*-configured.html
