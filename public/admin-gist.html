@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iskorly Admin - App Control (GitHub Gist)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 500px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .login-section, .control-section {
+            display: none;
+        }
+
+        .login-section.active, .control-section.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(245, 87, 108, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(79, 172, 254, 0.4);
+        }
+
+        .status-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .status-label {
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+        }
+
+        .status-badge {
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .status-badge.enabled {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-badge.disabled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .message-preview {
+            margin-top: 12px;
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #666;
+            border-left: 3px solid #667eea;
+        }
+
+        .message-preview strong {
+            display: block;
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 6px;
+        }
+
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            font-family: inherit;
+            resize: vertical;
+            min-height: 100px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-left: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .toggle-container {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .toggle-container .btn {
+            flex: 1;
+        }
+
+        .logout-btn {
+            margin-top: 16px;
+            background: transparent;
+            color: #666;
+            border: 2px solid #e0e0e0;
+        }
+
+        .logout-btn:hover {
+            background: #f8f9fa;
+            border-color: #ccc;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            color: #1565c0;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            margin-bottom: 20px;
+            border-left: 3px solid #2196f3;
+        }
+
+        .gist-url {
+            font-family: monospace;
+            font-size: 12px;
+            color: #666;
+            background: #f5f5f5;
+            padding: 8px;
+            border-radius: 4px;
+            word-break: break-all;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎓 Iskorly Admin</h1>
+            <p>App Control Panel (GitHub Gist)</p>
+        </div>
+
+        <div class="content">
+            <!-- Login Section -->
+            <div class="login-section active" id="loginSection">
+                <div class="alert alert-danger" id="loginError"></div>
+                
+                <div class="form-group">
+                    <label for="password">Admin Password</label>
+                    <input type="password" id="password" placeholder="Enter admin password" autocomplete="current-password">
+                </div>
+
+                <button class="btn btn-primary" id="loginBtn">
+                    Sign In
+                </button>
+
+                <div class="info-box" style="margin-top: 20px;">
+                    <strong>ℹ️ Configuration Required</strong><br>
+                    Set ADMIN_PASSWORD, GIST_ID, and GITHUB_TOKEN in the script below before using this admin panel.
+                </div>
+            </div>
+
+            <!-- Control Section -->
+            <div class="control-section" id="controlSection">
+                <div class="alert alert-success" id="saveSuccess"></div>
+                <div class="alert alert-danger" id="saveError"></div>
+                <div class="alert alert-warning" id="saveWarning"></div>
+
+                <div class="status-card">
+                    <div class="status-indicator">
+                        <span class="status-label">Current Status</span>
+                        <span class="status-badge enabled" id="statusBadge">Enabled</span>
+                    </div>
+                    <div class="message-preview">
+                        <strong>User Message:</strong>
+                        <div id="messagePreview"></div>
+                    </div>
+                </div>
+
+                <div class="toggle-container">
+                    <button class="btn btn-success" id="enableBtn">
+                        ✓ Enable App
+                    </button>
+                    <button class="btn btn-danger" id="disableBtn">
+                        ✕ Disable App
+                    </button>
+                </div>
+
+                <div class="form-group">
+                    <label for="messageInput">User Message</label>
+                    <textarea id="messageInput" placeholder="Enter message shown to users..."></textarea>
+                </div>
+
+                <button class="btn btn-primary" id="saveBtn">
+                    Save Changes to Gist
+                </button>
+
+                <button class="btn logout-btn" id="logoutBtn">
+                    Sign Out
+                </button>
+
+                <div class="gist-url" id="gistUrl" style="margin-top: 20px;">
+                    Gist URL: Not configured
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========================================
+        // CONFIGURATION - SET THESE VALUES
+        // ========================================
+        // DO NOT COMMIT THESE SECRETS TO SOURCE CONTROL!
+        // For production, use environment variables or a secure config system
+        
+        const CONFIG = {
+            // Simple password for admin access (client-side only, for basic protection)
+            // Consider using a more secure authentication method for production
+            ADMIN_PASSWORD: 'CHANGE_ME_ADMIN_PASSWORD',
+            
+            // Your GitHub Gist ID (get this from the Gist URL after creation)
+            // Example: if your Gist URL is https://gist.github.com/username/abc123def456
+            // then GIST_ID = 'abc123def456'
+            GIST_ID: 'CHANGE_ME_GIST_ID',
+            
+            // GitHub fine-grained personal access token with gist write permission
+            // Generate at: https://github.com/settings/tokens?type=beta
+            // Required permission: Gists -> Read and Write
+            GITHUB_TOKEN: 'CHANGE_ME_GITHUB_TOKEN',
+            
+            // Gist filename (should match the filename in your Gist)
+            GIST_FILENAME: 'iskorly-status.json'
+        };
+
+        // Validate configuration
+        const isConfigured = CONFIG.ADMIN_PASSWORD !== 'CHANGE_ME_ADMIN_PASSWORD' &&
+                             CONFIG.GIST_ID !== 'CHANGE_ME_GIST_ID' &&
+                             CONFIG.GITHUB_TOKEN !== 'CHANGE_ME_GITHUB_TOKEN';
+
+        // ========================================
+        // APPLICATION CODE
+        // ========================================
+
+        // DOM Elements
+        const loginSection = document.getElementById('loginSection');
+        const controlSection = document.getElementById('controlSection');
+        const passwordInput = document.getElementById('password');
+        const loginBtn = document.getElementById('loginBtn');
+        const loginError = document.getElementById('loginError');
+        const saveSuccess = document.getElementById('saveSuccess');
+        const saveError = document.getElementById('saveError');
+        const saveWarning = document.getElementById('saveWarning');
+        const statusBadge = document.getElementById('statusBadge');
+        const messagePreview = document.getElementById('messagePreview');
+        const enableBtn = document.getElementById('enableBtn');
+        const disableBtn = document.getElementById('disableBtn');
+        const messageInput = document.getElementById('messageInput');
+        const saveBtn = document.getElementById('saveBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const gistUrlElement = document.getElementById('gistUrl');
+
+        let currentStatus = {
+            disabled: false,
+            message: ''
+        };
+
+        let isAuthenticated = false;
+
+        // Update Gist URL display
+        if (CONFIG.GIST_ID !== 'CHANGE_ME_GIST_ID') {
+            const rawGistUrl = `https://gist.githubusercontent.com/raw/${CONFIG.GIST_ID}/${CONFIG.GIST_FILENAME}`;
+            gistUrlElement.textContent = `Public Gist URL: ${rawGistUrl}`;
+        }
+
+        // Login Handler
+        loginBtn.addEventListener('click', async () => {
+            if (!isConfigured) {
+                showError(loginError, 'Configuration incomplete. Please set ADMIN_PASSWORD, GIST_ID, and GITHUB_TOKEN in the script.');
+                return;
+            }
+
+            const password = passwordInput.value.trim();
+            
+            if (!password) {
+                showError(loginError, 'Please enter a password');
+                return;
+            }
+
+            loginBtn.disabled = true;
+            loginBtn.innerHTML = 'Signing In<span class="loading"></span>';
+
+            try {
+                // Simple password check (client-side only)
+                if (password === CONFIG.ADMIN_PASSWORD) {
+                    isAuthenticated = true;
+                    loginSection.classList.remove('active');
+                    controlSection.classList.add('active');
+                    await loadCurrentStatus();
+                } else {
+                    showError(loginError, 'Invalid password. Please try again.');
+                    isAuthenticated = false;
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showError(loginError, 'Login error: ' + error.message);
+            } finally {
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = 'Sign In';
+            }
+        });
+
+        // Load Current Status from Gist
+        async function loadCurrentStatus() {
+            try {
+                const response = await fetch(`https://api.github.com/gists/${CONFIG.GIST_ID}`, {
+                    headers: {
+                        'Authorization': `Bearer ${CONFIG.GITHUB_TOKEN}`,
+                        'Accept': 'application/vnd.github.v3+json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`GitHub API error: ${response.status} ${response.statusText}`);
+                }
+                
+                const gist = await response.json();
+                const fileContent = gist.files[CONFIG.GIST_FILENAME];
+                
+                if (!fileContent) {
+                    throw new Error(`File "${CONFIG.GIST_FILENAME}" not found in Gist`);
+                }
+                
+                const data = JSON.parse(fileContent.content);
+                currentStatus = {
+                    disabled: data.disabled || false,
+                    message: data.message || ''
+                };
+                
+                updateUI();
+                console.log('Loaded status from Gist:', currentStatus);
+            } catch (error) {
+                console.error('Error loading status:', error);
+                showError(saveError, 'Failed to load current status: ' + error.message);
+            }
+        }
+
+        // Update UI
+        function updateUI() {
+            const isDisabled = currentStatus.disabled;
+            
+            statusBadge.textContent = isDisabled ? 'Disabled' : 'Enabled';
+            statusBadge.className = 'status-badge ' + (isDisabled ? 'disabled' : 'enabled');
+            
+            messageInput.value = currentStatus.message;
+            messagePreview.textContent = currentStatus.message || '(No message set)';
+            
+            enableBtn.disabled = !isDisabled;
+            disableBtn.disabled = isDisabled;
+        }
+
+        // Enable App
+        enableBtn.addEventListener('click', () => {
+            currentStatus.disabled = false;
+            updateUI();
+        });
+
+        // Disable App
+        disableBtn.addEventListener('click', () => {
+            currentStatus.disabled = true;
+            updateUI();
+        });
+
+        // Update message preview on input
+        messageInput.addEventListener('input', () => {
+            messagePreview.textContent = messageInput.value || '(No message set)';
+        });
+
+        // Save Changes to Gist
+        saveBtn.addEventListener('click', async () => {
+            if (!isAuthenticated) {
+                showError(saveError, 'Not authenticated');
+                return;
+            }
+
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = 'Saving to Gist<span class="loading"></span>';
+
+            hideAlerts();
+
+            try {
+                const statusData = {
+                    disabled: currentStatus.disabled,
+                    message: messageInput.value.trim()
+                };
+
+                // Update the Gist via GitHub API
+                const response = await fetch(`https://api.github.com/gists/${CONFIG.GIST_ID}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${CONFIG.GITHUB_TOKEN}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        files: {
+                            [CONFIG.GIST_FILENAME]: {
+                                content: JSON.stringify(statusData, null, 2)
+                            }
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(`GitHub API error: ${response.status} - ${errorData.message || response.statusText}`);
+                }
+
+                currentStatus.message = statusData.message;
+                updateUI();
+                
+                showSuccess(saveSuccess, 'Changes saved successfully to GitHub Gist!');
+                showWarning(saveWarning, 'Note: It may take a few seconds for the raw Gist URL to reflect changes.');
+                console.log('Saved to Gist:', statusData);
+            } catch (error) {
+                console.error('Save error:', error);
+                showError(saveError, 'Failed to save changes: ' + error.message);
+            } finally {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = 'Save Changes to Gist';
+            }
+        });
+
+        // Logout
+        logoutBtn.addEventListener('click', () => {
+            isAuthenticated = false;
+            controlSection.classList.remove('active');
+            loginSection.classList.add('active');
+            passwordInput.value = '';
+            hideAlerts();
+        });
+
+        // Password input enter key
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                loginBtn.click();
+            }
+        });
+
+        // Helper Functions
+        function showError(element, message) {
+            element.textContent = message;
+            element.classList.add('show');
+            setTimeout(() => element.classList.remove('show'), 8000);
+        }
+
+        function showSuccess(element, message) {
+            element.textContent = message;
+            element.classList.add('show');
+            setTimeout(() => element.classList.remove('show'), 5000);
+        }
+
+        function showWarning(element, message) {
+            element.textContent = message;
+            element.classList.add('show');
+            setTimeout(() => element.classList.remove('show'), 5000);
+        }
+
+        function hideAlerts() {
+            loginError.classList.remove('show');
+            saveSuccess.classList.remove('show');
+            saveError.classList.remove('show');
+            saveWarning.classList.remove('show');
+        }
+
+        // Check if configured on load
+        if (!isConfigured) {
+            console.warn('Admin panel not configured. Please set ADMIN_PASSWORD, GIST_ID, and GITHUB_TOKEN.');
+        }
+    </script>
+</body>
+</html>

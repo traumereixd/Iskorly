@@ -61,6 +61,11 @@ Iskorly uses Google Cloud Vision OCR to automatically extract and score student 
 - [OCR Accuracy Improvements](project-docs/OCR_ACCURACY_IMPROVEMENTS.md)
 - [Crop UI Implementation](project-docs/CROP_UI_LAYOUT.md)
 
+**Admin & Configuration:**
+- 🔧 [GitHub Gist Kill-Switch Setup](GIST_KILL_SWITCH_SETUP.md) - Free remote app control (recommended)
+- 🔧 [Firebase Kill-Switch Setup](KILL_SWITCH_SETUP.md) - Legacy Firebase-based app control
+- 🔐 [Admin Page Configuration](docs/ADMIN_PAGE_CONFIG.md) - Securing the admin panel
+
 ---
 
 ## How It Works
