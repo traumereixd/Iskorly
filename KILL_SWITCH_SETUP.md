@@ -76,9 +76,10 @@ The Android app checks this endpoint on every app startup and caches the result 
 3. Enable Firebase Authentication (Email/Password provider)
 4. Enable Firebase Firestore
 5. Enable Firebase Cloud Functions
-6. Update `public/admin.html` with your Firebase configuration:
+6. Update `public/admin.html` with your Firebase configuration (using modular SDK):
 
 ```javascript
+// Your web app's Firebase configuration
 const firebaseConfig = {
     apiKey: "YOUR_API_KEY",
     authDomain: "YOUR_PROJECT.firebaseapp.com",
@@ -269,27 +270,36 @@ This version of the app is no longer supported.
 Please update to the latest version from the Play Store.
 ```
 
-## Cloud Function (Optional)
+## Cloud Function Implementation
 
-To automatically sync Realtime Database changes to the static JSON file:
+The project includes a Cloud Function at `functions/index.js` that serves the kill-switch status to the Android app:
 
 ```javascript
-const functions = require('firebase-functions');
-const admin = require('firebase-admin');
-const fs = require('fs');
+exports.appStatus = functions.https.onRequest(async (req, res) => {
+  try {
+    const snap = await admin.firestore()
+      .collection("app_config")
+      .doc("status")
+      .get();
 
-exports.syncAppStatus = functions.database.ref('/app-status')
-    .onWrite((change, context) => {
-        const status = change.after.val();
-        const jsonContent = JSON.stringify(status, null, 2);
-        
-        // Write to hosting directory
-        fs.writeFileSync('./public/app-status.json', jsonContent);
-        
-        // Trigger redeployment or use Cloud Storage
-        return null;
+    const data = snap.exists ? snap.data() : { disabled: false, message: "" };
+
+    res.set("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.json({
+      disabled: !!data.disabled,
+      message: data.message || "App temporarily disabled."
     });
+  } catch (e) {
+    res.status(500).json({ disabled: false, message: "" });
+  }
+});
 ```
+
+This function:
+- Reads the status from Firestore (`app_config/status`)
+- Serves it via HTTP endpoint (`/appStatus`)
+- Sets cache control headers to prevent caching
+- Provides fallback values on error
 
 ## Support
 
