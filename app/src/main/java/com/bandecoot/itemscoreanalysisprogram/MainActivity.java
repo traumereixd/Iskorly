@@ -170,6 +170,9 @@ public class MainActivity extends AppCompatActivity {
     private static final String PREF_FORM_STUDENT = "form_student_name";
     private static final String PREF_FORM_SECTION = "form_section_name";
     private static final String PREF_FORM_EXAM = "form_exam_name";
+    // Kill-switch preferences
+    private static final String PREF_KILL_SWITCH_DISABLED = "kill_switch_disabled";
+    private static final String PREF_KILL_SWITCH_MESSAGE = "kill_switch_message";
     private static final int MAX_RECENTS = 50;
     private String currentSlotId = "default";
     private final HashMap<String, SlotData> slots = new HashMap<>();
@@ -758,6 +761,103 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // Kill-switch methods
+    /**
+     * Checks the remote kill-switch endpoint on app startup.
+     * If the app is disabled, shows a non-cancelable dialog and blocks usage.
+     * Caches the result in SharedPreferences for offline scenarios.
+     */
+    private void checkKillSwitch() {
+        String killSwitchUrl = BuildConfig.KILL_SWITCH_URL;
+        
+        // If URL is not configured, skip the check
+        if (killSwitchUrl == null || killSwitchUrl.trim().isEmpty()) {
+            Log.d(TAG, "Kill-switch URL not configured, skipping check");
+            return;
+        }
+        
+        Log.d(TAG, "Checking kill-switch endpoint: " + killSwitchUrl);
+        
+        // First, check cached state (for offline scenarios)
+        boolean cachedDisabled = appPreferences.getBoolean(PREF_KILL_SWITCH_DISABLED, false);
+        String cachedMessage = appPreferences.getString(PREF_KILL_SWITCH_MESSAGE, "");
+        
+        // Try to fetch fresh status in background
+        new Thread(() -> {
+            try {
+                Request request = new Request.Builder()
+                        .url(killSwitchUrl)
+                        .build();
+                
+                Response response = httpClient.newCall(request).execute();
+                
+                if (response.isSuccessful() && response.body() != null) {
+                    String responseBody = response.body().string();
+                    Log.d(TAG, "Kill-switch response: " + responseBody);
+                    
+                    // Parse JSON response
+                    JSONObject json = new JSONObject(responseBody);
+                    boolean disabled = json.optBoolean("disabled", false);
+                    String message = json.optString("message", "");
+                    
+                    // Cache the result
+                    appPreferences.edit()
+                            .putBoolean(PREF_KILL_SWITCH_DISABLED, disabled)
+                            .putString(PREF_KILL_SWITCH_MESSAGE, message)
+                            .apply();
+                    
+                    Log.d(TAG, "Kill-switch status: disabled=" + disabled + ", message=" + message);
+                    
+                    // If app is disabled, show blocking dialog
+                    if (disabled) {
+                        runOnUiThread(() -> showKillSwitchDialog(message));
+                    }
+                } else {
+                    Log.w(TAG, "Kill-switch endpoint returned error: " + response.code());
+                    // Use cached state on error
+                    if (cachedDisabled) {
+                        runOnUiThread(() -> showKillSwitchDialog(cachedMessage));
+                    }
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error checking kill-switch", e);
+                // Use cached state on error
+                if (cachedDisabled) {
+                    runOnUiThread(() -> showKillSwitchDialog(cachedMessage));
+                }
+            }
+        }).start();
+        
+        // If cached state indicates app is disabled, show dialog immediately (for offline)
+        if (cachedDisabled) {
+            showKillSwitchDialog(cachedMessage);
+        }
+    }
+    
+    /**
+     * Shows a non-cancelable dialog indicating the app is disabled.
+     * @param message Custom message from the server
+     */
+    private void showKillSwitchDialog(String message) {
+        if (message == null || message.trim().isEmpty()) {
+            message = "This app is currently disabled. Please contact your administrator for more information.";
+        }
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("App Disabled")
+                .setMessage(message)
+                .setCancelable(false)
+                .setPositiveButton("Exit", (dialog, which) -> {
+                    finish();
+                    System.exit(0);
+                });
+        
+        AlertDialog dialog = builder.create();
+        dialog.show();
+        
+        Log.w(TAG, "App is disabled by kill-switch. Message: " + message);
+    }
+
     private void updateAnswerInputUi() {
         if (answerDropdown == null) return;
         
@@ -787,6 +887,9 @@ public class MainActivity extends AppCompatActivity {
         
         // Initialize slot system
         initializeSlots();
+        
+        // Check kill-switch (must be after appPreferences initialization)
+        checkKillSwitch();
 
         // Initialize document launchers
         initializeDocumentLaunchers();
