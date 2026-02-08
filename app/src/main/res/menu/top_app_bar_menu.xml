@@ -2,6 +2,7 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item android:id="@+id/menu_setup" android:title="@string/menu_setup" app:showAsAction="never"/>
+    <item android:id="@+id/menu_ocr_settings" android:title="@string/menu_ocr_settings" app:showAsAction="never"/>
     <item android:id="@+id/menu_history" android:title="@string/menu_history" app:showAsAction="never"/>
     <item android:id="@+id/menu_export_csv" android:title="@string/menu_export_csv" app:showAsAction="never"/>
     <item android:id="@+id/menu_tutorial" android:title="@string/menu_tutorial" app:showAsAction="never"/>
