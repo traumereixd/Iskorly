@@ -71,6 +71,10 @@ android {
         buildConfigField("String", "REPARSE_ENDPOINT", "\"$reparseEndpoint\"")
         buildConfigField("float", "REPARSE_MIN_FILLED_THRESHOLD", "0.50f")
 
+        // Kill-switch endpoint URL for remote app control
+        val killSwitchUrl = props.getProperty("KILL_SWITCH_URL")?.trim() ?: ""
+        buildConfigField("String", "KILL_SWITCH_URL", "\"$killSwitchUrl\"")
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
