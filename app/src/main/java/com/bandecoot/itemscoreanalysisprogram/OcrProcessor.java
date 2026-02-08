@@ -1,8 +1,11 @@
 package com.bandecoot.itemscoreanalysisprogram;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.util.Base64;
 import android.util.Log;
+
+import com.bandecoot.itemscoreanalysisprogram.ocr.OcrEngine;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -13,7 +16,9 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -22,8 +27,8 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 /**
- * Vision-only OCR processor with multi-pass preprocessing and smart parsing.
- * No longer uses OCR.Space fallback in active pipeline.
+ * OCR processor with multi-pass preprocessing and smart parsing.
+ * Supports multiple OCR engines (Google Vision, Azure Read API).
  */
 public class OcrProcessor {
     private static final String TAG = "ISA_VISION_PROC";
@@ -33,11 +38,36 @@ public class OcrProcessor {
     private static final int SCORE_NUMERIC_ANCHOR_BONUS = 2;
     
     private final OkHttpClient httpClient;
-    private final String visionApiKey;
+    private final OcrEngine ocrEngine;
+    private final Context context;
+    private final String visionApiKey; // Kept for legacy direct API calls
     private final String ocrSpaceApiKey; // Kept for legacy compatibility but not used
     private final Map<Integer, String> answerKey;
     
+    /**
+     * Constructor with OcrEngine for engine selection support.
+     */
+    public OcrProcessor(Context context, OcrEngine ocrEngine, Map<Integer, String> answerKey) {
+        this.context = context;
+        this.ocrEngine = ocrEngine;
+        this.answerKey = answerKey;
+        this.visionApiKey = ""; // Not used when OcrEngine is provided
+        this.ocrSpaceApiKey = "";
+        
+        this.httpClient = new OkHttpClient.Builder()
+                .connectTimeout(20, TimeUnit.SECONDS)
+                .readTimeout(60, TimeUnit.SECONDS)
+                .build();
+    }
+    
+    /**
+     * Legacy constructor for backward compatibility.
+     * @deprecated Use constructor with OcrEngine instead
+     */
+    @Deprecated
     public OcrProcessor(String visionApiKey, String ocrSpaceApiKey, Map<Integer, String> answerKey) {
+        this.context = null;
+        this.ocrEngine = null;
         this.visionApiKey = visionApiKey;
         this.ocrSpaceApiKey = ocrSpaceApiKey;
         this.answerKey = answerKey;
@@ -146,12 +176,8 @@ public class OcrProcessor {
         for (PreprocessVariant variant : variants) {
             variantIndex++;
             try {
-                // Compress to JPEG with higher quality (95% instead of 80%) and larger size (2048px instead of 1600px)
-                // This preserves more detail for poor quality images
-                byte[] jpegBytes = ImageUtil.resizeAndCompressHighQuality(variant.bitmap, 2048);
-                
-                // Call Vision API (DOCUMENT_TEXT_DETECTION)
-                String recognizedText = callVisionApi(jpegBytes);
+                // Call OCR engine
+                String recognizedText = callOcrEngine(variant.bitmap);
                 
                 if (recognizedText == null) {
                     recognizedText = "";
@@ -197,81 +223,10 @@ public class OcrProcessor {
         
         Log.d(TAG, "Selected best variant: '" + bestResult.variantName + "' with score " + bestScore);
         
-        // Check if we need a second pass with TEXT_DETECTION mode
+        // Check if we need a second pass (only for Google Vision with TEXT_DETECTION mode)
+        // Azure Read API doesn't have different detection modes, so skip for Azure
         int filledCount = countFilledAnswers(bestResult.parsedAnswers);
         float fillRatio = answerKey.isEmpty() ? 0 : (float) filledCount / answerKey.size();
-        
-        // If we got less than 50% filled, try TEXT_DETECTION mode on best variant
-        if (fillRatio < 0.50f) {
-            Log.d(TAG, String.format("Fill ratio %.1f%% is low, attempting second pass with TEXT_DETECTION mode",
-                    fillRatio * 100));
-            
-            try {
-                // Try the top 2-3 variants with TEXT_DETECTION mode
-                int maxRetries = Math.min(3, variants.size());
-                PreprocessResult textDetectionBest = null;
-                int textDetectionBestScore = -1;
-                
-                // Sort variants by score (we need to recreate them since originals were recycled)
-                // For now, just retry the best variant type
-                Bitmap retryBitmap = null;
-                
-                // Recreate the best variant
-                switch (bestResult.variantName) {
-                    case "light":
-                        retryBitmap = ImagePreprocessor.preprocessLight(bitmap);
-                        break;
-                    case "classroom":
-                        retryBitmap = ImagePreprocessor.preprocessForClassroom(bitmap);
-                        break;
-                    case "ultra_contrast":
-                        retryBitmap = ImagePreprocessor.preprocessUltraHighContrast(bitmap);
-                        break;
-                    case "sharpened":
-                        retryBitmap = ImagePreprocessor.preprocessSharpened(bitmap);
-                        break;
-                    case "adaptive_histogram":
-                        retryBitmap = ImagePreprocessor.preprocessAdaptiveHistogram(bitmap);
-                        break;
-                    default:
-                        // Use original for standard/grayscale/original variants
-                        retryBitmap = bitmap.copy(bitmap.getConfig(), false);
-                        break;
-                }
-                
-                if (retryBitmap != null) {
-                    byte[] jpegBytes = ImageUtil.resizeAndCompressHighQuality(retryBitmap, 2048);
-                    
-                    // Call Vision API with TEXT_DETECTION mode
-                    String recognizedText = callVisionApi(jpegBytes, false);
-                    
-                    if (recognizedText != null && !recognizedText.isEmpty()) {
-                        HashMap<Integer, String> parsed = parseAndFilterSmart(recognizedText);
-                        int score = scoreVariant(parsed, recognizedText);
-                        int newFilledCount = countFilledAnswers(parsed);
-                        
-                        Log.d(TAG, String.format("TEXT_DETECTION mode: score=%d, filled=%d/%d (%.1f%%)",
-                                score, newFilledCount, answerKey.size(),
-                                (float) newFilledCount / answerKey.size() * 100));
-                        
-                        // Use TEXT_DETECTION result if it's better
-                        if (score > bestScore) {
-                            Log.d(TAG, "TEXT_DETECTION mode produced better result, using it");
-                            bestResult = new PreprocessResult(bestResult.variantName + "_text_detect",
-                                    parsed, recognizedText);
-                            bestOcrText = recognizedText;
-                            filledCount = newFilledCount;
-                            fillRatio = (float) filledCount / answerKey.size();
-                        }
-                    }
-                    
-                    retryBitmap.recycle();
-                }
-                
-            } catch (Exception e) {
-                Log.e(TAG, "Error in TEXT_DETECTION second pass", e);
-            }
-        }
         
         // Check if we should call AI re-parser
         filledCount = countFilledAnswers(bestResult.parsedAnswers);
@@ -435,6 +390,55 @@ public class OcrProcessor {
     }
     
     /**
+     * Call OCR engine to recognize text from bitmap.
+     * Uses OcrEngine if available, otherwise falls back to direct Vision API call.
+     * 
+     * @param bitmap Input bitmap
+     * @return Recognized text or empty string on error
+     */
+    private String callOcrEngine(Bitmap bitmap) {
+        if (ocrEngine != null && context != null) {
+            // Use the configured OCR engine
+            final CountDownLatch latch = new CountDownLatch(1);
+            final AtomicReference<String> result = new AtomicReference<>("");
+            
+            ocrEngine.recognize(context, bitmap, new OcrEngine.Callback() {
+                @Override
+                public void onResult(String text) {
+                    result.set(text != null ? text : "");
+                    latch.countDown();
+                }
+                
+                @Override
+                public void onError(Exception e) {
+                    Log.e(TAG, "OCR engine error: " + e.getMessage(), e);
+                    result.set("");
+                    latch.countDown();
+                }
+            });
+            
+            try {
+                // Wait up to 60 seconds for OCR to complete
+                if (latch.await(60, TimeUnit.SECONDS)) {
+                    return result.get();
+                } else {
+                    Log.e(TAG, "OCR engine timeout");
+                    return "";
+                }
+            } catch (InterruptedException e) {
+                Log.e(TAG, "OCR engine interrupted", e);
+                Thread.currentThread().interrupt();
+                return "";
+            }
+        } else {
+            // Fall back to legacy direct Vision API call
+            byte[] jpegBytes = ImageUtil.resizeAndCompressHighQuality(bitmap, 2048);
+            String text = callVisionApi(jpegBytes);
+            return text != null ? text : "";
+        }
+    }
+    
+    /**
      * Call Google Vision API for OCR.
      * Supports both DOCUMENT_TEXT_DETECTION and TEXT_DETECTION modes.
      * 
@@ -555,12 +559,9 @@ public class OcrProcessor {
                 return new HashMap<>();
             }
             
-            // Compress to JPEG
-            byte[] jpegBytes = ImageUtil.resizeAndCompress(preprocessed, 1600);
+            // Call OCR engine
+            String recognizedText = callOcrEngine(preprocessed);
             preprocessed.recycle();
-            
-            // Call Vision API
-            String recognizedText = callVisionApi(jpegBytes);
             
             if (recognizedText == null) {
                 recognizedText = "";
@@ -647,12 +648,9 @@ public class OcrProcessor {
                 return new HashMap<>();
             }
             
-            // Compress to JPEG
-            byte[] jpegBytes = ImageUtil.resizeAndCompress(preprocessed, 1600);
+            // Call OCR engine
+            String recognizedText = callOcrEngine(preprocessed);
             preprocessed.recycle();
-            
-            // Call Vision API
-            String recognizedText = callVisionApi(jpegBytes);
             
             if (recognizedText == null) {
                 recognizedText = "";
