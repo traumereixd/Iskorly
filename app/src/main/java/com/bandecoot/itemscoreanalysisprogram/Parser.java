@@ -453,11 +453,12 @@ public final class Parser {
         // Build allowed answer set from answer key
         java.util.Set<String> allowedSet = buildAllowedSet(answerKey);
         
-        // Strip headers and instructions first
+        // Strip headers and instructions first, then filter question text
         String stripped = stripHeadersAndInstructionsPreserveLines(text);
+        String filtered = filterQuestionText(stripped);
         
         // Normalize and convert roman numerals while preserving line structure
-        String normalized = normalizeTextPreserveLines(stripped);
+        String normalized = normalizeTextPreserveLines(filtered);
         String converted = convertRomanNumeralsPreserveLines(normalized);
         
         // Split into lines and process with cross-line linking
@@ -512,8 +513,8 @@ public final class Parser {
                 
                 // Pattern 4: Answer-only (pair with pending number if available)
                 if (pendingNumber != null) {
-                    // Extract answer from this segment
-                    String answer = extractFirstValidAnswer(segment, pendingNumber);
+                    // Extract answer from this segment (use first token only, ignore trailing words)
+                    String answer = extractFirstTokenOnly(segment, pendingNumber);
                     if (!answer.isEmpty()) {
                         addAnswerWithPreference(map, pendingNumber, answer, allowedSet);
                         pendingNumber = null;
@@ -955,11 +956,12 @@ public final class Parser {
         LinkedHashMap<Integer, String> map = new LinkedHashMap<>();
         java.util.Set<String> allowedSet = buildAllowedSet(answerKey);
         
-        // Strip headers and instructions first
+        // Strip headers and instructions first, then filter question text
         String stripped = stripHeadersAndInstructionsPreserveLines(text);
+        String filtered = filterQuestionText(stripped);
         
         // Normalize and convert roman numerals
-        String normalized = normalizeTextPreserveLines(stripped);
+        String normalized = normalizeTextPreserveLines(filtered);
         String converted = convertRomanNumeralsPreserveLines(normalized);
         
         // Parse line by line
@@ -1002,11 +1004,12 @@ public final class Parser {
         java.util.List<Integer> keyQuestions = new java.util.ArrayList<>(answerKey.keySet());
         java.util.Collections.sort(keyQuestions);
         
-        // Strip headers and instructions first
+        // Strip headers and instructions first, then filter question text
         String stripped = stripHeadersAndInstructionsPreserveLines(text);
+        String filtered = filterQuestionText(stripped);
         
         // Normalize text
-        String normalized = normalizeTextPreserveLines(stripped);
+        String normalized = normalizeTextPreserveLines(filtered);
         String converted = convertRomanNumeralsPreserveLines(normalized);
         
         // Extract candidate answers (lines that look like answers)
@@ -1231,5 +1234,265 @@ public final class Parser {
         }
         
         return allowed;
+    }
+    
+    // ========== Enhanced Parsing with Confidence Scoring and Gap Detection ==========
+    
+    // Patterns to detect and filter question text
+    private static final Pattern QUESTION_STEM_PATTERN = Pattern.compile(
+            "(?i).*(which of the following|choose the best|select the|what is|identify the|" +
+            "all of the following|none of the following|most likely|best describes|" +
+            "correctly describes|is true|is false|except|not true).*");
+    
+    // Pattern to detect multiple choice option blocks (A., B., C., D. in body text)
+    // Only match if the line is long (more than 15 chars after the choice letter)
+    private static final Pattern MCQ_OPTIONS_PATTERN = Pattern.compile(
+            "(?i)^\\s*[A-D][.):]\\s*.{15,}");
+    
+    // Pattern to detect heavy underscores/blanks (likely fill-in-the-blank questions, not answers)
+    private static final Pattern BLANK_PATTERN = Pattern.compile("_{5,}|\\s{10,}");
+    
+    /**
+     * Filter out question text patterns from OCR text.
+     * Removes common question stems and multiple choice option blocks from question bodies.
+     * 
+     * @param text Raw OCR text
+     * @return Filtered text with question patterns removed
+     */
+    private static String filterQuestionText(String text) {
+        if (text == null || text.trim().isEmpty()) return text;
+        
+        String[] lines = text.split("\n");
+        StringBuilder result = new StringBuilder();
+        
+        for (String line : lines) {
+            String trimmed = line.trim();
+            if (trimmed.isEmpty()) continue;
+            
+            // Skip lines that look like question stems (long lines with question keywords)
+            if (QUESTION_STEM_PATTERN.matcher(trimmed).matches() && trimmed.length() > 40) {
+                Log.d(TAG, "Filtering question stem: " + trimmed.substring(0, Math.min(50, trimmed.length())));
+                continue;
+            }
+            
+            // Skip lines with heavy blanks/underscores (likely question prompts, not answers)
+            if (BLANK_PATTERN.matcher(trimmed).find()) {
+                Log.d(TAG, "Filtering blank line: " + trimmed.substring(0, Math.min(50, trimmed.length())));
+                continue;
+            }
+            
+            // Skip MCQ option blocks that are part of question text (longer descriptive options)
+            if (MCQ_OPTIONS_PATTERN.matcher(trimmed).matches()) {
+                Log.d(TAG, "Filtering MCQ option text: " + trimmed.substring(0, Math.min(50, trimmed.length())));
+                continue;
+            }
+            
+            result.append(line).append("\n");
+        }
+        
+        return result.toString();
+    }
+    
+    /**
+     * Compute confidence score for an answer based on quality metrics.
+     * 
+     * @param answer The answer text
+     * @param questionNumber Question number (for type hint lookup)
+     * @param allowedSet Set of allowed answers from answer key
+     * @return Confidence score (0.0 to 1.0) and flags
+     */
+    private static AnswerConfidence computeConfidence(String answer, int questionNumber, 
+                                                     java.util.Set<String> allowedSet) {
+        if (answer == null || answer.trim().isEmpty()) {
+            return new AnswerConfidence(questionNumber, answer, 0.0f, new String[]{"EMPTY"});
+        }
+        
+        float score = 1.0f;
+        List<String> flags = new ArrayList<>();
+        
+        String trimmed = answer.trim();
+        String canonical = canonical(trimmed);
+        
+        // Check length bounds
+        if (trimmed.length() < 1) {
+            score -= 0.5f;
+            flags.add("TOO_SHORT");
+        } else if (trimmed.length() > MAX_ANSWER_LENGTH) {
+            score -= 0.3f;
+            flags.add("TOO_LONG");
+        }
+        
+        // Check for unusual characters (digits mixed with letters, special chars)
+        if (trimmed.matches(".*[^\\p{L}\\p{N}''\\-\\s].*")) {
+            score -= 0.2f;
+            flags.add("UNUSUAL_CHARS");
+        }
+        
+        // Check allowed set match
+        boolean inAllowedSet = allowedSet != null && 
+            (allowedSet.contains(canonical) || allowedSet.contains(trimmed));
+        
+        if (!inAllowedSet) {
+            score -= 0.3f;
+            flags.add("NOT_IN_ALLOWED_SET");
+        }
+        
+        // Get question type and check format match
+        RangeHint.QuestionType type = getQuestionType(questionNumber);
+        if (type != null) {
+            switch (type) {
+                case MULTIPLE_CHOICE:
+                case MATCHING:
+                    // Expect single letter A-Z
+                    if (trimmed.length() == 1 && Character.isLetter(trimmed.charAt(0))) {
+                        score += 0.1f; // Bonus for correct format
+                    } else if (trimmed.length() > 1) {
+                        score -= 0.2f;
+                        flags.add("UNEXPECTED_FORMAT");
+                    }
+                    break;
+                    
+                case TRUE_FALSE:
+                    // Expect TRUE/FALSE/T/F
+                    String upper = trimmed.toUpperCase(Locale.US);
+                    if (!upper.equals("TRUE") && !upper.equals("FALSE") && 
+                        !upper.equals("T") && !upper.equals("F")) {
+                        score -= 0.2f;
+                        flags.add("UNEXPECTED_FORMAT");
+                    }
+                    break;
+                    
+                case IDENTIFICATION:
+                    // Expect words (not single letters)
+                    if (trimmed.length() == 1) {
+                        score -= 0.2f;
+                        flags.add("UNEXPECTED_FORMAT");
+                    }
+                    break;
+            }
+        }
+        
+        // Clamp score to [0, 1]
+        score = Math.max(0.0f, Math.min(1.0f, score));
+        
+        return new AnswerConfidence(questionNumber, trimmed, score, 
+                                   flags.toArray(new String[0]));
+    }
+    
+    /**
+     * Detect missing question numbers in a parsed answer set.
+     * Finds gaps in the question number sequence within the detected range.
+     * 
+     * @param answers Parsed answers map
+     * @param answerKey Expected answer key
+     * @return List of missing question numbers
+     */
+    private static List<Integer> detectMissingQuestions(Map<Integer, String> answers, 
+                                                        Map<Integer, String> answerKey) {
+        List<Integer> missing = new ArrayList<>();
+        
+        if (answers == null || answers.isEmpty() || answerKey == null || answerKey.isEmpty()) {
+            return missing;
+        }
+        
+        // Get the range of questions in answer key
+        int minKey = Integer.MAX_VALUE;
+        int maxKey = Integer.MIN_VALUE;
+        for (Integer q : answerKey.keySet()) {
+            if (q < minKey) minKey = q;
+            if (q > maxKey) maxKey = q;
+        }
+        
+        // Find missing questions in the range
+        for (int q = minKey; q <= maxKey; q++) {
+            if (answerKey.containsKey(q)) {
+                // Check if this question is missing or has empty answer in parsed results
+                String answer = answers.get(q);
+                if (answer == null || answer.trim().isEmpty()) {
+                    missing.add(q);
+                }
+            }
+        }
+        
+        return missing;
+    }
+    
+    /**
+     * Enhanced parsing with confidence scoring and gap detection.
+     * Returns a ParseResult containing answers, confidence metadata, and missing question info.
+     * 
+     * @param text OCR text to parse
+     * @param answerKey Answer key for validation
+     * @return ParseResult with answers and metadata
+     */
+    public static ParseResult parseOcrTextEnhanced(String text, Map<Integer, String> answerKey) {
+        if (text == null || text.trim().isEmpty() || answerKey == null || answerKey.isEmpty()) {
+            return new ParseResult(new LinkedHashMap<>(), new HashMap<>(), new ArrayList<>());
+        }
+        
+        // Filter question text patterns first
+        String filtered = filterQuestionText(text);
+        
+        // Parse using smart fallback strategy
+        LinkedHashMap<Integer, String> answers = parseOcrTextSmartWithFallback(filtered, answerKey);
+        
+        // Build allowed set for confidence scoring
+        java.util.Set<String> allowedSet = buildAllowedSet(answerKey);
+        
+        // Compute confidence for each answer
+        Map<Integer, AnswerConfidence> confidenceMap = new HashMap<>();
+        for (Map.Entry<Integer, String> entry : answers.entrySet()) {
+            int q = entry.getKey();
+            String answer = entry.getValue();
+            AnswerConfidence conf = computeConfidence(answer, q, allowedSet);
+            confidenceMap.put(q, conf);
+        }
+        
+        // Detect missing questions
+        List<Integer> missing = detectMissingQuestions(answers, answerKey);
+        
+        Log.d(TAG, "Enhanced parsing: " + answers.size() + " answers, " + 
+              missing.size() + " missing, " + countLowConfidence(confidenceMap) + " low-confidence");
+        
+        return new ParseResult(answers, confidenceMap, missing);
+    }
+    
+    /**
+     * Count low-confidence answers in confidence map
+     */
+    private static int countLowConfidence(Map<Integer, AnswerConfidence> confidenceMap) {
+        int count = 0;
+        for (AnswerConfidence conf : confidenceMap.values()) {
+            if (conf.isLowConfidence()) {
+                count++;
+            }
+        }
+        return count;
+    }
+    
+    /**
+     * Prioritize first valid token after question number (stronger number-anchored rule).
+     * Updated version of extractFirstValidAnswer that ignores trailing words.
+     * 
+     * @param text Text after question number
+     * @param questionNumber Question number
+     * @return First valid answer token only, ignoring trailing text
+     */
+    private static String extractFirstTokenOnly(String text, int questionNumber) {
+        if (text == null || text.trim().isEmpty()) return "";
+        
+        // Use existing extractFirstValidAnswer which already gets first token
+        String token = extractFirstValidAnswer(text, questionNumber);
+        
+        // Additional filtering: if token looks like question text keyword, reject it
+        if (token.length() > 5) {
+            String lower = token.toLowerCase(Locale.US);
+            if (lower.contains("which") || lower.contains("choose") || lower.contains("select") ||
+                lower.contains("identify") || lower.contains("following")) {
+                return ""; // Reject question keywords
+            }
+        }
+        
+        return token;
     }
 }

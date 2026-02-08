@@ -606,4 +606,288 @@ public class ParserTest {
         
         Parser.clearRangeHints();
     }
+    
+    // ========== Tests for Enhanced Parsing Features ==========
+    
+    // Tests for question text filtering
+    
+    @Test
+    public void parseOcrTextEnhanced_filtersQuestionStems() {
+        String text = "1. Which of the following is a primary color that cannot be made by mixing other colors?\nA\n" +
+                     "2. Choose the best answer from the options below for the capital of France.\nB\n" +
+                     "3. C";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(1, "A");
+        answerKey.put(2, "B");
+        answerKey.put(3, "C");
+        
+        ParseResult result = Parser.parseOcrTextEnhanced(text, answerKey);
+        LinkedHashMap<Integer, String> parsed = result.getAnswers();
+        
+        assertEquals("A", parsed.get(1));
+        assertEquals("B", parsed.get(2));
+        assertEquals("C", parsed.get(3));
+    }
+    
+    @Test
+    public void parseOcrTextEnhanced_filtersMCQOptionBlocks() {
+        String text = "1. Question text here\n" +
+                     "A. This is a very long multiple choice option in the question body\n" +
+                     "B. This is another very long option text in the question\n" +
+                     "Answer: A\n" +
+                     "2. B";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(1, "A");
+        answerKey.put(2, "B");
+        
+        ParseResult result = Parser.parseOcrTextEnhanced(text, answerKey);
+        LinkedHashMap<Integer, String> parsed = result.getAnswers();
+        
+        assertEquals("A", parsed.get(1));
+        assertEquals("B", parsed.get(2));
+    }
+    
+    @Test
+    public void parseOcrTextEnhanced_filtersBlanksAndUnderscores() {
+        String text = "1. Fill in the blank: __________________________________________\nA\n" +
+                     "2. Name: _____________________\nB\n" +
+                     "3. C";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(1, "A");
+        answerKey.put(2, "B");
+        answerKey.put(3, "C");
+        
+        ParseResult result = Parser.parseOcrTextEnhanced(text, answerKey);
+        LinkedHashMap<Integer, String> parsed = result.getAnswers();
+        
+        assertEquals("A", parsed.get(1));
+        assertEquals("B", parsed.get(2));
+        assertEquals("C", parsed.get(3));
+    }
+    
+    // Tests for confidence scoring
+    
+    @Test
+    public void parseOcrTextEnhanced_computesConfidenceScores() {
+        String text = "1. A\n2. B\n3. XYZ";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(1, "A");
+        answerKey.put(2, "B");
+        answerKey.put(3, "C"); // Student answered XYZ (wrong)
+        
+        ParseResult result = Parser.parseOcrTextEnhanced(text, answerKey);
+        
+        AnswerConfidence conf1 = result.getConfidence(1);
+        AnswerConfidence conf3 = result.getConfidence(3);
+        
+        assertNotNull(conf1);
+        assertNotNull(conf3);
+        
+        // Answer 1 should have high confidence (in allowed set)
+        assertEquals(true, conf1.getConfidenceScore() > 0.5f);
+        
+        // Answer 3 should have lower confidence (not in allowed set)
+        assertEquals(true, conf3.hasFlag("NOT_IN_ALLOWED_SET"));
+    }
+    
+    @Test
+    public void parseOcrTextEnhanced_identifiesLowConfidenceAnswers() {
+        String text = "1. A\n2. ???XYZ\n3. B";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(1, "A");
+        answerKey.put(2, "B");
+        answerKey.put(3, "B");
+        
+        ParseResult result = Parser.parseOcrTextEnhanced(text, answerKey);
+        
+        // We may or may not get answer 2 depending on parsing, but if we do,
+        // it should have unusual characters flag or low confidence
+        AnswerConfidence conf2 = result.getConfidence(2);
+        if (conf2 != null && conf2.getAnswer() != null && !conf2.getAnswer().isEmpty()) {
+            // If answer was parsed, it should have low confidence or unusual chars flag
+            boolean hasIssue = conf2.hasFlag("UNUSUAL_CHARS") || 
+                             conf2.hasFlag("NOT_IN_ALLOWED_SET") ||
+                             conf2.isLowConfidence();
+            assertEquals(true, hasIssue);
+        }
+    }
+    
+    @Test
+    public void parseOcrTextEnhanced_confidenceForTypeHints() {
+        List<RangeHint> hints = new ArrayList<>();
+        hints.add(new RangeHint(1, 10, RangeHint.QuestionType.MULTIPLE_CHOICE));
+        Parser.setRangeHintsList(hints);
+        
+        String text = "1. A\n2. Apple"; // 2 is MCQ but got a word
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(1, "A");
+        answerKey.put(2, "B");
+        
+        ParseResult result = Parser.parseOcrTextEnhanced(text, answerKey);
+        
+        AnswerConfidence conf1 = result.getConfidence(1);
+        AnswerConfidence conf2 = result.getConfidence(2);
+        
+        // Answer 1 should have high confidence (correct format for MCQ)
+        assertEquals(true, conf1.getConfidenceScore() > 0.5f);
+        
+        // Answer 2 might have lower confidence due to format mismatch
+        // (word instead of single letter for MCQ)
+        
+        Parser.clearRangeHints();
+    }
+    
+    // Tests for gap detection
+    
+    @Test
+    public void parseOcrTextEnhanced_detectsMissingQuestions() {
+        String text = "1. A\n2. B\n5. E";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(1, "A");
+        answerKey.put(2, "B");
+        answerKey.put(3, "C");
+        answerKey.put(4, "D");
+        answerKey.put(5, "E");
+        
+        ParseResult result = Parser.parseOcrTextEnhanced(text, answerKey);
+        
+        List<Integer> missing = result.getMissingQuestions();
+        assertEquals(true, missing.contains(3));
+        assertEquals(true, missing.contains(4));
+        assertEquals(2, missing.size());
+    }
+    
+    @Test
+    public void parseOcrTextEnhanced_missingQuestionsSummary() {
+        String text = "1. A\n2. B\n5. E";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(1, "A");
+        answerKey.put(2, "B");
+        answerKey.put(3, "C");
+        answerKey.put(4, "D");
+        answerKey.put(5, "E");
+        
+        ParseResult result = Parser.parseOcrTextEnhanced(text, answerKey);
+        
+        String summary = result.getMissingQuestionsSummary();
+        assertEquals(true, summary.contains("3"));
+        assertEquals(true, summary.contains("4"));
+    }
+    
+    @Test
+    public void parseOcrTextEnhanced_warningLabel() {
+        String text = "1. A\n3. C";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(1, "A");
+        answerKey.put(2, "B");
+        answerKey.put(3, "C");
+        
+        ParseResult result = Parser.parseOcrTextEnhanced(text, answerKey);
+        
+        String warning = result.getWarningLabel();
+        // Should mention missing question
+        assertEquals(true, warning.contains("Missing") || warning.contains("2"));
+    }
+    
+    // Tests for stronger number-anchored rules
+    
+    @Test
+    public void parseOcrTextSmartWithFallback_prioritizesFirstTokenAfterNumber() {
+        String text = "1. A extra trailing text\n2. B more words here";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(1, "A");
+        answerKey.put(2, "B");
+        
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
+        
+        // Should get just A and B, not the trailing text
+        assertEquals("A", parsed.get(1));
+        assertEquals("B", parsed.get(2));
+    }
+    
+    @Test
+    public void parseOcrTextSmartWithFallback_ignoresQuestionKeywords() {
+        String text = "1. Choose the best answer from all the options presented below in this question\nA\n2. B";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(1, "A");
+        answerKey.put(2, "B");
+        
+        LinkedHashMap<Integer, String> parsed = Parser.parseOcrTextSmartWithFallback(text, answerKey);
+        
+        // Should get A, not "Choose" (question stem should be filtered)
+        assertEquals("A", parsed.get(1));
+        assertEquals("B", parsed.get(2));
+    }
+    
+    // Tests for mixed format handling
+    
+    @Test
+    public void parseOcrTextEnhanced_handlesMixedMCQAndIdentification() {
+        List<RangeHint> hints = new ArrayList<>();
+        hints.add(new RangeHint(1, 5, RangeHint.QuestionType.MULTIPLE_CHOICE));
+        hints.add(new RangeHint(6, 10, RangeHint.QuestionType.IDENTIFICATION));
+        Parser.setRangeHintsList(hints);
+        
+        String text = "1. A\n2. B\n3. C\n6. Apple\n7. Banana\n8. Cherry";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(1, "A");
+        answerKey.put(2, "B");
+        answerKey.put(3, "C");
+        answerKey.put(6, "Apple");
+        answerKey.put(7, "Banana");
+        answerKey.put(8, "Cherry");
+        
+        ParseResult result = Parser.parseOcrTextEnhanced(text, answerKey);
+        LinkedHashMap<Integer, String> parsed = result.getAnswers();
+        
+        // MCQ answers should be single letters
+        assertEquals("A", parsed.get(1));
+        assertEquals("B", parsed.get(2));
+        assertEquals("C", parsed.get(3));
+        
+        // Identification answers should be words
+        assertEquals("Apple", parsed.get(6));
+        assertEquals("Banana", parsed.get(7));
+        assertEquals("Cherry", parsed.get(8));
+        
+        Parser.clearRangeHints();
+    }
+    
+    @Test
+    public void parseOcrTextEnhanced_avoidsChoiceLettersFromQuestionText() {
+        List<RangeHint> hints = new ArrayList<>();
+        hints.add(new RangeHint(1, 10, RangeHint.QuestionType.MULTIPLE_CHOICE));
+        Parser.setRangeHintsList(hints);
+        
+        String text = "1. What is the correct answer to this question?\n" +
+                     "A. This is a very long option describing the first choice in detail\n" +
+                     "B. This is another very long option describing a different choice\n" +
+                     "Answer: A\n" +
+                     "2. B";
+        
+        Map<Integer, String> answerKey = new HashMap<>();
+        answerKey.put(1, "A");
+        answerKey.put(2, "B");
+        
+        ParseResult result = Parser.parseOcrTextEnhanced(text, answerKey);
+        LinkedHashMap<Integer, String> parsed = result.getAnswers();
+        
+        // Should get A from "Answer: A", not from the long option descriptions
+        assertEquals("A", parsed.get(1));
+        assertEquals("B", parsed.get(2));
+        
+        Parser.clearRangeHints();
+    }
 }
