@@ -344,7 +344,7 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-analytics-compat.js"></script>
 
     <script>
@@ -355,7 +355,6 @@
         const firebaseConfig = {
             apiKey: "AIzaSyDCBZ_08kaOGSjJPd3co-cY52HjSJOrMZE",
             authDomain: "iskorly-post-azure.firebaseapp.com",
-            databaseURL: "https://iskorly-app-default-rtdb.firebaseio.com",
             projectId: "iskorly-post-azure",
             storageBucket: "iskorly-post-azure.firebasestorage.app",
             messagingSenderId: "177532222029",
@@ -366,7 +365,7 @@
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
-        const database = firebase.database();
+        const firestore = firebase.firestore();
         const analytics = firebase.analytics();
 
         // Analytics helper
@@ -437,20 +436,27 @@
         // Load Current Status
         async function loadCurrentStatus() {
             try {
-                const snapshot = await database.ref('app-status').once('value');
-                const data = snapshot.val();
+                const docRef = firestore.collection('app_config').doc('status');
+                const snapshot = await docRef.get();
                 
-                if (data) {
+                if (snapshot.exists) {
+                    const data = snapshot.data();
                     currentStatus = {
                         disabled: data.disabled || false,
                         message: data.message || ''
+                    };
+                } else {
+                    // Document doesn't exist, use defaults
+                    currentStatus = {
+                        disabled: false,
+                        message: ''
                     };
                 }
                 
                 updateUI();
             } catch (error) {
                 console.error('Error loading status:', error);
-                showError(saveError, 'Failed to load current status');
+                showError(saveError, 'Failed to load current status: ' + error.message);
             }
         }
 
@@ -500,16 +506,13 @@
                     message: messageInput.value.trim()
                 };
 
-                // Update Firebase Realtime Database
-                await database.ref('app-status').set(statusData);
+                // Update Firestore
+                const docRef = firestore.collection('app_config').doc('status');
+                await docRef.set(statusData);
 
-                // IMPORTANT: The changes above update the Realtime Database only.
-                // To update the static app-status.json file that the Android app reads,
-                // you must MANUALLY update public/app-status.json and redeploy Firebase Hosting:
-                //   1. Edit public/app-status.json with the new status
-                //   2. Run: firebase deploy --only hosting
-                // Alternative: Implement a Cloud Function to automatically sync Database → JSON
-                // See KILL_SWITCH_SETUP.md for Cloud Function implementation example
+                // The Cloud Function at functions/index.js automatically reads from this Firestore
+                // document and serves it to the Android app via the /appStatus endpoint.
+                // No manual JSON file update or redeployment is needed.
                 
                 currentStatus.message = statusData.message;
                 updateUI();
@@ -521,7 +524,7 @@
                 });
             } catch (error) {
                 console.error('Save error:', error);
-                showError(saveError, 'Failed to save changes. Please try again.');
+                showError(saveError, 'Failed to save changes: ' + error.message);
                 logEvent('save_failure', { error: error.message });
             } finally {
                 saveBtn.disabled = false;
