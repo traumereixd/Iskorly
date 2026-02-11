@@ -228,7 +228,12 @@ public class MainActivity extends AppCompatActivity {
     // Document picker launchers
     private ActivityResultLauncher<String[]> importSlotLauncher;
     private ActivityResultLauncher<String> exportSlotLauncher;
-    private String pendingExportFormat = "json"; // Track selected export format: "json", "csv", or "txt"
+    
+    // Export format constants
+    private static final String FORMAT_JSON = "json";
+    private static final String FORMAT_CSV = "csv";
+    private static final String FORMAT_TXT = "txt";
+    private String pendingExportFormat = FORMAT_JSON; // Track selected export format
     
     // Multi-image import launcher (Feature #2)
     private ActivityResultLauncher<String> importPhotosLauncher;
@@ -668,8 +673,8 @@ public class MainActivity extends AppCompatActivity {
             line = line.trim();
             if (line.isEmpty()) continue;
             
-            // Skip header line if present
-            if (line.toLowerCase().startsWith("question") || line.toLowerCase().startsWith("q")) {
+            // Skip header line if present (more specific check)
+            if (line.toLowerCase().contains("question") && line.toLowerCase().contains("answer")) {
                 continue;
             }
             
@@ -689,8 +694,8 @@ public class MainActivity extends AppCompatActivity {
                 try {
                     int q = Integer.parseInt(parts[0].trim());
                     String answer = parts[1].trim();
-                    // Remove quotes if present
-                    if (answer.startsWith("\"") && answer.endsWith("\"")) {
+                    // Remove quotes if present (with length check)
+                    if (answer.length() >= 2 && answer.startsWith("\"") && answer.endsWith("\"")) {
                         answer = answer.substring(1, answer.length() - 1);
                     }
                     newSlot.answers.put(q, answer);
@@ -773,7 +778,7 @@ public class MainActivity extends AppCompatActivity {
                 if (outputStream != null) {
                     String content;
                     
-                    if ("csv".equals(pendingExportFormat)) {
+                    if (FORMAT_CSV.equals(pendingExportFormat)) {
                         // CSV format
                         StringBuilder csv = new StringBuilder();
                         csv.append("Question,Answer\n");
@@ -792,7 +797,7 @@ public class MainActivity extends AppCompatActivity {
                         }
                         content = csv.toString();
                         
-                    } else if ("txt".equals(pendingExportFormat)) {
+                    } else if (FORMAT_TXT.equals(pendingExportFormat)) {
                         // TXT format (simple format: Q: Answer)
                         StringBuilder txt = new StringBuilder();
                         
@@ -850,16 +855,16 @@ public class MainActivity extends AppCompatActivity {
             String filename;
             switch (which) {
                 case 0: // JSON
-                    pendingExportFormat = "json";
+                    pendingExportFormat = FORMAT_JSON;
                     filename = "slot_" + slotName + ".json";
                     break;
                 case 1: // CSV
-                    pendingExportFormat = "csv";
+                    pendingExportFormat = FORMAT_CSV;
                     filename = "slot_" + slotName + ".csv";
                     break;
                 case 2: // TXT
                 default:
-                    pendingExportFormat = "txt";
+                    pendingExportFormat = FORMAT_TXT;
                     filename = "slot_" + slotName + ".txt";
                     break;
             }
@@ -3032,9 +3037,13 @@ public class MainActivity extends AppCompatActivity {
         }
         
         try {
-            android.graphics.Rect sensorRect = captureRequestBuilder.get(CaptureRequest.SCALER_CROP_REGION);
+            // Get sensor active array size from camera characteristics
+            CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+            String cameraId = manager.getCameraIdList()[0];
+            CameraCharacteristics chars = manager.getCameraCharacteristics(cameraId);
+            android.graphics.Rect sensorRect = chars.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
+            
             if (sensorRect == null) {
-                // If sensor rect is not available, we can't apply zoom
                 Toast.makeText(this, "Zoom not supported", Toast.LENGTH_SHORT).show();
                 return;
             }
