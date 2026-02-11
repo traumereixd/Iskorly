@@ -220,6 +220,7 @@ public class MainActivity extends AppCompatActivity {
     // Document picker launchers
     private ActivityResultLauncher<String[]> importSlotLauncher;
     private ActivityResultLauncher<String> exportSlotLauncher;
+    private String pendingExportFormat = "json"; // Track selected export format: "json", "csv", or "txt"
     
     // Multi-image import launcher (Feature #2)
     private ActivityResultLauncher<String> importPhotosLauncher;
@@ -484,14 +485,13 @@ public class MainActivity extends AppCompatActivity {
         }
         
         if (btnSlotImport != null) {
-            btnSlotImport.setOnClickListener(v -> importSlotLauncher.launch(new String[]{"application/json", "*/*"}));
+            btnSlotImport.setOnClickListener(v -> importSlotLauncher.launch(new String[]{"application/json", "text/csv", "text/plain", "*/*"}));
         }
         
         if (btnSlotExport != null) {
             btnSlotExport.setOnClickListener(v -> {
-                SlotData currentSlot = slots.get(currentSlotId);
-                String filename = "slot_" + (currentSlot != null ? currentSlot.name : "export") + ".json";
-                exportSlotLauncher.launch(filename);
+                // Show format selection dialog
+                showExportFormatDialog();
             });
         }
         
@@ -620,14 +620,26 @@ public class MainActivity extends AppCompatActivity {
         try (InputStream inputStream = getContentResolver().openInputStream(uri)) {
             if (inputStream == null) return;
 
-            StringBuilder json = new StringBuilder();
+            StringBuilder content = new StringBuilder();
             byte[] buffer = new byte[1024];
             int read;
             while ((read = inputStream.read(buffer)) != -1) {
-                json.append(new String(buffer, 0, read));
+                content.append(new String(buffer, 0, read));
             }
 
-            importSlotData(json.toString());
+            String contentStr = content.toString().trim();
+            
+            // Detect format and import accordingly
+            if (contentStr.startsWith("{")) {
+                // JSON format
+                importSlotData(contentStr);
+            } else if (contentStr.contains(",") || contentStr.contains("\n")) {
+                // CSV or TXT format
+                importSlotFromPlainText(contentStr);
+            } else {
+                throw new Exception("Unrecognized file format");
+            }
+            
             Toast.makeText(this, getString(R.string.slot_import_success), Toast.LENGTH_SHORT).show();
 
         } catch (Exception e) {
@@ -635,6 +647,59 @@ public class MainActivity extends AppCompatActivity {
             String message = String.format(getString(R.string.slot_import_error), e.getMessage());
             Toast.makeText(this, message, Toast.LENGTH_LONG).show();
         }
+    }
+    
+    private void importSlotFromPlainText(String content) throws Exception {
+        String name = "Imported " + System.currentTimeMillis();
+        SlotData newSlot = new SlotData(name);
+        
+        // Parse CSV or TXT format: "1,A" or "1: A" or "1\tA"
+        String[] lines = content.split("\n");
+        for (String line : lines) {
+            line = line.trim();
+            if (line.isEmpty()) continue;
+            
+            // Skip header line if present
+            if (line.toLowerCase().startsWith("question") || line.toLowerCase().startsWith("q")) {
+                continue;
+            }
+            
+            // Try different delimiters: comma, colon, tab, space
+            String[] parts = null;
+            if (line.contains(",")) {
+                parts = line.split(",", 2);
+            } else if (line.contains(":")) {
+                parts = line.split(":", 2);
+            } else if (line.contains("\t")) {
+                parts = line.split("\t", 2);
+            } else if (line.contains(" ")) {
+                parts = line.split("\\s+", 2);
+            }
+            
+            if (parts != null && parts.length >= 2) {
+                try {
+                    int q = Integer.parseInt(parts[0].trim());
+                    String answer = parts[1].trim();
+                    // Remove quotes if present
+                    if (answer.startsWith("\"") && answer.endsWith("\"")) {
+                        answer = answer.substring(1, answer.length() - 1);
+                    }
+                    newSlot.answers.put(q, answer);
+                } catch (NumberFormatException ignored) {
+                    // Skip invalid lines
+                }
+            }
+        }
+        
+        if (newSlot.answers.isEmpty()) {
+            throw new Exception("No valid answer key entries found");
+        }
+        
+        String newSlotId = "imported_" + System.currentTimeMillis();
+        slots.put(newSlotId, newSlot);
+        switchToSlot(newSlotId);
+        saveSlots();
+        updateSlotSelector();
     }
 
     private void importSlotData(String jsonString) throws JSONException {
@@ -695,26 +760,64 @@ public class MainActivity extends AppCompatActivity {
             SlotData currentSlot = slots.get(currentSlotId);
             if (currentSlot == null) return;
 
-            // Create export JSON in our format
-            JSONObject rootObj = new JSONObject();
-            rootObj.put("current_slot", currentSlotId);
-            
-            JSONObject slotsObj = new JSONObject();
-            JSONObject slotObj = new JSONObject();
-            slotObj.put("name", currentSlot.name);
-            
-            JSONObject answersObj = new JSONObject();
-            for (Integer q : currentSlot.answers.keySet()) {
-                answersObj.put(q.toString(), currentSlot.answers.get(q));
-            }
-            slotObj.put("answers", answersObj);
-            
-            slotsObj.put(currentSlotId, slotObj);
-            rootObj.put("slots", slotsObj);
-
             try (OutputStream outputStream = getContentResolver().openOutputStream(uri)) {
                 if (outputStream != null) {
-                    outputStream.write(rootObj.toString(2).getBytes());
+                    String content;
+                    
+                    if ("csv".equals(pendingExportFormat)) {
+                        // CSV format
+                        StringBuilder csv = new StringBuilder();
+                        csv.append("Question,Answer\n");
+                        
+                        // Sort questions for consistent output
+                        List<Integer> questions = new ArrayList<>(currentSlot.answers.keySet());
+                        Collections.sort(questions);
+                        
+                        for (Integer q : questions) {
+                            String answer = currentSlot.answers.get(q);
+                            // Escape commas and quotes in CSV
+                            if (answer.contains(",") || answer.contains("\"")) {
+                                answer = "\"" + answer.replace("\"", "\"\"") + "\"";
+                            }
+                            csv.append(q).append(",").append(answer).append("\n");
+                        }
+                        content = csv.toString();
+                        
+                    } else if ("txt".equals(pendingExportFormat)) {
+                        // TXT format (simple format: Q: Answer)
+                        StringBuilder txt = new StringBuilder();
+                        
+                        // Sort questions for consistent output
+                        List<Integer> questions = new ArrayList<>(currentSlot.answers.keySet());
+                        Collections.sort(questions);
+                        
+                        for (Integer q : questions) {
+                            txt.append(q).append(": ").append(currentSlot.answers.get(q)).append("\n");
+                        }
+                        content = txt.toString();
+                        
+                    } else {
+                        // JSON format (default)
+                        JSONObject rootObj = new JSONObject();
+                        rootObj.put("current_slot", currentSlotId);
+                        
+                        JSONObject slotsObj = new JSONObject();
+                        JSONObject slotObj = new JSONObject();
+                        slotObj.put("name", currentSlot.name);
+                        
+                        JSONObject answersObj = new JSONObject();
+                        for (Integer q : currentSlot.answers.keySet()) {
+                            answersObj.put(q.toString(), currentSlot.answers.get(q));
+                        }
+                        slotObj.put("answers", answersObj);
+                        
+                        slotsObj.put(currentSlotId, slotObj);
+                        rootObj.put("slots", slotsObj);
+                        
+                        content = rootObj.toString(2);
+                    }
+                    
+                    outputStream.write(content.getBytes());
                     outputStream.flush();
                     Toast.makeText(this, getString(R.string.slot_export_success), Toast.LENGTH_SHORT).show();
                 }
@@ -725,6 +828,39 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Export failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
+    
+    private void showExportFormatDialog() {
+        SlotData currentSlot = slots.get(currentSlotId);
+        String slotName = currentSlot != null ? currentSlot.name : "export";
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Select Export Format");
+        
+        String[] formats = {"JSON (recommended)", "CSV (spreadsheet-friendly)", "TXT (plain text)"};
+        builder.setItems(formats, (dialog, which) -> {
+            String filename;
+            switch (which) {
+                case 0: // JSON
+                    pendingExportFormat = "json";
+                    filename = "slot_" + slotName + ".json";
+                    break;
+                case 1: // CSV
+                    pendingExportFormat = "csv";
+                    filename = "slot_" + slotName + ".csv";
+                    break;
+                case 2: // TXT
+                default:
+                    pendingExportFormat = "txt";
+                    filename = "slot_" + slotName + ".txt";
+                    break;
+            }
+            exportSlotLauncher.launch(filename);
+        });
+        
+        builder.setNegativeButton("Cancel", null);
+        builder.show();
+    }
+    
     private void showTutorialDialog() {
         android.widget.ScrollView scroll = new android.widget.ScrollView(this);
         TextView tv = new TextView(this);
