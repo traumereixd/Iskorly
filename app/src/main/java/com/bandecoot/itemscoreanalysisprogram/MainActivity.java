@@ -26,6 +26,8 @@ import android.util.Log;
 import android.util.Range;
 import android.util.Size;
 import android.view.HapticFeedbackConstants;
+import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
 import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
@@ -200,11 +202,12 @@ public class MainActivity extends AppCompatActivity {
     private final AtomicBoolean waitingForJpeg = new AtomicBoolean(false);
     
     // Camera controls
-    private com.google.android.material.floatingactionbutton.FloatingActionButton btnFlashlight, btnZoomIn, btnZoomOut;
+    private com.google.android.material.floatingactionbutton.FloatingActionButton btnFlashlight;
     private boolean flashlightOn = false;
     private float currentZoomRatio = 1.0f;
     private float maxZoomRatio = 1.0f;
     private boolean hasFlashlight = false;
+    private ScaleGestureDetector scaleGestureDetector;
 
     // State
     private boolean scanSessionActive = false;
@@ -1343,28 +1346,37 @@ public class MainActivity extends AppCompatActivity {
         
         // Camera control buttons
         btnFlashlight = findViewById(R.id.btn_flashlight);
-        btnZoomIn = findViewById(R.id.btn_zoom_in);
-        btnZoomOut = findViewById(R.id.btn_zoom_out);
         
         // Set up camera control listeners
         if (btnFlashlight != null) {
             btnFlashlight.setOnClickListener(v -> toggleFlashlight());
         }
-        if (btnZoomIn != null) {
-            btnZoomIn.setOnClickListener(v -> adjustZoom(true));
-        }
-        if (btnZoomOut != null) {
-            btnZoomOut.setOnClickListener(v -> adjustZoom(false));
-        }
         
-        // Set up tap-to-focus on TextureView
+        // Set up pinch-to-zoom and tap-to-focus on TextureView
         if (cameraPreviewTextureView != null) {
+            scaleGestureDetector = new ScaleGestureDetector(this, new ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                @Override
+                public boolean onScale(ScaleGestureDetector detector) {
+                    if (cameraSessionReady && maxZoomRatio > 1.0f) {
+                        float scaleFactor = detector.getScaleFactor();
+                        currentZoomRatio *= scaleFactor;
+                        currentZoomRatio = Math.max(1.0f, Math.min(currentZoomRatio, maxZoomRatio));
+                        applyZoom();
+                    }
+                    return true;
+                }
+            });
+            
             cameraPreviewTextureView.setOnTouchListener((v, event) -> {
-                if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) {
+                // Handle pinch-to-zoom
+                scaleGestureDetector.onTouchEvent(event);
+                
+                // Handle tap-to-focus
+                if (event.getAction() == MotionEvent.ACTION_DOWN && !scaleGestureDetector.isInProgress()) {
                     handleTapToFocus(event.getX(), event.getY(), v.getWidth(), v.getHeight());
                     return true;
                 }
-                return false;
+                return scaleGestureDetector.isInProgress();
             });
         }
 
@@ -3022,18 +3034,12 @@ public class MainActivity extends AppCompatActivity {
     /**
      * Adjust zoom in or out.
      */
-    private void adjustZoom(boolean zoomIn) {
+    /**
+     * Apply the current zoom ratio to the camera.
+     */
+    private void applyZoom() {
         if (maxZoomRatio <= 1.0f || captureRequestBuilder == null || cameraCaptureSession == null) {
-            Toast.makeText(this, "Zoom not available", Toast.LENGTH_SHORT).show();
             return;
-        }
-        
-        // Adjust zoom by 0.5x increments, clamped to [1.0, maxZoomRatio]
-        float zoomStep = 0.5f;
-        if (zoomIn) {
-            currentZoomRatio = Math.min(currentZoomRatio + zoomStep, maxZoomRatio);
-        } else {
-            currentZoomRatio = Math.max(currentZoomRatio - zoomStep, 1.0f);
         }
         
         try {
@@ -3044,7 +3050,6 @@ public class MainActivity extends AppCompatActivity {
             android.graphics.Rect sensorRect = chars.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
             
             if (sensorRect == null) {
-                Toast.makeText(this, "Zoom not supported", Toast.LENGTH_SHORT).show();
                 return;
             }
             
@@ -3065,8 +3070,7 @@ public class MainActivity extends AppCompatActivity {
             
             Log.d(CAMERA_FLOW, "Zoom set to " + currentZoomRatio + "x");
         } catch (Exception e) {
-            Log.e(CAMERA_FLOW, "Error adjusting zoom", e);
-            Toast.makeText(this, "Failed to adjust zoom", Toast.LENGTH_SHORT).show();
+            Log.e(CAMERA_FLOW, "Error applying zoom", e);
         }
     }
     
@@ -3089,12 +3093,25 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
             
-            // Convert touch coordinates to sensor coordinates
-            int sensorX = (int) (x / viewWidth * sensorRect.width());
-            int sensorY = (int) (y / viewHeight * sensorRect.height());
+            // Calculate the current crop region based on zoom
+            int centerX = sensorRect.width() / 2;
+            int centerY = sensorRect.height() / 2;
+            int cropWidth = (int) (sensorRect.width() / currentZoomRatio);
+            int cropHeight = (int) (sensorRect.height() / currentZoomRatio);
             
-            // Create a metering rectangle (5% of sensor size)
-            int areaSize = Math.min(sensorRect.width(), sensorRect.height()) / 20;
+            android.graphics.Rect currentCropRegion = new android.graphics.Rect(
+                centerX - cropWidth / 2,
+                centerY - cropHeight / 2,
+                centerX + cropWidth / 2,
+                centerY + cropHeight / 2
+            );
+            
+            // Convert touch coordinates to sensor coordinates within the crop region
+            int sensorX = currentCropRegion.left + (int) (x / viewWidth * currentCropRegion.width());
+            int sensorY = currentCropRegion.top + (int) (y / viewHeight * currentCropRegion.height());
+            
+            // Create a metering rectangle (5% of crop region size)
+            int areaSize = Math.min(currentCropRegion.width(), currentCropRegion.height()) / 20;
             int left = Math.max(sensorX - areaSize / 2, 0);
             int top = Math.max(sensorY - areaSize / 2, 0);
             int right = Math.min(left + areaSize, sensorRect.width());
@@ -3121,7 +3138,7 @@ public class MainActivity extends AppCompatActivity {
                 CaptureRequest.CONTROL_AF_TRIGGER_IDLE);
             cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, backgroundHandler);
             
-            Log.d(CAMERA_FLOW, "Tap-to-focus at (" + x + ", " + y + ")");
+            Log.d(CAMERA_FLOW, "Tap-to-focus at (" + x + ", " + y + ") with zoom " + currentZoomRatio + "x");
             
             // Visual feedback
             runOnUiThread(() -> {
