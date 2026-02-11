@@ -117,9 +117,9 @@ public class MainActivity extends AppCompatActivity {
     private Button confirmParsedButton, importPhotosButton, masterlistButton, masterlistBackButton, exportCsvButton;
     private Button manageAutocompleteButton, exportMasterlistCsvButton, masterlistResetAllButton;
     private Button masterlistBySectionButton, masterlistAllButton, btnSlotSaveSet;
-    private Button buttonSettings, buttonSettingsClose, buttonOcrEngineSettings;
+    private Button buttonSettings, buttonSettingsClose, buttonOcrEngineSettings, buttonCredits;
     private com.google.android.material.materialswitch.MaterialSwitch switchOcrTwoColumn, switchOcrHighContrast;
-    private com.google.android.material.materialswitch.MaterialSwitch switchOutlinedText, switchLargeText;
+    private com.google.android.material.materialswitch.MaterialSwitch switchOutlinedText;
     private TextView currentKeyTextView, sessionScoreTextView, parsedLabel, masterlistInfoTextView;
     
     // Type Hints UI components
@@ -165,7 +165,6 @@ public class MainActivity extends AppCompatActivity {
     private static final String OCR_ENGINE_AZURE = "azure";
     private static final String OCR_ENGINE_GOOGLE = "google";
     private static final String PREF_OUTLINED_TEXT = "outlined_text_enabled";
-    private static final String PREF_LARGE_TEXT = "large_text_enabled";
     private static final String PREF_RANGE_HINTS = "range_hints";
     private static final String PREF_FORM_STUDENT = "form_student_name";
     private static final String PREF_FORM_SECTION = "form_section_name";
@@ -874,7 +873,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         switchOcrTwoColumn = findViewById(R.id.switch_ocr_two_column);
         switchOcrHighContrast = findViewById(R.id.switch_ocr_high_contrast);
-        switchLargeText = findViewById(R.id.switch_large_text);
 //        forceSwitchTextBlack();
 
         // Initialize prefs EARLY
@@ -1073,9 +1071,9 @@ public class MainActivity extends AppCompatActivity {
         buttonSettings = findViewById(R.id.button_settings);
         buttonSettingsClose = findViewById(R.id.button_settings_close);
         buttonOcrEngineSettings = findViewById(R.id.button_ocr_engine_settings);
+        buttonCredits = findViewById(R.id.button_credits);
         switchOcrTwoColumn = findViewById(R.id.switch_ocr_two_column);
         switchOcrHighContrast = findViewById(R.id.switch_ocr_high_contrast);
-        switchLargeText = findViewById(R.id.switch_large_text);
         
         // Load OCR settings from preferences
         loadOcrSettings();
@@ -1113,6 +1111,14 @@ public class MainActivity extends AppCompatActivity {
             });
         }
         
+        // Credits button listener
+        if (buttonCredits != null) {
+            buttonCredits.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                showCreditsDialog();
+            });
+        }
+        
         // OCR toggle listeners
         if (switchOcrTwoColumn != null) {
             switchOcrTwoColumn.setOnCheckedChangeListener((buttonView, isChecked) -> {
@@ -1135,14 +1141,6 @@ public class MainActivity extends AppCompatActivity {
             switchOutlinedText.setEnabled(false);
             switchOutlinedText.setChecked(false);
             switchOutlinedText.setVisibility(View.GONE);
-        }
-        
-        if (switchLargeText != null) {
-            switchLargeText.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                appPreferences.edit().putBoolean(PREF_LARGE_TEXT, isChecked).apply();
-                applyLargeTextSetting(isChecked);
-                Log.d(TAG, "Large text " + (isChecked ? "enabled" : "disabled"));
-            });
         }
         
         // Type Hints UI
@@ -3173,9 +3171,6 @@ public class MainActivity extends AppCompatActivity {
             }
             if (switchOcrHighContrast != null) {
                 switchOcrHighContrast.setTextColor(black);
-            }
-            if (switchLargeText != null) {
-                switchLargeText.setTextColor(black);
             }
         } catch (Throwable t) {
             android.util.Log.w("ISA_SWITCH", "Failed to force black text on switches", t);
@@ -5709,23 +5704,16 @@ public class MainActivity extends AppCompatActivity {
      */
     private void loadAccessibilitySettings() {
         // Outlined text feature removed - always use global black text
-        boolean largeTextEnabled = appPreferences.getBoolean(PREF_LARGE_TEXT, false);
         
         if (switchOutlinedText != null) {
             switchOutlinedText.setChecked(false);
             switchOutlinedText.setEnabled(false); // Disable the switch
         }
-        if (switchLargeText != null) {
-            switchLargeText.setChecked(largeTextEnabled);
-        }
         
         // Apply global text colors (BLACK for text, WHITE for buttons)
         applyGlobalTextColors();
         
-        // Apply large text setting if enabled
-        applyLargeTextSetting(largeTextEnabled);
-        
-        Log.d(TAG, "Accessibility settings loaded: global-black-text=true, large-text=" + largeTextEnabled);
+        Log.d(TAG, "Accessibility settings loaded: global-black-text=true");
     }
     
     /**
@@ -5756,28 +5744,6 @@ public class MainActivity extends AppCompatActivity {
         if (masterlistLayout != null) TextColorUtil.applyGlobalTextColors(masterlistLayout);
         if (settingsLayout != null) TextColorUtil.applyGlobalTextColors(settingsLayout);
         Log.d(TAG, "Applied global text colors to non-scan layouts");
-    }
-    
-    /**
-     * Apply large text setting (Feature #1).
-     */
-    private void applyLargeTextSetting(boolean enabled) {
-        float scaleFactor = enabled ? 1.3f : 1.0f;
-        
-        // Apply to key text views
-        if (parsedLabel != null) {
-            parsedLabel.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14 * scaleFactor);
-        }
-        if (sessionScoreTextView != null) {
-            sessionScoreTextView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 16 * scaleFactor);
-        }
-        
-        // Increase touch targets for key buttons
-        int minHeight = enabled ? dp(56) : dp(48);
-        if (startScanButton != null) startScanButton.setMinHeight(minHeight);
-        if (setupButton != null) setupButton.setMinHeight(minHeight);
-        if (viewHistoryButton != null) viewHistoryButton.setMinHeight(minHeight);
-        if (confirmParsedButton != null) confirmParsedButton.setMinHeight(minHeight);
     }
     
     /**
@@ -5975,16 +5941,16 @@ public class MainActivity extends AppCompatActivity {
     
     /**
      * Create OCR engine based on selected preference.
-     * Defaults to Azure Read API.
+     * Defaults to Google Vision.
      */
     private com.bandecoot.itemscoreanalysisprogram.ocr.OcrEngine createSelectedOcrEngine() {
         String engine = getSelectedOcrEngine();
         
-        if (OCR_ENGINE_GOOGLE.equals(engine)) {
-            return new com.bandecoot.itemscoreanalysisprogram.ocr.CloudVisionOcrEngine();
-        } else {
-            // Default to Azure (OCR_ENGINE_AZURE)
+        if (OCR_ENGINE_AZURE.equals(engine)) {
             return new com.bandecoot.itemscoreanalysisprogram.ocr.AzureReadOcrEngine();
+        } else {
+            // Default to Google Vision (OCR_ENGINE_GOOGLE)
+            return new com.bandecoot.itemscoreanalysisprogram.ocr.CloudVisionOcrEngine();
         }
     }
     
@@ -6010,17 +5976,17 @@ public class MainActivity extends AppCompatActivity {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(R.string.ocr_settings_title);
         
-        // Get current engine selection (default to Azure as per new requirement)
-        String currentEngine = appPreferences.getString(PREF_OCR_ENGINE, OCR_ENGINE_AZURE);
+        // Get current engine selection (default to Google Vision as per new requirement)
+        String currentEngine = appPreferences.getString(PREF_OCR_ENGINE, OCR_ENGINE_GOOGLE);
         
         // Radio button options
-        final String[] engines = {OCR_ENGINE_AZURE, OCR_ENGINE_GOOGLE};
+        final String[] engines = {OCR_ENGINE_GOOGLE, OCR_ENGINE_AZURE};
         final String[] engineNames = {
-            getString(R.string.ocr_engine_azure),
-            getString(R.string.ocr_engine_google)
+            getString(R.string.ocr_engine_google),
+            getString(R.string.ocr_engine_azure)
         };
         
-        int checkedItem = currentEngine.equals(OCR_ENGINE_AZURE) ? 0 : 1;
+        int checkedItem = currentEngine.equals(OCR_ENGINE_GOOGLE) ? 0 : 1;
         
         builder.setSingleChoiceItems(engineNames, checkedItem, (dialog, which) -> {
             String selectedEngine = engines[which];
@@ -6043,10 +6009,10 @@ public class MainActivity extends AppCompatActivity {
     
     /**
      * Get the selected OCR engine from preferences.
-     * Defaults to Azure as per requirement.
+     * Defaults to Google Vision as per requirement.
      */
     private String getSelectedOcrEngine() {
-        return appPreferences.getString(PREF_OCR_ENGINE, OCR_ENGINE_AZURE);
+        return appPreferences.getString(PREF_OCR_ENGINE, OCR_ENGINE_GOOGLE);
     }
     
     /**

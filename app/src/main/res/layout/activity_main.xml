@@ -1416,42 +1416,6 @@
                             android:paddingEnd="4dp"
                             android:paddingBottom="12dp" />
 
-
-                        <!-- Large Text Switch -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:gravity="center_vertical">
-
-                            <TextView
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:text="@string/settings_large_text_label"
-                                android:textSize="18sp"
-                                android:textStyle="bold"
-                                android:textColor="@color/brand_brown"
-                                android:forceDarkAllowed="false"/>
-
-                            <com.google.android.material.materialswitch.MaterialSwitch
-                                android:id="@+id/switch_large_text"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text=""
-                                android:forceDarkAllowed="false"/>
-                        </LinearLayout>
-
-                        <TextView
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/settings_large_text_desc"
-                            android:textColor="?attr/colorOnSurfaceVariant"
-                            android:textSize="14sp"
-                            android:paddingStart="4dp"
-                            android:paddingEnd="4dp"
-                            android:paddingBottom="16dp" />
-
                         <!-- Divider -->
                         <View
                             android:layout_width="match_parent"
@@ -1608,6 +1572,16 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="16dp"
                             android:text="@string/menu_ocr_settings"
+                            android:textColor="@color/brand_brown" />
+
+                        <!-- Credits Button -->
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/button_credits"
+                            style="@style/Widget.Material3.Button"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="@string/btn_main_credits"
                             android:textColor="@color/brand_brown" />
 
                         <!-- Close Button -->
