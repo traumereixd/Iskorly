@@ -65,6 +65,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -241,8 +242,9 @@ public class MainActivity extends AppCompatActivity {
     private ActivityResultLauncher<String> createCsvLauncher;
     private ActivityResultLauncher<String> exportMasterlistCsvLauncher;
     
-    // CSV manual selection - stores timestamps of selected history records
-    private Set<String> selectedHistoryTimestamps = new HashSet<>();
+    // CSV manual selection - stores quiz name and section names
+    private String selectedQuizName = null;
+    private Set<String> selectedSectionNames = new HashSet<>();
     
     // Autocomplete JSON Import/Export
     private ActivityResultLauncher<String[]> importAutocompleteJsonLauncher;
@@ -2721,57 +2723,71 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         
-        // Prepare list of records for multi-select dialog
-        final List<String> recordLabels = new ArrayList<>();
-        final List<String> recordTimestamps = new ArrayList<>();
-        
+        // Step 1: Group records by quiz name
+        LinkedHashMap<String, Set<String>> quizSectionsMap = new LinkedHashMap<>();
         for (int i = 0; i < history.length(); i++) {
             try {
                 JSONObject rec = history.getJSONObject(i);
-                String ts = rec.optString("ts", "");
                 String exam = rec.optString("exam", "Untitled Quiz");
-                int score = rec.optInt("score", 0);
-                int total = rec.optInt("total", 0);
-                double pct = rec.optDouble("percent", 0.0);
+                String section = rec.optString("section", "Unsectioned");
                 
-                // Format: [timestamp] [Subgroup 2 (Exam)] — score/total (%)
-                String label = String.format(Locale.US, "[%s] %s — %d/%d (%.1f%%)", 
-                        ts, exam, score, total, pct);
-                recordLabels.add(label);
-                recordTimestamps.add(ts);
+                if (!quizSectionsMap.containsKey(exam)) {
+                    quizSectionsMap.put(exam, new LinkedHashSet<>());
+                }
+                quizSectionsMap.get(exam).add(section);
             } catch (Exception ignored) {
             }
         }
         
-        // Create boolean array for selection state
-        final boolean[] checkedItems = new boolean[recordLabels.size()];
-        selectedHistoryTimestamps.clear();
+        if (quizSectionsMap.isEmpty()) {
+            Toast.makeText(this, "No quiz records found", Toast.LENGTH_SHORT).show();
+            return;
+        }
         
-        // Build multi-choice dialog
+        // Step 1: Show quiz selection dialog
+        List<String> quizNames = new ArrayList<>(quizSectionsMap.keySet());
+        String[] quizArray = quizNames.toArray(new String[0]);
+        
+        AlertDialog.Builder quizBuilder = new AlertDialog.Builder(this);
+        quizBuilder.setTitle("Select Quiz to Export");
+        
+        quizBuilder.setItems(quizArray, (dialog, which) -> {
+            selectedQuizName = quizNames.get(which);
+            // Step 2: Show section selection for selected quiz
+            showSectionSelectionDialog(quizSectionsMap.get(selectedQuizName));
+        });
+        
+        quizBuilder.setNegativeButton("Cancel", null);
+        quizBuilder.show();
+    }
+    
+    private void showSectionSelectionDialog(Set<String> sections) {
+        List<String> sectionList = new ArrayList<>(sections);
+        String[] sectionArray = sectionList.toArray(new String[0]);
+        boolean[] checkedItems = new boolean[sectionArray.length];
+        selectedSectionNames.clear();
+        
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Select Records to Export");
+        builder.setTitle("Select Sections for: " + selectedQuizName);
         
-        builder.setMultiChoiceItems(
-                recordLabels.toArray(new String[0]),
-                checkedItems,
-                (dialog, which, isChecked) -> {
-                    checkedItems[which] = isChecked;
-                    if (isChecked) {
-                        selectedHistoryTimestamps.add(recordTimestamps.get(which));
-                    } else {
-                        selectedHistoryTimestamps.remove(recordTimestamps.get(which));
-                    }
-                });
+        builder.setMultiChoiceItems(sectionArray, checkedItems, (dialog, which, isChecked) -> {
+            checkedItems[which] = isChecked;
+            if (isChecked) {
+                selectedSectionNames.add(sectionList.get(which));
+            } else {
+                selectedSectionNames.remove(sectionList.get(which));
+            }
+        });
         
         // Add "Select All" button
         builder.setNeutralButton("Select All", null);
         
         // Add "Export" button
         builder.setPositiveButton("Export", (dialog, which) -> {
-            if (selectedHistoryTimestamps.isEmpty()) {
-                Toast.makeText(this, "No records selected", Toast.LENGTH_SHORT).show();
+            if (selectedSectionNames.isEmpty()) {
+                Toast.makeText(this, "No sections selected", Toast.LENGTH_SHORT).show();
             } else {
-                createCsvLauncher.launch("isa_history.csv");
+                createCsvLauncher.launch("isa_history_" + selectedQuizName.replaceAll("[^a-zA-Z0-9]", "_") + ".csv");
             }
         });
         
@@ -2781,28 +2797,21 @@ public class MainActivity extends AppCompatActivity {
         AlertDialog dialog = builder.create();
         dialog.show();
         
-        // Override "Select All" button to toggle selection without closing dialog
+        // Override "Select All" button to toggle selection
         dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
-            boolean allSelected = selectedHistoryTimestamps.size() == recordTimestamps.size();
+            boolean allSelected = selectedSectionNames.size() == sectionList.size();
             
-            // Update checkedItems array and selected timestamps
             for (int i = 0; i < checkedItems.length; i++) {
                 checkedItems[i] = !allSelected;
-                // Update ListView checked state
                 dialog.getListView().setItemChecked(i, !allSelected);
             }
             
-            // Update selected timestamps set
             if (allSelected) {
-                selectedHistoryTimestamps.clear();
+                selectedSectionNames.clear();
             } else {
-                selectedHistoryTimestamps.clear();
-                selectedHistoryTimestamps.addAll(recordTimestamps);
+                selectedSectionNames.clear();
+                selectedSectionNames.addAll(sectionList);
             }
-            
-            // Update button text to reflect toggle state
-            v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-            ((android.widget.Button) v).setText(allSelected ? "Select All" : "Clear All");
         });
     }
 
@@ -2812,8 +2821,9 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         
-        // Use manual selection instead of filters
-        final Set<String> selectedTs = new HashSet<>(selectedHistoryTimestamps);
+        // Use quiz and section selection instead of timestamps
+        final String quiz = selectedQuizName;
+        final Set<String> sections = new HashSet<>(selectedSectionNames);
         
         backgroundHandler.post(() -> {
             String raw = historyPreferences.getString("history", "[]");
@@ -2835,29 +2845,31 @@ public class MainActivity extends AppCompatActivity {
                     JSONObject rec = history.getJSONObject(i);
                     String ts = rec.optString("ts", "");
                     
-                    // Only export selected records
-                    if (!selectedTs.contains(ts)) {
+                    // Only export records matching selected quiz and sections
+                    String exam = rec.optString("exam", "");
+                    String section = rec.optString("section", "");
+                    
+                    if (!quiz.equals(exam) || !sections.contains(section)) {
                         continue; // Skip this record
                     }
                     
-                    String section = rec.optString("section", "").replace(",", " ");
-                    String exam = rec.optString("exam", "").replace(",", " ");
-                    String student = rec.optString("student", "").replace(",", " ");
+                    String student = rec.optString("student", "");
                     int score = rec.optInt("score", 0);
                     int total = rec.optInt("total", 0);
                     double pct = rec.optDouble("percent", 0.0);
                     JSONObject answers = rec.optJSONObject("answers");
-                    String answersStr = answers != null ? answers.toString().replace(",", ";") : "{}";
+                    String answersStr = answers != null ? answers.toString() : "{}";
 
-                    sb.append(exam).append(",")
-                            .append(section).append(",")
-                            .append(student).append(",")
-                            .append(ts).append(",")
+                    // Properly escape CSV fields
+                    sb.append(escapeCsvField(exam)).append(",")
+                            .append(escapeCsvField(section)).append(",")
+                            .append(escapeCsvField(student)).append(",")
+                            .append(escapeCsvField(ts)).append(",")
                             .append(score).append(",")
                             .append(total).append(",")
                             .append(String.format(Locale.US, "%.1f", pct)).append(",")
-                            .append(modeLabel).append(",")
-                            .append("\"").append(answersStr.replace("\"", "'")).append("\"")
+                            .append(escapeCsvField(modeLabel)).append(",")
+                            .append(escapeCsvField(answersStr))
                             .append("\n");
                     exportedCount++;
                 } catch (Exception ignored) {
@@ -2867,10 +2879,10 @@ public class MainActivity extends AppCompatActivity {
             final int finalExportedCount = exportedCount;
             try (OutputStream os = getContentResolver().openOutputStream(uri)) {
                 if (os != null) {
-                    os.write(sb.toString().getBytes());
+                    os.write(sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
                     os.flush();
                 }
-                String message = String.format(Locale.US, "CSV exported: %d selected records", finalExportedCount);
+                String message = String.format(Locale.US, "CSV exported: %d records", finalExportedCount);
                 runOnUiThread(() -> Toast.makeText(this, message, Toast.LENGTH_SHORT).show());
             } catch (Exception e) {
                 Log.e(TAG, "CSV export", e);
@@ -2878,8 +2890,29 @@ public class MainActivity extends AppCompatActivity {
             }
             
             // Clear selection after export
-            runOnUiThread(() -> selectedHistoryTimestamps.clear());
+            runOnUiThread(() -> {
+                selectedQuizName = null;
+                selectedSectionNames.clear();
+            });
         });
+    }
+    
+    /**
+     * Escape a field for CSV export according to RFC 4180.
+     * Wraps field in quotes if it contains comma, quote, or newline.
+     * Escapes internal quotes by doubling them.
+     */
+    private String escapeCsvField(String field) {
+        if (field == null) return "";
+        
+        // Check if field needs quoting
+        if (field.contains(",") || field.contains("\"") || field.contains("\n") || field.contains("\r")) {
+            // Escape quotes by doubling them
+            String escaped = field.replace("\"", "\"\"");
+            return "\"" + escaped + "\"";
+        }
+        
+        return field;
     }
 
     // ---------------------------
