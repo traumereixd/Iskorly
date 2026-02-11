@@ -1723,11 +1723,14 @@ public class MainActivity extends AppCompatActivity {
         CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         try {
             String cameraId = manager.getCameraIdList()[0];
+            
+            // Get camera characteristics once for all subsequent uses
+            CameraCharacteristics cameraChars = null;
 
             // Determine largest JPEG size for stills
             try {
-                CameraCharacteristics chars = manager.getCameraCharacteristics(cameraId);
-                StreamConfigurationMap map = chars.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+                cameraChars = manager.getCameraCharacteristics(cameraId);
+                StreamConfigurationMap map = cameraChars.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
                 if (map != null) {
                     jpegSize = findLargestSize(map.getOutputSizes(ImageFormat.JPEG));
                     
@@ -1739,10 +1742,10 @@ public class MainActivity extends AppCompatActivity {
                 }
                 
                 // Check camera capabilities for flashlight and zoom
-                Boolean flashAvailable = chars.get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
+                Boolean flashAvailable = cameraChars.get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
                 hasFlashlight = flashAvailable != null && flashAvailable;
                 
-                Float maxZoom = chars.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM);
+                Float maxZoom = cameraChars.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM);
                 maxZoomRatio = (maxZoom != null && maxZoom > 1.0f) ? maxZoom : 1.0f;
                 
                 Log.d(CAMERA_FLOW, "Camera capabilities: flash=" + hasFlashlight + ", maxZoom=" + maxZoomRatio);
@@ -1774,6 +1777,9 @@ public class MainActivity extends AppCompatActivity {
             jpegReader = ImageReader.newInstance(jpegSize.getWidth(), jpegSize.getHeight(), ImageFormat.JPEG, 2);
             jpegReader.setOnImageAvailableListener(onJpegAvailableListener, backgroundHandler);
             Surface jpegSurface = jpegReader.getSurface();
+            
+            // Store cameraChars for use in the callback
+            final CameraCharacteristics finalCameraChars = cameraChars;
 
             manager.openCamera(cameraId, new CameraDevice.StateCallback() {
                 @Override
@@ -1796,40 +1802,40 @@ public class MainActivity extends AppCompatActivity {
                         
                         // Enable high-quality camera settings for better preview
                         try {
-                            CameraCharacteristics chars = manager.getCameraCharacteristics(cameraId);
-                            
-                            // Set noise reduction to high quality if available
-                            int[] noiseReductionModes = chars.get(CameraCharacteristics.NOISE_REDUCTION_AVAILABLE_NOISE_REDUCTION_MODES);
-                            if (noiseReductionModes != null) {
-                                for (int mode : noiseReductionModes) {
-                                    if (mode == CaptureRequest.NOISE_REDUCTION_MODE_HIGH_QUALITY) {
-                                        captureRequestBuilder.set(CaptureRequest.NOISE_REDUCTION_MODE, CaptureRequest.NOISE_REDUCTION_MODE_HIGH_QUALITY);
-                                        Log.d(CAMERA_FLOW, "Enabled NOISE_REDUCTION_MODE_HIGH_QUALITY");
-                                        break;
+                            if (finalCameraChars != null) {
+                                // Set noise reduction to high quality if available
+                                int[] noiseReductionModes = finalCameraChars.get(CameraCharacteristics.NOISE_REDUCTION_AVAILABLE_NOISE_REDUCTION_MODES);
+                                if (noiseReductionModes != null) {
+                                    for (int mode : noiseReductionModes) {
+                                        if (mode == CaptureRequest.NOISE_REDUCTION_MODE_HIGH_QUALITY) {
+                                            captureRequestBuilder.set(CaptureRequest.NOISE_REDUCTION_MODE, CaptureRequest.NOISE_REDUCTION_MODE_HIGH_QUALITY);
+                                            Log.d(CAMERA_FLOW, "Enabled NOISE_REDUCTION_MODE_HIGH_QUALITY");
+                                            break;
+                                        }
                                     }
                                 }
-                            }
-                            
-                            // Set edge mode to high quality if available
-                            int[] edgeModes = chars.get(CameraCharacteristics.EDGE_AVAILABLE_EDGE_MODES);
-                            if (edgeModes != null) {
-                                for (int mode : edgeModes) {
-                                    if (mode == CaptureRequest.EDGE_MODE_HIGH_QUALITY) {
-                                        captureRequestBuilder.set(CaptureRequest.EDGE_MODE, CaptureRequest.EDGE_MODE_HIGH_QUALITY);
-                                        Log.d(CAMERA_FLOW, "Enabled EDGE_MODE_HIGH_QUALITY");
-                                        break;
+                                
+                                // Set edge mode to high quality if available
+                                int[] edgeModes = finalCameraChars.get(CameraCharacteristics.EDGE_AVAILABLE_EDGE_MODES);
+                                if (edgeModes != null) {
+                                    for (int mode : edgeModes) {
+                                        if (mode == CaptureRequest.EDGE_MODE_HIGH_QUALITY) {
+                                            captureRequestBuilder.set(CaptureRequest.EDGE_MODE, CaptureRequest.EDGE_MODE_HIGH_QUALITY);
+                                            Log.d(CAMERA_FLOW, "Enabled EDGE_MODE_HIGH_QUALITY");
+                                            break;
+                                        }
                                     }
                                 }
-                            }
-                            
-                            // Set tonemap mode to high quality if available
-                            int[] tonemapModes = chars.get(CameraCharacteristics.TONEMAP_AVAILABLE_TONE_MAP_MODES);
-                            if (tonemapModes != null) {
-                                for (int mode : tonemapModes) {
-                                    if (mode == CaptureRequest.TONEMAP_MODE_HIGH_QUALITY) {
-                                        captureRequestBuilder.set(CaptureRequest.TONEMAP_MODE, CaptureRequest.TONEMAP_MODE_HIGH_QUALITY);
-                                        Log.d(CAMERA_FLOW, "Enabled TONEMAP_MODE_HIGH_QUALITY");
-                                        break;
+                                
+                                // Set tonemap mode to high quality if available
+                                int[] tonemapModes = finalCameraChars.get(CameraCharacteristics.TONEMAP_AVAILABLE_TONE_MAP_MODES);
+                                if (tonemapModes != null) {
+                                    for (int mode : tonemapModes) {
+                                        if (mode == CaptureRequest.TONEMAP_MODE_HIGH_QUALITY) {
+                                            captureRequestBuilder.set(CaptureRequest.TONEMAP_MODE, CaptureRequest.TONEMAP_MODE_HIGH_QUALITY);
+                                            Log.d(CAMERA_FLOW, "Enabled TONEMAP_MODE_HIGH_QUALITY");
+                                            break;
+                                        }
                                     }
                                 }
                             }
