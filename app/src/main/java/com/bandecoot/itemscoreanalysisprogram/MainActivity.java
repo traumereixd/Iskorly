@@ -198,6 +198,13 @@ public class MainActivity extends AppCompatActivity {
     private ImageReader jpegReader;  // still JPEG reader
     private Size jpegSize;
     private final AtomicBoolean waitingForJpeg = new AtomicBoolean(false);
+    
+    // Camera controls
+    private com.google.android.material.floatingactionbutton.FloatingActionButton btnFlashlight, btnZoomIn, btnZoomOut;
+    private boolean flashlightOn = false;
+    private float currentZoomRatio = 1.0f;
+    private float maxZoomRatio = 1.0f;
+    private boolean hasFlashlight = false;
 
     // State
     private boolean scanSessionActive = false;
@@ -1328,6 +1335,33 @@ public class MainActivity extends AppCompatActivity {
         importPhotosButton = findViewById(R.id.button_import_photos);
         cancelScanButton = findViewById(R.id.button_cancel_scan);
         shutterView = findViewById(R.id.shutterView);
+        
+        // Camera control buttons
+        btnFlashlight = findViewById(R.id.btn_flashlight);
+        btnZoomIn = findViewById(R.id.btn_zoom_in);
+        btnZoomOut = findViewById(R.id.btn_zoom_out);
+        
+        // Set up camera control listeners
+        if (btnFlashlight != null) {
+            btnFlashlight.setOnClickListener(v -> toggleFlashlight());
+        }
+        if (btnZoomIn != null) {
+            btnZoomIn.setOnClickListener(v -> adjustZoom(true));
+        }
+        if (btnZoomOut != null) {
+            btnZoomOut.setOnClickListener(v -> adjustZoom(false));
+        }
+        
+        // Set up tap-to-focus on TextureView
+        if (cameraPreviewTextureView != null) {
+            cameraPreviewTextureView.setOnTouchListener((v, event) -> {
+                if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) {
+                    handleTapToFocus(event.getX(), event.getY(), v.getWidth(), v.getHeight());
+                    return true;
+                }
+                return false;
+            });
+        }
 
         // Bind parsed answers verification views
         parsedLabel = findViewById(R.id.textView_parsed_label);
@@ -1692,8 +1726,19 @@ public class MainActivity extends AppCompatActivity {
                         jpegSize = largest;
                     }
                 }
+                
+                // Check camera capabilities for flashlight and zoom
+                Boolean flashAvailable = chars.get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
+                hasFlashlight = flashAvailable != null && flashAvailable;
+                
+                Float maxZoom = chars.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM);
+                maxZoomRatio = (maxZoom != null && maxZoom > 1.0f) ? maxZoom : 1.0f;
+                
+                Log.d(CAMERA_FLOW, "Camera capabilities: flash=" + hasFlashlight + ", maxZoom=" + maxZoomRatio);
             } catch (Throwable ignored) {
                 jpegSize = new Size(1920, 1080);
+                hasFlashlight = false;
+                maxZoomRatio = 1.0f;
             }
             if (jpegSize == null) jpegSize = new Size(1920, 1080);
 
@@ -2933,6 +2978,150 @@ public class MainActivity extends AppCompatActivity {
                 .setMessage("Iskorly\nGoogle Vision OCR Powered\nVersion 1.8.1\n\nResearchers:\nEspaño, Elijah Ria D.\nLolos, Kneel Charles B.\nMahusay, Queen Rheyceljoy F.\nMedel, Myra J.\nReyes, John Jharen R.\nSahagun, Jayson G.\nTagle, Steve Aldrei D.\n\nDeveloper: Sahagun, Jayson G.")
                 .setPositiveButton("OK", null)
                 .show();
+    }
+    
+    // ---------------------------
+    // Camera Controls
+    // ---------------------------
+    
+    /**
+     * Toggle flashlight on/off.
+     */
+    private void toggleFlashlight() {
+        if (!hasFlashlight || captureRequestBuilder == null || cameraCaptureSession == null) {
+            Toast.makeText(this, "Flashlight not available", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        flashlightOn = !flashlightOn;
+        
+        try {
+            captureRequestBuilder.set(CaptureRequest.FLASH_MODE, 
+                flashlightOn ? CaptureRequest.FLASH_MODE_TORCH : CaptureRequest.FLASH_MODE_OFF);
+            cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, backgroundHandler);
+            
+            // Update button appearance
+            if (btnFlashlight != null) {
+                runOnUiThread(() -> {
+                    btnFlashlight.setAlpha(flashlightOn ? 1.0f : 0.6f);
+                });
+            }
+            
+            Log.d(CAMERA_FLOW, "Flashlight " + (flashlightOn ? "ON" : "OFF"));
+        } catch (Exception e) {
+            Log.e(CAMERA_FLOW, "Error toggling flashlight", e);
+            Toast.makeText(this, "Failed to toggle flashlight", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    /**
+     * Adjust zoom in or out.
+     */
+    private void adjustZoom(boolean zoomIn) {
+        if (maxZoomRatio <= 1.0f || captureRequestBuilder == null || cameraCaptureSession == null) {
+            Toast.makeText(this, "Zoom not available", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Adjust zoom by 0.5x increments, clamped to [1.0, maxZoomRatio]
+        float zoomStep = 0.5f;
+        if (zoomIn) {
+            currentZoomRatio = Math.min(currentZoomRatio + zoomStep, maxZoomRatio);
+        } else {
+            currentZoomRatio = Math.max(currentZoomRatio - zoomStep, 1.0f);
+        }
+        
+        try {
+            android.graphics.Rect sensorRect = captureRequestBuilder.get(CaptureRequest.SCALER_CROP_REGION);
+            if (sensorRect == null) {
+                // If sensor rect is not available, we can't apply zoom
+                Toast.makeText(this, "Zoom not supported", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
+            int centerX = sensorRect.width() / 2;
+            int centerY = sensorRect.height() / 2;
+            int cropWidth = (int) (sensorRect.width() / currentZoomRatio);
+            int cropHeight = (int) (sensorRect.height() / currentZoomRatio);
+            
+            android.graphics.Rect zoomRect = new android.graphics.Rect(
+                centerX - cropWidth / 2,
+                centerY - cropHeight / 2,
+                centerX + cropWidth / 2,
+                centerY + cropHeight / 2
+            );
+            
+            captureRequestBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoomRect);
+            cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, backgroundHandler);
+            
+            Log.d(CAMERA_FLOW, "Zoom set to " + currentZoomRatio + "x");
+        } catch (Exception e) {
+            Log.e(CAMERA_FLOW, "Error adjusting zoom", e);
+            Toast.makeText(this, "Failed to adjust zoom", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    /**
+     * Handle tap-to-focus on camera preview.
+     */
+    private void handleTapToFocus(float x, float y, int viewWidth, int viewHeight) {
+        if (captureRequestBuilder == null || cameraCaptureSession == null || !cameraSessionReady) {
+            return;
+        }
+        
+        try {
+            // Get the sensor active array size
+            CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+            String cameraId = manager.getCameraIdList()[0];
+            CameraCharacteristics chars = manager.getCameraCharacteristics(cameraId);
+            android.graphics.Rect sensorRect = chars.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
+            
+            if (sensorRect == null) {
+                return;
+            }
+            
+            // Convert touch coordinates to sensor coordinates
+            int sensorX = (int) (x / viewWidth * sensorRect.width());
+            int sensorY = (int) (y / viewHeight * sensorRect.height());
+            
+            // Create a metering rectangle (5% of sensor size)
+            int areaSize = Math.min(sensorRect.width(), sensorRect.height()) / 20;
+            int left = Math.max(sensorX - areaSize / 2, 0);
+            int top = Math.max(sensorY - areaSize / 2, 0);
+            int right = Math.min(left + areaSize, sensorRect.width());
+            int bottom = Math.min(top + areaSize, sensorRect.height());
+            
+            android.graphics.Rect focusRect = new android.graphics.Rect(left, top, right, bottom);
+            android.hardware.camera2.params.MeteringRectangle meteringRect = 
+                new android.hardware.camera2.params.MeteringRectangle(focusRect, 1000);
+            
+            // Set AF and AE regions
+            captureRequestBuilder.set(CaptureRequest.CONTROL_AF_REGIONS, 
+                new android.hardware.camera2.params.MeteringRectangle[]{meteringRect});
+            captureRequestBuilder.set(CaptureRequest.CONTROL_AE_REGIONS, 
+                new android.hardware.camera2.params.MeteringRectangle[]{meteringRect});
+            
+            // Trigger AF
+            captureRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, 
+                CaptureRequest.CONTROL_AF_TRIGGER_START);
+            
+            cameraCaptureSession.capture(captureRequestBuilder.build(), null, backgroundHandler);
+            
+            // Reset AF trigger and resume preview
+            captureRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, 
+                CaptureRequest.CONTROL_AF_TRIGGER_IDLE);
+            cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, backgroundHandler);
+            
+            Log.d(CAMERA_FLOW, "Tap-to-focus at (" + x + ", " + y + ")");
+            
+            // Visual feedback
+            runOnUiThread(() -> {
+                Toast.makeText(this, "Focus set", Toast.LENGTH_SHORT).show();
+            });
+            
+        } catch (Exception e) {
+            Log.e(CAMERA_FLOW, "Error handling tap-to-focus", e);
+        }
     }
 
     private void startBackgroundThread() {

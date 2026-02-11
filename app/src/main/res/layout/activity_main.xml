@@ -992,8 +992,8 @@
                     android:id="@+id/textureView_camera_preview"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:clickable="false"
-                    android:focusable="false" />
+                    android:clickable="true"
+                    android:focusable="true" />
 
                 <com.bandecoot.itemscoreanalysisprogram.OmrOverlayView
                     android:id="@+id/omrOverlay"
@@ -1006,6 +1006,46 @@
                     android:layout_height="match_parent"
                     android:background="#FFFFFFFF"
                     android:visibility="gone" />
+
+                <!-- CAMERA CONTROLS (TOP RIGHT) -->
+                <LinearLayout
+                    android:id="@+id/camera_controls_top"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="top|end"
+                    android:layout_margin="16dp"
+                    android:orientation="horizontal"
+                    android:elevation="12dp">
+
+                    <com.google.android.material.floatingactionbutton.FloatingActionButton
+                        android:id="@+id/btn_flashlight"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="8dp"
+                        android:src="@android:drawable/ic_menu_day"
+                        android:contentDescription="Toggle flashlight"
+                        app:backgroundTint="@color/brand_brown"
+                        app:fabSize="mini" />
+
+                    <com.google.android.material.floatingactionbutton.FloatingActionButton
+                        android:id="@+id/btn_zoom_in"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="8dp"
+                        android:src="@android:drawable/ic_menu_zoom"
+                        android:contentDescription="Zoom in"
+                        app:backgroundTint="@color/brand_brown"
+                        app:fabSize="mini" />
+
+                    <com.google.android.material.floatingactionbutton.FloatingActionButton
+                        android:id="@+id/btn_zoom_out"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:src="@android:drawable/ic_menu_revert"
+                        android:contentDescription="Zoom out"
+                        app:backgroundTint="@color/brand_brown"
+                        app:fabSize="mini" />
+                </LinearLayout>
 
                 <!-- FLOATING RESULTS CARD OVER CAMERA (CENTERED) -->
                 <com.google.android.material.card.MaterialCardView
