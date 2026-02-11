@@ -1641,7 +1641,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         if (imageReader != null) imageReader.close();
-        // Preview size will be determined in openCameraPreview, use default for now
+        // Temporary ImageReader with default size - will be recreated with actual preview size in openCameraPreview
         imageReader = ImageReader.newInstance(CAMERA_WIDTH, CAMERA_HEIGHT, ImageFormat.YUV_420_888, 2);
         imageReader.setOnImageAvailableListener(onImageAvailableListener, backgroundHandler);
 
@@ -1729,25 +1729,11 @@ public class MainActivity extends AppCompatActivity {
                 CameraCharacteristics chars = manager.getCameraCharacteristics(cameraId);
                 StreamConfigurationMap map = chars.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
                 if (map != null) {
-                    Size[] jpegSizes = map.getOutputSizes(ImageFormat.JPEG);
-                    if (jpegSizes != null && jpegSizes.length > 0) {
-                        Size largest = jpegSizes[0];
-                        for (Size s : jpegSizes) {
-                            if ((long) s.getWidth() * s.getHeight() > (long) largest.getWidth() * largest.getHeight())
-                                largest = s;
-                        }
-                        jpegSize = largest;
-                    }
+                    jpegSize = findLargestSize(map.getOutputSizes(ImageFormat.JPEG));
                     
                     // Determine maximum preview size for SurfaceTexture
-                    Size[] previewSizes = map.getOutputSizes(SurfaceTexture.class);
-                    if (previewSizes != null && previewSizes.length > 0) {
-                        Size largestPreview = previewSizes[0];
-                        for (Size s : previewSizes) {
-                            if ((long) s.getWidth() * s.getHeight() > (long) largestPreview.getWidth() * largestPreview.getHeight())
-                                largestPreview = s;
-                        }
-                        previewSize = largestPreview;
+                    previewSize = findLargestSize(map.getOutputSizes(SurfaceTexture.class));
+                    if (previewSize != null) {
                         Log.d(CAMERA_FLOW, "Selected preview size: " + previewSize.getWidth() + "x" + previewSize.getHeight());
                     }
                 }
@@ -3127,6 +3113,22 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) {
             Log.e(CAMERA_FLOW, "Error applying zoom", e);
         }
+    }
+    
+    /**
+     * Find the largest size from an array of sizes.
+     */
+    private Size findLargestSize(Size[] sizes) {
+        if (sizes == null || sizes.length == 0) {
+            return null;
+        }
+        Size largest = sizes[0];
+        for (Size s : sizes) {
+            if ((long) s.getWidth() * s.getHeight() > (long) largest.getWidth() * largest.getHeight()) {
+                largest = s;
+            }
+        }
+        return largest;
     }
 
     private void startBackgroundThread() {
