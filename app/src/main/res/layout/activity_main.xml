@@ -1021,28 +1021,8 @@
                         android:id="@+id/btn_flashlight"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginEnd="8dp"
                         android:src="@android:drawable/ic_menu_day"
                         android:contentDescription="Toggle flashlight"
-                        app:backgroundTint="@color/brand_brown"
-                        app:fabSize="mini" />
-
-                    <com.google.android.material.floatingactionbutton.FloatingActionButton
-                        android:id="@+id/btn_zoom_in"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="8dp"
-                        android:src="@android:drawable/ic_menu_zoom"
-                        android:contentDescription="Zoom in"
-                        app:backgroundTint="@color/brand_brown"
-                        app:fabSize="mini" />
-
-                    <com.google.android.material.floatingactionbutton.FloatingActionButton
-                        android:id="@+id/btn_zoom_out"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:src="@android:drawable/ic_menu_revert"
-                        android:contentDescription="Zoom out"
                         app:backgroundTint="@color/brand_brown"
                         app:fabSize="mini" />
                 </LinearLayout>
