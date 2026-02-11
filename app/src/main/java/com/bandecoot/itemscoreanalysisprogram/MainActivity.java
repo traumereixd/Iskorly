@@ -199,6 +199,7 @@ public class MainActivity extends AppCompatActivity {
     private ImageReader imageReader; // preview YUV
     private ImageReader jpegReader;  // still JPEG reader
     private Size jpegSize;
+    private Size previewSize; // Selected preview size for camera
     private final AtomicBoolean waitingForJpeg = new AtomicBoolean(false);
     
     // Camera controls
@@ -1352,7 +1353,7 @@ public class MainActivity extends AppCompatActivity {
             btnFlashlight.setOnClickListener(v -> toggleFlashlight());
         }
         
-        // Set up pinch-to-zoom and tap-to-focus on TextureView
+        // Set up pinch-to-zoom on TextureView
         if (cameraPreviewTextureView != null) {
             scaleGestureDetector = new ScaleGestureDetector(this, new ScaleGestureDetector.SimpleOnScaleGestureListener() {
                 @Override
@@ -1370,12 +1371,6 @@ public class MainActivity extends AppCompatActivity {
             cameraPreviewTextureView.setOnTouchListener((v, event) -> {
                 // Handle pinch-to-zoom
                 scaleGestureDetector.onTouchEvent(event);
-                
-                // Handle tap-to-focus (only when session is ready and not during pinch gesture)
-                if (event.getAction() == MotionEvent.ACTION_DOWN && !scaleGestureDetector.isInProgress() && cameraSessionReady) {
-                    handleTapToFocus(event.getX(), event.getY(), v.getWidth(), v.getHeight());
-                    return true;
-                }
                 return scaleGestureDetector.isInProgress();
             });
         }
@@ -1646,6 +1641,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         if (imageReader != null) imageReader.close();
+        // Temporary ImageReader with default size - will be recreated with actual preview size in openCameraPreview
         imageReader = ImageReader.newInstance(CAMERA_WIDTH, CAMERA_HEIGHT, ImageFormat.YUV_420_888, 2);
         imageReader.setOnImageAvailableListener(onImageAvailableListener, backgroundHandler);
 
@@ -1727,42 +1723,50 @@ public class MainActivity extends AppCompatActivity {
         CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
         try {
             String cameraId = manager.getCameraIdList()[0];
+            
+            // Get camera characteristics once for all subsequent uses
+            CameraCharacteristics cameraChars = null;
 
             // Determine largest JPEG size for stills
             try {
-                CameraCharacteristics chars = manager.getCameraCharacteristics(cameraId);
-                StreamConfigurationMap map = chars.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+                cameraChars = manager.getCameraCharacteristics(cameraId);
+                StreamConfigurationMap map = cameraChars.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
                 if (map != null) {
-                    Size[] jpegSizes = map.getOutputSizes(ImageFormat.JPEG);
-                    if (jpegSizes != null && jpegSizes.length > 0) {
-                        Size largest = jpegSizes[0];
-                        for (Size s : jpegSizes) {
-                            if ((long) s.getWidth() * s.getHeight() > (long) largest.getWidth() * largest.getHeight())
-                                largest = s;
-                        }
-                        jpegSize = largest;
+                    jpegSize = findLargestSize(map.getOutputSizes(ImageFormat.JPEG));
+                    
+                    // Determine maximum preview size for SurfaceTexture
+                    previewSize = findLargestSize(map.getOutputSizes(SurfaceTexture.class));
+                    if (previewSize != null) {
+                        Log.d(CAMERA_FLOW, "Selected preview size: " + previewSize.getWidth() + "x" + previewSize.getHeight());
                     }
                 }
                 
                 // Check camera capabilities for flashlight and zoom
-                Boolean flashAvailable = chars.get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
+                Boolean flashAvailable = cameraChars.get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
                 hasFlashlight = flashAvailable != null && flashAvailable;
                 
-                Float maxZoom = chars.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM);
+                Float maxZoom = cameraChars.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM);
                 maxZoomRatio = (maxZoom != null && maxZoom > 1.0f) ? maxZoom : 1.0f;
                 
                 Log.d(CAMERA_FLOW, "Camera capabilities: flash=" + hasFlashlight + ", maxZoom=" + maxZoomRatio);
             } catch (Throwable ignored) {
                 jpegSize = new Size(1920, 1080);
+                previewSize = new Size(CAMERA_WIDTH, CAMERA_HEIGHT);
                 hasFlashlight = false;
                 maxZoomRatio = 1.0f;
             }
             if (jpegSize == null) jpegSize = new Size(1920, 1080);
+            if (previewSize == null) previewSize = new Size(CAMERA_WIDTH, CAMERA_HEIGHT);
 
             SurfaceTexture texture = cameraPreviewTextureView.getSurfaceTexture();
             if (texture == null) return;
-            texture.setDefaultBufferSize(CAMERA_WIDTH, CAMERA_HEIGHT);
+            texture.setDefaultBufferSize(previewSize.getWidth(), previewSize.getHeight());
             Surface previewSurface = new Surface(texture);
+            
+            // Recreate ImageReader with the selected preview size
+            if (imageReader != null) imageReader.close();
+            imageReader = ImageReader.newInstance(previewSize.getWidth(), previewSize.getHeight(), ImageFormat.YUV_420_888, 2);
+            imageReader.setOnImageAvailableListener(onImageAvailableListener, backgroundHandler);
             Surface readerSurface = imageReader.getSurface();
 
             // prepare jpegReader
@@ -1773,6 +1777,9 @@ public class MainActivity extends AppCompatActivity {
             jpegReader = ImageReader.newInstance(jpegSize.getWidth(), jpegSize.getHeight(), ImageFormat.JPEG, 2);
             jpegReader.setOnImageAvailableListener(onJpegAvailableListener, backgroundHandler);
             Surface jpegSurface = jpegReader.getSurface();
+            
+            // Store cameraChars for use in the callback
+            final CameraCharacteristics finalCameraChars = cameraChars;
 
             manager.openCamera(cameraId, new CameraDevice.StateCallback() {
                 @Override
@@ -1791,6 +1798,49 @@ public class MainActivity extends AppCompatActivity {
                         try {
                             captureRequestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, new Range<>(30, 30));
                         } catch (Throwable ignored) {
+                        }
+                        
+                        // Enable high-quality camera settings for better preview
+                        try {
+                            if (finalCameraChars != null) {
+                                // Set noise reduction to high quality if available
+                                int[] noiseReductionModes = finalCameraChars.get(CameraCharacteristics.NOISE_REDUCTION_AVAILABLE_NOISE_REDUCTION_MODES);
+                                if (noiseReductionModes != null) {
+                                    for (int mode : noiseReductionModes) {
+                                        if (mode == CaptureRequest.NOISE_REDUCTION_MODE_HIGH_QUALITY) {
+                                            captureRequestBuilder.set(CaptureRequest.NOISE_REDUCTION_MODE, CaptureRequest.NOISE_REDUCTION_MODE_HIGH_QUALITY);
+                                            Log.d(CAMERA_FLOW, "Enabled NOISE_REDUCTION_MODE_HIGH_QUALITY");
+                                            break;
+                                        }
+                                    }
+                                }
+                                
+                                // Set edge mode to high quality if available
+                                int[] edgeModes = finalCameraChars.get(CameraCharacteristics.EDGE_AVAILABLE_EDGE_MODES);
+                                if (edgeModes != null) {
+                                    for (int mode : edgeModes) {
+                                        if (mode == CaptureRequest.EDGE_MODE_HIGH_QUALITY) {
+                                            captureRequestBuilder.set(CaptureRequest.EDGE_MODE, CaptureRequest.EDGE_MODE_HIGH_QUALITY);
+                                            Log.d(CAMERA_FLOW, "Enabled EDGE_MODE_HIGH_QUALITY");
+                                            break;
+                                        }
+                                    }
+                                }
+                                
+                                // Set tonemap mode to high quality if available
+                                int[] tonemapModes = finalCameraChars.get(CameraCharacteristics.TONEMAP_AVAILABLE_TONE_MAP_MODES);
+                                if (tonemapModes != null) {
+                                    for (int mode : tonemapModes) {
+                                        if (mode == CaptureRequest.TONEMAP_MODE_HIGH_QUALITY) {
+                                            captureRequestBuilder.set(CaptureRequest.TONEMAP_MODE, CaptureRequest.TONEMAP_MODE_HIGH_QUALITY);
+                                            Log.d(CAMERA_FLOW, "Enabled TONEMAP_MODE_HIGH_QUALITY");
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        } catch (Throwable e) {
+                            Log.w(CAMERA_FLOW, "Could not enable some high-quality settings", e);
                         }
 
                         Log.d(CAMERA_FLOW, "Creating capture session...");
@@ -3072,79 +3122,19 @@ public class MainActivity extends AppCompatActivity {
     }
     
     /**
-     * Handle tap-to-focus on camera preview.
+     * Find the largest size from an array of sizes.
      */
-    private void handleTapToFocus(float x, float y, int viewWidth, int viewHeight) {
-        if (captureRequestBuilder == null || cameraCaptureSession == null || !cameraSessionReady) {
-            return;
+    private Size findLargestSize(Size[] sizes) {
+        if (sizes == null || sizes.length == 0) {
+            return null;
         }
-        
-        try {
-            // Get the sensor active array size
-            CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
-            String cameraId = manager.getCameraIdList()[0];
-            CameraCharacteristics chars = manager.getCameraCharacteristics(cameraId);
-            android.graphics.Rect sensorRect = chars.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
-            
-            if (sensorRect == null) {
-                return;
+        Size largest = sizes[0];
+        for (Size s : sizes) {
+            if ((long) s.getWidth() * s.getHeight() > (long) largest.getWidth() * largest.getHeight()) {
+                largest = s;
             }
-            
-            // Calculate the current crop region based on zoom
-            int centerX = sensorRect.width() / 2;
-            int centerY = sensorRect.height() / 2;
-            int cropWidth = (int) (sensorRect.width() / currentZoomRatio);
-            int cropHeight = (int) (sensorRect.height() / currentZoomRatio);
-            
-            android.graphics.Rect currentCropRegion = new android.graphics.Rect(
-                centerX - cropWidth / 2,
-                centerY - cropHeight / 2,
-                centerX + cropWidth / 2,
-                centerY + cropHeight / 2
-            );
-            
-            // Convert touch coordinates to sensor coordinates within the crop region
-            int sensorX = currentCropRegion.left + (int) (x / viewWidth * currentCropRegion.width());
-            int sensorY = currentCropRegion.top + (int) (y / viewHeight * currentCropRegion.height());
-            
-            // Create a metering rectangle (5% of crop region size)
-            int areaSize = Math.min(currentCropRegion.width(), currentCropRegion.height()) / 20;
-            int left = Math.max(sensorX - areaSize / 2, 0);
-            int top = Math.max(sensorY - areaSize / 2, 0);
-            int right = Math.min(left + areaSize, sensorRect.width());
-            int bottom = Math.min(top + areaSize, sensorRect.height());
-            
-            android.graphics.Rect focusRect = new android.graphics.Rect(left, top, right, bottom);
-            android.hardware.camera2.params.MeteringRectangle meteringRect = 
-                new android.hardware.camera2.params.MeteringRectangle(focusRect, 1000);
-            
-            // Set AF and AE regions
-            captureRequestBuilder.set(CaptureRequest.CONTROL_AF_REGIONS, 
-                new android.hardware.camera2.params.MeteringRectangle[]{meteringRect});
-            captureRequestBuilder.set(CaptureRequest.CONTROL_AE_REGIONS, 
-                new android.hardware.camera2.params.MeteringRectangle[]{meteringRect});
-            
-            // Trigger AF
-            captureRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, 
-                CaptureRequest.CONTROL_AF_TRIGGER_START);
-            
-            cameraCaptureSession.capture(captureRequestBuilder.build(), null, backgroundHandler);
-            
-            // Reset AF trigger and resume preview
-            captureRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, 
-                CaptureRequest.CONTROL_AF_TRIGGER_IDLE);
-            cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, backgroundHandler);
-            
-            Log.d(CAMERA_FLOW, "Tap-to-focus at (" + x + ", " + y + ") with zoom " + currentZoomRatio + "x");
-            
-            // Visual feedback
-            runOnUiThread(() -> {
-                Toast.makeText(this, "Focus set", Toast.LENGTH_SHORT).show();
-            });
-            
-        } catch (Exception e) {
-            Log.e(CAMERA_FLOW, "Error handling tap-to-focus", e);
         }
+        return largest;
     }
 
     private void startBackgroundThread() {
