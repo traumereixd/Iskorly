@@ -1735,8 +1735,11 @@ public class MainActivity extends AppCompatActivity {
                     jpegSize = findLargestSize(map.getOutputSizes(ImageFormat.JPEG));
                     
                     // Force preview size to 1280x720 for improved camera session stability
-                    previewSize = new Size(CAMERA_WIDTH, CAMERA_HEIGHT);
-                    Log.d(CAMERA_FLOW, "Selected preview size: " + previewSize.getWidth() + "x" + previewSize.getHeight());
+                    // Validate that the size is supported, or use the closest available size
+                    previewSize = findPreferredOrClosestSize(map.getOutputSizes(SurfaceTexture.class), CAMERA_WIDTH, CAMERA_HEIGHT);
+                    if (previewSize != null) {
+                        Log.d(CAMERA_FLOW, "Selected preview size: " + previewSize.getWidth() + "x" + previewSize.getHeight());
+                    }
                 }
                 
                 // Check camera capabilities for flashlight and zoom
@@ -3133,6 +3136,35 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         return largest;
+    }
+
+    private Size findPreferredOrClosestSize(Size[] sizes, int preferredWidth, int preferredHeight) {
+        if (sizes == null || sizes.length == 0) {
+            return null;
+        }
+        
+        // First, check if the preferred size is directly available
+        for (Size s : sizes) {
+            if (s.getWidth() == preferredWidth && s.getHeight() == preferredHeight) {
+                return s;
+            }
+        }
+        
+        // If preferred size not available, find the closest supported size
+        Size closest = sizes[0];
+        long preferredArea = (long) preferredWidth * preferredHeight;
+        long minDiff = Math.abs((long) closest.getWidth() * closest.getHeight() - preferredArea);
+        
+        for (Size s : sizes) {
+            long area = (long) s.getWidth() * s.getHeight();
+            long diff = Math.abs(area - preferredArea);
+            if (diff < minDiff) {
+                minDiff = diff;
+                closest = s;
+            }
+        }
+        
+        return closest;
     }
 
     private void startBackgroundThread() {
