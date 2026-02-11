@@ -3032,9 +3032,6 @@ public class MainActivity extends AppCompatActivity {
     }
     
     /**
-     * Adjust zoom in or out.
-     */
-    /**
      * Apply the current zoom ratio to the camera.
      */
     private void applyZoom() {
