@@ -20,7 +20,7 @@ public class MainMenuActivity extends AppCompatActivity {
     private static final String TAG = "ISA_MENU";
     private static final String UX2_CHECK = "UX2_CHECK";
     
-    private MaterialCardView cardStartScan, cardTutorial, cardCredits;
+    private MaterialCardView cardStartScan, cardTutorial;
     private long backPressedTime = 0;
 
     @Override
@@ -34,7 +34,6 @@ public class MainMenuActivity extends AppCompatActivity {
         // Initialize views
         cardStartScan = findViewById(R.id.card_start_scan);
         cardTutorial = findViewById(R.id.card_tutorial);
-        cardCredits = findViewById(R.id.card_credits);
         
         // Apply global text colors (BLACK for text, WHITE for buttons)
         applyGlobalTextColors();
@@ -50,12 +49,6 @@ public class MainMenuActivity extends AppCompatActivity {
         cardTutorial.setOnClickListener(v -> {
             v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
             showTutorial();
-        });
-
-        // Credits
-        cardCredits.setOnClickListener(v -> {
-            v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-            showCredits();
         });
     }
     

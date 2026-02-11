@@ -65,6 +65,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -117,9 +118,9 @@ public class MainActivity extends AppCompatActivity {
     private Button confirmParsedButton, importPhotosButton, masterlistButton, masterlistBackButton, exportCsvButton;
     private Button manageAutocompleteButton, exportMasterlistCsvButton, masterlistResetAllButton;
     private Button masterlistBySectionButton, masterlistAllButton, btnSlotSaveSet;
-    private Button buttonSettings, buttonSettingsClose, buttonOcrEngineSettings;
+    private Button buttonSettings, buttonSettingsClose, buttonOcrEngineSettings, buttonCredits;
     private com.google.android.material.materialswitch.MaterialSwitch switchOcrTwoColumn, switchOcrHighContrast;
-    private com.google.android.material.materialswitch.MaterialSwitch switchOutlinedText, switchLargeText;
+    private com.google.android.material.materialswitch.MaterialSwitch switchOutlinedText;
     private TextView currentKeyTextView, sessionScoreTextView, parsedLabel, masterlistInfoTextView;
     
     // Type Hints UI components
@@ -165,7 +166,6 @@ public class MainActivity extends AppCompatActivity {
     private static final String OCR_ENGINE_AZURE = "azure";
     private static final String OCR_ENGINE_GOOGLE = "google";
     private static final String PREF_OUTLINED_TEXT = "outlined_text_enabled";
-    private static final String PREF_LARGE_TEXT = "large_text_enabled";
     private static final String PREF_RANGE_HINTS = "range_hints";
     private static final String PREF_FORM_STUDENT = "form_student_name";
     private static final String PREF_FORM_SECTION = "form_section_name";
@@ -198,6 +198,13 @@ public class MainActivity extends AppCompatActivity {
     private ImageReader jpegReader;  // still JPEG reader
     private Size jpegSize;
     private final AtomicBoolean waitingForJpeg = new AtomicBoolean(false);
+    
+    // Camera controls
+    private com.google.android.material.floatingactionbutton.FloatingActionButton btnFlashlight, btnZoomIn, btnZoomOut;
+    private boolean flashlightOn = false;
+    private float currentZoomRatio = 1.0f;
+    private float maxZoomRatio = 1.0f;
+    private boolean hasFlashlight = false;
 
     // State
     private boolean scanSessionActive = false;
@@ -222,6 +229,12 @@ public class MainActivity extends AppCompatActivity {
     private ActivityResultLauncher<String[]> importSlotLauncher;
     private ActivityResultLauncher<String> exportSlotLauncher;
     
+    // Export format constants
+    private static final String FORMAT_JSON = "json";
+    private static final String FORMAT_CSV = "csv";
+    private static final String FORMAT_TXT = "txt";
+    private String pendingExportFormat = FORMAT_JSON; // Track selected export format
+    
     // Multi-image import launcher (Feature #2)
     private ActivityResultLauncher<String> importPhotosLauncher;
     
@@ -241,8 +254,9 @@ public class MainActivity extends AppCompatActivity {
     private ActivityResultLauncher<String> createCsvLauncher;
     private ActivityResultLauncher<String> exportMasterlistCsvLauncher;
     
-    // CSV manual selection - stores timestamps of selected history records
-    private Set<String> selectedHistoryTimestamps = new HashSet<>();
+    // CSV manual selection - stores quiz name and section names
+    private String selectedQuizName = null;
+    private Set<String> selectedSectionNames = new HashSet<>();
     
     // Autocomplete JSON Import/Export
     private ActivityResultLauncher<String[]> importAutocompleteJsonLauncher;
@@ -485,14 +499,13 @@ public class MainActivity extends AppCompatActivity {
         }
         
         if (btnSlotImport != null) {
-            btnSlotImport.setOnClickListener(v -> importSlotLauncher.launch(new String[]{"application/json", "*/*"}));
+            btnSlotImport.setOnClickListener(v -> importSlotLauncher.launch(new String[]{"application/json", "text/csv", "text/plain", "*/*"}));
         }
         
         if (btnSlotExport != null) {
             btnSlotExport.setOnClickListener(v -> {
-                SlotData currentSlot = slots.get(currentSlotId);
-                String filename = "slot_" + (currentSlot != null ? currentSlot.name : "export") + ".json";
-                exportSlotLauncher.launch(filename);
+                // Show format selection dialog
+                showExportFormatDialog();
             });
         }
         
@@ -621,14 +634,26 @@ public class MainActivity extends AppCompatActivity {
         try (InputStream inputStream = getContentResolver().openInputStream(uri)) {
             if (inputStream == null) return;
 
-            StringBuilder json = new StringBuilder();
+            StringBuilder content = new StringBuilder();
             byte[] buffer = new byte[1024];
             int read;
             while ((read = inputStream.read(buffer)) != -1) {
-                json.append(new String(buffer, 0, read));
+                content.append(new String(buffer, 0, read));
             }
 
-            importSlotData(json.toString());
+            String contentStr = content.toString().trim();
+            
+            // Detect format and import accordingly
+            if (contentStr.startsWith("{")) {
+                // JSON format
+                importSlotData(contentStr);
+            } else if (contentStr.contains(",") || contentStr.contains("\n")) {
+                // CSV or TXT format
+                importSlotFromPlainText(contentStr);
+            } else {
+                throw new Exception("Unrecognized file format");
+            }
+            
             Toast.makeText(this, getString(R.string.slot_import_success), Toast.LENGTH_SHORT).show();
 
         } catch (Exception e) {
@@ -636,6 +661,59 @@ public class MainActivity extends AppCompatActivity {
             String message = String.format(getString(R.string.slot_import_error), e.getMessage());
             Toast.makeText(this, message, Toast.LENGTH_LONG).show();
         }
+    }
+    
+    private void importSlotFromPlainText(String content) throws Exception {
+        String name = "Imported " + System.currentTimeMillis();
+        SlotData newSlot = new SlotData(name);
+        
+        // Parse CSV or TXT format: "1,A" or "1: A" or "1\tA"
+        String[] lines = content.split("\n");
+        for (String line : lines) {
+            line = line.trim();
+            if (line.isEmpty()) continue;
+            
+            // Skip header line if present (more specific check)
+            if (line.toLowerCase().contains("question") && line.toLowerCase().contains("answer")) {
+                continue;
+            }
+            
+            // Try different delimiters: comma, colon, tab, space
+            String[] parts = null;
+            if (line.contains(",")) {
+                parts = line.split(",", 2);
+            } else if (line.contains(":")) {
+                parts = line.split(":", 2);
+            } else if (line.contains("\t")) {
+                parts = line.split("\t", 2);
+            } else if (line.contains(" ")) {
+                parts = line.split("\\s+", 2);
+            }
+            
+            if (parts != null && parts.length >= 2) {
+                try {
+                    int q = Integer.parseInt(parts[0].trim());
+                    String answer = parts[1].trim();
+                    // Remove quotes if present (with length check)
+                    if (answer.length() >= 2 && answer.startsWith("\"") && answer.endsWith("\"")) {
+                        answer = answer.substring(1, answer.length() - 1);
+                    }
+                    newSlot.answers.put(q, answer);
+                } catch (NumberFormatException ignored) {
+                    // Skip invalid lines
+                }
+            }
+        }
+        
+        if (newSlot.answers.isEmpty()) {
+            throw new Exception("No valid answer key entries found");
+        }
+        
+        String newSlotId = "imported_" + System.currentTimeMillis();
+        slots.put(newSlotId, newSlot);
+        switchToSlot(newSlotId);
+        saveSlots();
+        updateSlotSelector();
     }
 
     private void importSlotData(String jsonString) throws JSONException {
@@ -696,26 +774,64 @@ public class MainActivity extends AppCompatActivity {
             SlotData currentSlot = slots.get(currentSlotId);
             if (currentSlot == null) return;
 
-            // Create export JSON in our format
-            JSONObject rootObj = new JSONObject();
-            rootObj.put("current_slot", currentSlotId);
-            
-            JSONObject slotsObj = new JSONObject();
-            JSONObject slotObj = new JSONObject();
-            slotObj.put("name", currentSlot.name);
-            
-            JSONObject answersObj = new JSONObject();
-            for (Integer q : currentSlot.answers.keySet()) {
-                answersObj.put(q.toString(), currentSlot.answers.get(q));
-            }
-            slotObj.put("answers", answersObj);
-            
-            slotsObj.put(currentSlotId, slotObj);
-            rootObj.put("slots", slotsObj);
-
             try (OutputStream outputStream = getContentResolver().openOutputStream(uri)) {
                 if (outputStream != null) {
-                    outputStream.write(rootObj.toString(2).getBytes());
+                    String content;
+                    
+                    if (FORMAT_CSV.equals(pendingExportFormat)) {
+                        // CSV format
+                        StringBuilder csv = new StringBuilder();
+                        csv.append("Question,Answer\n");
+                        
+                        // Sort questions for consistent output
+                        List<Integer> questions = new ArrayList<>(currentSlot.answers.keySet());
+                        Collections.sort(questions);
+                        
+                        for (Integer q : questions) {
+                            String answer = currentSlot.answers.get(q);
+                            // Escape commas and quotes in CSV
+                            if (answer.contains(",") || answer.contains("\"")) {
+                                answer = "\"" + answer.replace("\"", "\"\"") + "\"";
+                            }
+                            csv.append(q).append(",").append(answer).append("\n");
+                        }
+                        content = csv.toString();
+                        
+                    } else if (FORMAT_TXT.equals(pendingExportFormat)) {
+                        // TXT format (simple format: Q: Answer)
+                        StringBuilder txt = new StringBuilder();
+                        
+                        // Sort questions for consistent output
+                        List<Integer> questions = new ArrayList<>(currentSlot.answers.keySet());
+                        Collections.sort(questions);
+                        
+                        for (Integer q : questions) {
+                            txt.append(q).append(": ").append(currentSlot.answers.get(q)).append("\n");
+                        }
+                        content = txt.toString();
+                        
+                    } else {
+                        // JSON format (default)
+                        JSONObject rootObj = new JSONObject();
+                        rootObj.put("current_slot", currentSlotId);
+                        
+                        JSONObject slotsObj = new JSONObject();
+                        JSONObject slotObj = new JSONObject();
+                        slotObj.put("name", currentSlot.name);
+                        
+                        JSONObject answersObj = new JSONObject();
+                        for (Integer q : currentSlot.answers.keySet()) {
+                            answersObj.put(q.toString(), currentSlot.answers.get(q));
+                        }
+                        slotObj.put("answers", answersObj);
+                        
+                        slotsObj.put(currentSlotId, slotObj);
+                        rootObj.put("slots", slotsObj);
+                        
+                        content = rootObj.toString(2);
+                    }
+                    
+                    outputStream.write(content.getBytes());
                     outputStream.flush();
                     Toast.makeText(this, getString(R.string.slot_export_success), Toast.LENGTH_SHORT).show();
                 }
@@ -726,6 +842,39 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Export failed: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
     }
+    
+    private void showExportFormatDialog() {
+        SlotData currentSlot = slots.get(currentSlotId);
+        String slotName = currentSlot != null ? currentSlot.name : "export";
+        
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Select Export Format");
+        
+        String[] formats = {"JSON (recommended)", "CSV (spreadsheet-friendly)", "TXT (plain text)"};
+        builder.setItems(formats, (dialog, which) -> {
+            String filename;
+            switch (which) {
+                case 0: // JSON
+                    pendingExportFormat = FORMAT_JSON;
+                    filename = "slot_" + slotName + ".json";
+                    break;
+                case 1: // CSV
+                    pendingExportFormat = FORMAT_CSV;
+                    filename = "slot_" + slotName + ".csv";
+                    break;
+                case 2: // TXT
+                default:
+                    pendingExportFormat = FORMAT_TXT;
+                    filename = "slot_" + slotName + ".txt";
+                    break;
+            }
+            exportSlotLauncher.launch(filename);
+        });
+        
+        builder.setNegativeButton("Cancel", null);
+        builder.show();
+    }
+    
     private void showTutorialDialog() {
         android.widget.ScrollView scroll = new android.widget.ScrollView(this);
         TextView tv = new TextView(this);
@@ -874,7 +1023,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         switchOcrTwoColumn = findViewById(R.id.switch_ocr_two_column);
         switchOcrHighContrast = findViewById(R.id.switch_ocr_high_contrast);
-        switchLargeText = findViewById(R.id.switch_large_text);
 //        forceSwitchTextBlack();
 
         // Initialize prefs EARLY
@@ -1073,9 +1221,9 @@ public class MainActivity extends AppCompatActivity {
         buttonSettings = findViewById(R.id.button_settings);
         buttonSettingsClose = findViewById(R.id.button_settings_close);
         buttonOcrEngineSettings = findViewById(R.id.button_ocr_engine_settings);
+        buttonCredits = findViewById(R.id.button_credits);
         switchOcrTwoColumn = findViewById(R.id.switch_ocr_two_column);
         switchOcrHighContrast = findViewById(R.id.switch_ocr_high_contrast);
-        switchLargeText = findViewById(R.id.switch_large_text);
         
         // Load OCR settings from preferences
         loadOcrSettings();
@@ -1113,6 +1261,14 @@ public class MainActivity extends AppCompatActivity {
             });
         }
         
+        // Credits button listener
+        if (buttonCredits != null) {
+            buttonCredits.setOnClickListener(v -> {
+                v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
+                showCreditsDialog();
+            });
+        }
+        
         // OCR toggle listeners
         if (switchOcrTwoColumn != null) {
             switchOcrTwoColumn.setOnCheckedChangeListener((buttonView, isChecked) -> {
@@ -1135,14 +1291,6 @@ public class MainActivity extends AppCompatActivity {
             switchOutlinedText.setEnabled(false);
             switchOutlinedText.setChecked(false);
             switchOutlinedText.setVisibility(View.GONE);
-        }
-        
-        if (switchLargeText != null) {
-            switchLargeText.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                appPreferences.edit().putBoolean(PREF_LARGE_TEXT, isChecked).apply();
-                applyLargeTextSetting(isChecked);
-                Log.d(TAG, "Large text " + (isChecked ? "enabled" : "disabled"));
-            });
         }
         
         // Type Hints UI
@@ -1192,6 +1340,33 @@ public class MainActivity extends AppCompatActivity {
         importPhotosButton = findViewById(R.id.button_import_photos);
         cancelScanButton = findViewById(R.id.button_cancel_scan);
         shutterView = findViewById(R.id.shutterView);
+        
+        // Camera control buttons
+        btnFlashlight = findViewById(R.id.btn_flashlight);
+        btnZoomIn = findViewById(R.id.btn_zoom_in);
+        btnZoomOut = findViewById(R.id.btn_zoom_out);
+        
+        // Set up camera control listeners
+        if (btnFlashlight != null) {
+            btnFlashlight.setOnClickListener(v -> toggleFlashlight());
+        }
+        if (btnZoomIn != null) {
+            btnZoomIn.setOnClickListener(v -> adjustZoom(true));
+        }
+        if (btnZoomOut != null) {
+            btnZoomOut.setOnClickListener(v -> adjustZoom(false));
+        }
+        
+        // Set up tap-to-focus on TextureView
+        if (cameraPreviewTextureView != null) {
+            cameraPreviewTextureView.setOnTouchListener((v, event) -> {
+                if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) {
+                    handleTapToFocus(event.getX(), event.getY(), v.getWidth(), v.getHeight());
+                    return true;
+                }
+                return false;
+            });
+        }
 
         // Bind parsed answers verification views
         parsedLabel = findViewById(R.id.textView_parsed_label);
@@ -1556,8 +1731,19 @@ public class MainActivity extends AppCompatActivity {
                         jpegSize = largest;
                     }
                 }
+                
+                // Check camera capabilities for flashlight and zoom
+                Boolean flashAvailable = chars.get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
+                hasFlashlight = flashAvailable != null && flashAvailable;
+                
+                Float maxZoom = chars.get(CameraCharacteristics.SCALER_AVAILABLE_MAX_DIGITAL_ZOOM);
+                maxZoomRatio = (maxZoom != null && maxZoom > 1.0f) ? maxZoom : 1.0f;
+                
+                Log.d(CAMERA_FLOW, "Camera capabilities: flash=" + hasFlashlight + ", maxZoom=" + maxZoomRatio);
             } catch (Throwable ignored) {
                 jpegSize = new Size(1920, 1080);
+                hasFlashlight = false;
+                maxZoomRatio = 1.0f;
             }
             if (jpegSize == null) jpegSize = new Size(1920, 1080);
 
@@ -2587,57 +2773,71 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         
-        // Prepare list of records for multi-select dialog
-        final List<String> recordLabels = new ArrayList<>();
-        final List<String> recordTimestamps = new ArrayList<>();
-        
+        // Step 1: Group records by quiz name
+        LinkedHashMap<String, Set<String>> quizSectionsMap = new LinkedHashMap<>();
         for (int i = 0; i < history.length(); i++) {
             try {
                 JSONObject rec = history.getJSONObject(i);
-                String ts = rec.optString("ts", "");
                 String exam = rec.optString("exam", "Untitled Quiz");
-                int score = rec.optInt("score", 0);
-                int total = rec.optInt("total", 0);
-                double pct = rec.optDouble("percent", 0.0);
+                String section = rec.optString("section", "Unsectioned");
                 
-                // Format: [timestamp] [Subgroup 2 (Exam)] — score/total (%)
-                String label = String.format(Locale.US, "[%s] %s — %d/%d (%.1f%%)", 
-                        ts, exam, score, total, pct);
-                recordLabels.add(label);
-                recordTimestamps.add(ts);
+                if (!quizSectionsMap.containsKey(exam)) {
+                    quizSectionsMap.put(exam, new LinkedHashSet<>());
+                }
+                quizSectionsMap.get(exam).add(section);
             } catch (Exception ignored) {
             }
         }
         
-        // Create boolean array for selection state
-        final boolean[] checkedItems = new boolean[recordLabels.size()];
-        selectedHistoryTimestamps.clear();
+        if (quizSectionsMap.isEmpty()) {
+            Toast.makeText(this, "No quiz records found", Toast.LENGTH_SHORT).show();
+            return;
+        }
         
-        // Build multi-choice dialog
+        // Step 1: Show quiz selection dialog
+        List<String> quizNames = new ArrayList<>(quizSectionsMap.keySet());
+        String[] quizArray = quizNames.toArray(new String[0]);
+        
+        AlertDialog.Builder quizBuilder = new AlertDialog.Builder(this);
+        quizBuilder.setTitle("Select Quiz to Export");
+        
+        quizBuilder.setItems(quizArray, (dialog, which) -> {
+            selectedQuizName = quizNames.get(which);
+            // Step 2: Show section selection for selected quiz
+            showSectionSelectionDialog(quizSectionsMap.get(selectedQuizName));
+        });
+        
+        quizBuilder.setNegativeButton("Cancel", null);
+        quizBuilder.show();
+    }
+    
+    private void showSectionSelectionDialog(Set<String> sections) {
+        List<String> sectionList = new ArrayList<>(sections);
+        String[] sectionArray = sectionList.toArray(new String[0]);
+        boolean[] checkedItems = new boolean[sectionArray.length];
+        selectedSectionNames.clear();
+        
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Select Records to Export");
+        builder.setTitle("Select Sections for: " + selectedQuizName);
         
-        builder.setMultiChoiceItems(
-                recordLabels.toArray(new String[0]),
-                checkedItems,
-                (dialog, which, isChecked) -> {
-                    checkedItems[which] = isChecked;
-                    if (isChecked) {
-                        selectedHistoryTimestamps.add(recordTimestamps.get(which));
-                    } else {
-                        selectedHistoryTimestamps.remove(recordTimestamps.get(which));
-                    }
-                });
+        builder.setMultiChoiceItems(sectionArray, checkedItems, (dialog, which, isChecked) -> {
+            checkedItems[which] = isChecked;
+            if (isChecked) {
+                selectedSectionNames.add(sectionList.get(which));
+            } else {
+                selectedSectionNames.remove(sectionList.get(which));
+            }
+        });
         
         // Add "Select All" button
         builder.setNeutralButton("Select All", null);
         
         // Add "Export" button
         builder.setPositiveButton("Export", (dialog, which) -> {
-            if (selectedHistoryTimestamps.isEmpty()) {
-                Toast.makeText(this, "No records selected", Toast.LENGTH_SHORT).show();
+            if (selectedSectionNames.isEmpty()) {
+                Toast.makeText(this, "No sections selected", Toast.LENGTH_SHORT).show();
             } else {
-                createCsvLauncher.launch("isa_history.csv");
+                createCsvLauncher.launch("isa_history_" + selectedQuizName.replaceAll("[^a-zA-Z0-9]", "_") + ".csv");
             }
         });
         
@@ -2647,28 +2847,21 @@ public class MainActivity extends AppCompatActivity {
         AlertDialog dialog = builder.create();
         dialog.show();
         
-        // Override "Select All" button to toggle selection without closing dialog
+        // Override "Select All" button to toggle selection
         dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
-            boolean allSelected = selectedHistoryTimestamps.size() == recordTimestamps.size();
+            boolean allSelected = selectedSectionNames.size() == sectionList.size();
             
-            // Update checkedItems array and selected timestamps
             for (int i = 0; i < checkedItems.length; i++) {
                 checkedItems[i] = !allSelected;
-                // Update ListView checked state
                 dialog.getListView().setItemChecked(i, !allSelected);
             }
             
-            // Update selected timestamps set
             if (allSelected) {
-                selectedHistoryTimestamps.clear();
+                selectedSectionNames.clear();
             } else {
-                selectedHistoryTimestamps.clear();
-                selectedHistoryTimestamps.addAll(recordTimestamps);
+                selectedSectionNames.clear();
+                selectedSectionNames.addAll(sectionList);
             }
-            
-            // Update button text to reflect toggle state
-            v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-            ((android.widget.Button) v).setText(allSelected ? "Select All" : "Clear All");
         });
     }
 
@@ -2678,8 +2871,9 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         
-        // Use manual selection instead of filters
-        final Set<String> selectedTs = new HashSet<>(selectedHistoryTimestamps);
+        // Use quiz and section selection instead of timestamps
+        final String quiz = selectedQuizName;
+        final Set<String> sections = new HashSet<>(selectedSectionNames);
         
         backgroundHandler.post(() -> {
             String raw = historyPreferences.getString("history", "[]");
@@ -2701,29 +2895,31 @@ public class MainActivity extends AppCompatActivity {
                     JSONObject rec = history.getJSONObject(i);
                     String ts = rec.optString("ts", "");
                     
-                    // Only export selected records
-                    if (!selectedTs.contains(ts)) {
+                    // Only export records matching selected quiz and sections
+                    String exam = rec.optString("exam", "");
+                    String section = rec.optString("section", "");
+                    
+                    if (!quiz.equals(exam) || !sections.contains(section)) {
                         continue; // Skip this record
                     }
                     
-                    String section = rec.optString("section", "").replace(",", " ");
-                    String exam = rec.optString("exam", "").replace(",", " ");
-                    String student = rec.optString("student", "").replace(",", " ");
+                    String student = rec.optString("student", "");
                     int score = rec.optInt("score", 0);
                     int total = rec.optInt("total", 0);
                     double pct = rec.optDouble("percent", 0.0);
                     JSONObject answers = rec.optJSONObject("answers");
-                    String answersStr = answers != null ? answers.toString().replace(",", ";") : "{}";
+                    String answersStr = answers != null ? answers.toString() : "{}";
 
-                    sb.append(exam).append(",")
-                            .append(section).append(",")
-                            .append(student).append(",")
-                            .append(ts).append(",")
+                    // Properly escape CSV fields
+                    sb.append(escapeCsvField(exam)).append(",")
+                            .append(escapeCsvField(section)).append(",")
+                            .append(escapeCsvField(student)).append(",")
+                            .append(escapeCsvField(ts)).append(",")
                             .append(score).append(",")
                             .append(total).append(",")
                             .append(String.format(Locale.US, "%.1f", pct)).append(",")
-                            .append(modeLabel).append(",")
-                            .append("\"").append(answersStr.replace("\"", "'")).append("\"")
+                            .append(escapeCsvField(modeLabel)).append(",")
+                            .append(escapeCsvField(answersStr))
                             .append("\n");
                     exportedCount++;
                 } catch (Exception ignored) {
@@ -2733,10 +2929,10 @@ public class MainActivity extends AppCompatActivity {
             final int finalExportedCount = exportedCount;
             try (OutputStream os = getContentResolver().openOutputStream(uri)) {
                 if (os != null) {
-                    os.write(sb.toString().getBytes());
+                    os.write(sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
                     os.flush();
                 }
-                String message = String.format(Locale.US, "CSV exported: %d selected records", finalExportedCount);
+                String message = String.format(Locale.US, "CSV exported: %d records", finalExportedCount);
                 runOnUiThread(() -> Toast.makeText(this, message, Toast.LENGTH_SHORT).show());
             } catch (Exception e) {
                 Log.e(TAG, "CSV export", e);
@@ -2744,8 +2940,29 @@ public class MainActivity extends AppCompatActivity {
             }
             
             // Clear selection after export
-            runOnUiThread(() -> selectedHistoryTimestamps.clear());
+            runOnUiThread(() -> {
+                selectedQuizName = null;
+                selectedSectionNames.clear();
+            });
         });
+    }
+    
+    /**
+     * Escape a field for CSV export according to RFC 4180.
+     * Wraps field in quotes if it contains comma, quote, or newline.
+     * Escapes internal quotes by doubling them.
+     */
+    private String escapeCsvField(String field) {
+        if (field == null) return "";
+        
+        // Check if field needs quoting
+        if (field.contains(",") || field.contains("\"") || field.contains("\n") || field.contains("\r")) {
+            // Escape quotes by doubling them
+            String escaped = field.replace("\"", "\"\"");
+            return "\"" + escaped + "\"";
+        }
+        
+        return field;
     }
 
     // ---------------------------
@@ -2766,6 +2983,154 @@ public class MainActivity extends AppCompatActivity {
                 .setMessage("Iskorly\nGoogle Vision OCR Powered\nVersion 1.8.1\n\nResearchers:\nEspaño, Elijah Ria D.\nLolos, Kneel Charles B.\nMahusay, Queen Rheyceljoy F.\nMedel, Myra J.\nReyes, John Jharen R.\nSahagun, Jayson G.\nTagle, Steve Aldrei D.\n\nDeveloper: Sahagun, Jayson G.")
                 .setPositiveButton("OK", null)
                 .show();
+    }
+    
+    // ---------------------------
+    // Camera Controls
+    // ---------------------------
+    
+    /**
+     * Toggle flashlight on/off.
+     */
+    private void toggleFlashlight() {
+        if (!hasFlashlight || captureRequestBuilder == null || cameraCaptureSession == null) {
+            Toast.makeText(this, "Flashlight not available", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        flashlightOn = !flashlightOn;
+        
+        try {
+            captureRequestBuilder.set(CaptureRequest.FLASH_MODE, 
+                flashlightOn ? CaptureRequest.FLASH_MODE_TORCH : CaptureRequest.FLASH_MODE_OFF);
+            cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, backgroundHandler);
+            
+            // Update button appearance
+            if (btnFlashlight != null) {
+                runOnUiThread(() -> {
+                    btnFlashlight.setAlpha(flashlightOn ? 1.0f : 0.6f);
+                });
+            }
+            
+            Log.d(CAMERA_FLOW, "Flashlight " + (flashlightOn ? "ON" : "OFF"));
+        } catch (Exception e) {
+            Log.e(CAMERA_FLOW, "Error toggling flashlight", e);
+            Toast.makeText(this, "Failed to toggle flashlight", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    /**
+     * Adjust zoom in or out.
+     */
+    private void adjustZoom(boolean zoomIn) {
+        if (maxZoomRatio <= 1.0f || captureRequestBuilder == null || cameraCaptureSession == null) {
+            Toast.makeText(this, "Zoom not available", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Adjust zoom by 0.5x increments, clamped to [1.0, maxZoomRatio]
+        float zoomStep = 0.5f;
+        if (zoomIn) {
+            currentZoomRatio = Math.min(currentZoomRatio + zoomStep, maxZoomRatio);
+        } else {
+            currentZoomRatio = Math.max(currentZoomRatio - zoomStep, 1.0f);
+        }
+        
+        try {
+            // Get sensor active array size from camera characteristics
+            CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+            String cameraId = manager.getCameraIdList()[0];
+            CameraCharacteristics chars = manager.getCameraCharacteristics(cameraId);
+            android.graphics.Rect sensorRect = chars.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
+            
+            if (sensorRect == null) {
+                Toast.makeText(this, "Zoom not supported", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
+            int centerX = sensorRect.width() / 2;
+            int centerY = sensorRect.height() / 2;
+            int cropWidth = (int) (sensorRect.width() / currentZoomRatio);
+            int cropHeight = (int) (sensorRect.height() / currentZoomRatio);
+            
+            android.graphics.Rect zoomRect = new android.graphics.Rect(
+                centerX - cropWidth / 2,
+                centerY - cropHeight / 2,
+                centerX + cropWidth / 2,
+                centerY + cropHeight / 2
+            );
+            
+            captureRequestBuilder.set(CaptureRequest.SCALER_CROP_REGION, zoomRect);
+            cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, backgroundHandler);
+            
+            Log.d(CAMERA_FLOW, "Zoom set to " + currentZoomRatio + "x");
+        } catch (Exception e) {
+            Log.e(CAMERA_FLOW, "Error adjusting zoom", e);
+            Toast.makeText(this, "Failed to adjust zoom", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    /**
+     * Handle tap-to-focus on camera preview.
+     */
+    private void handleTapToFocus(float x, float y, int viewWidth, int viewHeight) {
+        if (captureRequestBuilder == null || cameraCaptureSession == null || !cameraSessionReady) {
+            return;
+        }
+        
+        try {
+            // Get the sensor active array size
+            CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+            String cameraId = manager.getCameraIdList()[0];
+            CameraCharacteristics chars = manager.getCameraCharacteristics(cameraId);
+            android.graphics.Rect sensorRect = chars.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE);
+            
+            if (sensorRect == null) {
+                return;
+            }
+            
+            // Convert touch coordinates to sensor coordinates
+            int sensorX = (int) (x / viewWidth * sensorRect.width());
+            int sensorY = (int) (y / viewHeight * sensorRect.height());
+            
+            // Create a metering rectangle (5% of sensor size)
+            int areaSize = Math.min(sensorRect.width(), sensorRect.height()) / 20;
+            int left = Math.max(sensorX - areaSize / 2, 0);
+            int top = Math.max(sensorY - areaSize / 2, 0);
+            int right = Math.min(left + areaSize, sensorRect.width());
+            int bottom = Math.min(top + areaSize, sensorRect.height());
+            
+            android.graphics.Rect focusRect = new android.graphics.Rect(left, top, right, bottom);
+            android.hardware.camera2.params.MeteringRectangle meteringRect = 
+                new android.hardware.camera2.params.MeteringRectangle(focusRect, 1000);
+            
+            // Set AF and AE regions
+            captureRequestBuilder.set(CaptureRequest.CONTROL_AF_REGIONS, 
+                new android.hardware.camera2.params.MeteringRectangle[]{meteringRect});
+            captureRequestBuilder.set(CaptureRequest.CONTROL_AE_REGIONS, 
+                new android.hardware.camera2.params.MeteringRectangle[]{meteringRect});
+            
+            // Trigger AF
+            captureRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, 
+                CaptureRequest.CONTROL_AF_TRIGGER_START);
+            
+            cameraCaptureSession.capture(captureRequestBuilder.build(), null, backgroundHandler);
+            
+            // Reset AF trigger and resume preview
+            captureRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, 
+                CaptureRequest.CONTROL_AF_TRIGGER_IDLE);
+            cameraCaptureSession.setRepeatingRequest(captureRequestBuilder.build(), null, backgroundHandler);
+            
+            Log.d(CAMERA_FLOW, "Tap-to-focus at (" + x + ", " + y + ")");
+            
+            // Visual feedback
+            runOnUiThread(() -> {
+                Toast.makeText(this, "Focus set", Toast.LENGTH_SHORT).show();
+            });
+            
+        } catch (Exception e) {
+            Log.e(CAMERA_FLOW, "Error handling tap-to-focus", e);
+        }
     }
 
     private void startBackgroundThread() {
@@ -3173,9 +3538,6 @@ public class MainActivity extends AppCompatActivity {
             }
             if (switchOcrHighContrast != null) {
                 switchOcrHighContrast.setTextColor(black);
-            }
-            if (switchLargeText != null) {
-                switchLargeText.setTextColor(black);
             }
         } catch (Throwable t) {
             android.util.Log.w("ISA_SWITCH", "Failed to force black text on switches", t);
@@ -5709,23 +6071,16 @@ public class MainActivity extends AppCompatActivity {
      */
     private void loadAccessibilitySettings() {
         // Outlined text feature removed - always use global black text
-        boolean largeTextEnabled = appPreferences.getBoolean(PREF_LARGE_TEXT, false);
         
         if (switchOutlinedText != null) {
             switchOutlinedText.setChecked(false);
             switchOutlinedText.setEnabled(false); // Disable the switch
         }
-        if (switchLargeText != null) {
-            switchLargeText.setChecked(largeTextEnabled);
-        }
         
         // Apply global text colors (BLACK for text, WHITE for buttons)
         applyGlobalTextColors();
         
-        // Apply large text setting if enabled
-        applyLargeTextSetting(largeTextEnabled);
-        
-        Log.d(TAG, "Accessibility settings loaded: global-black-text=true, large-text=" + largeTextEnabled);
+        Log.d(TAG, "Accessibility settings loaded: global-black-text=true");
     }
     
     /**
@@ -5756,28 +6111,6 @@ public class MainActivity extends AppCompatActivity {
         if (masterlistLayout != null) TextColorUtil.applyGlobalTextColors(masterlistLayout);
         if (settingsLayout != null) TextColorUtil.applyGlobalTextColors(settingsLayout);
         Log.d(TAG, "Applied global text colors to non-scan layouts");
-    }
-    
-    /**
-     * Apply large text setting (Feature #1).
-     */
-    private void applyLargeTextSetting(boolean enabled) {
-        float scaleFactor = enabled ? 1.3f : 1.0f;
-        
-        // Apply to key text views
-        if (parsedLabel != null) {
-            parsedLabel.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 14 * scaleFactor);
-        }
-        if (sessionScoreTextView != null) {
-            sessionScoreTextView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 16 * scaleFactor);
-        }
-        
-        // Increase touch targets for key buttons
-        int minHeight = enabled ? dp(56) : dp(48);
-        if (startScanButton != null) startScanButton.setMinHeight(minHeight);
-        if (setupButton != null) setupButton.setMinHeight(minHeight);
-        if (viewHistoryButton != null) viewHistoryButton.setMinHeight(minHeight);
-        if (confirmParsedButton != null) confirmParsedButton.setMinHeight(minHeight);
     }
     
     /**
@@ -5975,16 +6308,16 @@ public class MainActivity extends AppCompatActivity {
     
     /**
      * Create OCR engine based on selected preference.
-     * Defaults to Azure Read API.
+     * Defaults to Google Vision.
      */
     private com.bandecoot.itemscoreanalysisprogram.ocr.OcrEngine createSelectedOcrEngine() {
         String engine = getSelectedOcrEngine();
         
-        if (OCR_ENGINE_GOOGLE.equals(engine)) {
-            return new com.bandecoot.itemscoreanalysisprogram.ocr.CloudVisionOcrEngine();
-        } else {
-            // Default to Azure (OCR_ENGINE_AZURE)
+        if (OCR_ENGINE_AZURE.equals(engine)) {
             return new com.bandecoot.itemscoreanalysisprogram.ocr.AzureReadOcrEngine();
+        } else {
+            // Default to Google Vision (OCR_ENGINE_GOOGLE)
+            return new com.bandecoot.itemscoreanalysisprogram.ocr.CloudVisionOcrEngine();
         }
     }
     
@@ -6010,17 +6343,17 @@ public class MainActivity extends AppCompatActivity {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(R.string.ocr_settings_title);
         
-        // Get current engine selection (default to Azure as per new requirement)
-        String currentEngine = appPreferences.getString(PREF_OCR_ENGINE, OCR_ENGINE_AZURE);
+        // Get current engine selection (default to Google Vision as per new requirement)
+        String currentEngine = appPreferences.getString(PREF_OCR_ENGINE, OCR_ENGINE_GOOGLE);
         
         // Radio button options
-        final String[] engines = {OCR_ENGINE_AZURE, OCR_ENGINE_GOOGLE};
+        final String[] engines = {OCR_ENGINE_GOOGLE, OCR_ENGINE_AZURE};
         final String[] engineNames = {
-            getString(R.string.ocr_engine_azure),
-            getString(R.string.ocr_engine_google)
+            getString(R.string.ocr_engine_google),
+            getString(R.string.ocr_engine_azure)
         };
         
-        int checkedItem = currentEngine.equals(OCR_ENGINE_AZURE) ? 0 : 1;
+        int checkedItem = currentEngine.equals(OCR_ENGINE_GOOGLE) ? 0 : 1;
         
         builder.setSingleChoiceItems(engineNames, checkedItem, (dialog, which) -> {
             String selectedEngine = engines[which];
@@ -6043,10 +6376,10 @@ public class MainActivity extends AppCompatActivity {
     
     /**
      * Get the selected OCR engine from preferences.
-     * Defaults to Azure as per requirement.
+     * Defaults to Google Vision as per requirement.
      */
     private String getSelectedOcrEngine() {
-        return appPreferences.getString(PREF_OCR_ENGINE, OCR_ENGINE_AZURE);
+        return appPreferences.getString(PREF_OCR_ENGINE, OCR_ENGINE_GOOGLE);
     }
     
     /**
