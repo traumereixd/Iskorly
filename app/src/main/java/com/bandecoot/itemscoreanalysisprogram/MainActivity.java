@@ -3138,6 +3138,14 @@ public class MainActivity extends AppCompatActivity {
         return largest;
     }
 
+    /**
+     * Find the preferred camera preview size, or the closest supported alternative.
+     * 
+     * @param sizes Array of supported camera preview sizes
+     * @param preferredWidth Preferred width in pixels
+     * @param preferredHeight Preferred height in pixels
+     * @return The preferred size if supported, otherwise the closest size with similar aspect ratio and area
+     */
     private Size findPreferredOrClosestSize(Size[] sizes, int preferredWidth, int preferredHeight) {
         if (sizes == null || sizes.length == 0) {
             return null;
@@ -3151,15 +3159,27 @@ public class MainActivity extends AppCompatActivity {
         }
         
         // If preferred size not available, find the closest supported size
+        // considering both area and aspect ratio similarity
         Size closest = sizes[0];
+        double preferredAspectRatio = (double) preferredWidth / preferredHeight;
         long preferredArea = (long) preferredWidth * preferredHeight;
-        long minDiff = Math.abs((long) closest.getWidth() * closest.getHeight() - preferredArea);
+        
+        double bestScore = Double.MAX_VALUE;
         
         for (Size s : sizes) {
             long area = (long) s.getWidth() * s.getHeight();
-            long diff = Math.abs(area - preferredArea);
-            if (diff < minDiff) {
-                minDiff = diff;
+            double aspectRatio = (double) s.getWidth() / s.getHeight();
+            
+            // Calculate a weighted score combining area difference and aspect ratio difference
+            double areaDiff = Math.abs(area - preferredArea);
+            double aspectRatioDiff = Math.abs(aspectRatio - preferredAspectRatio);
+            
+            // Normalize and weight: 70% area, 30% aspect ratio
+            double normalizedAreaDiff = areaDiff / preferredArea;
+            double score = (0.7 * normalizedAreaDiff) + (0.3 * aspectRatioDiff);
+            
+            if (score < bestScore) {
+                bestScore = score;
                 closest = s;
             }
         }
