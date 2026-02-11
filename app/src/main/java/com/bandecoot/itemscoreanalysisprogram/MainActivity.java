@@ -1371,8 +1371,8 @@ public class MainActivity extends AppCompatActivity {
                 // Handle pinch-to-zoom
                 scaleGestureDetector.onTouchEvent(event);
                 
-                // Handle tap-to-focus
-                if (event.getAction() == MotionEvent.ACTION_DOWN && !scaleGestureDetector.isInProgress()) {
+                // Handle tap-to-focus (only when session is ready and not during pinch gesture)
+                if (event.getAction() == MotionEvent.ACTION_DOWN && !scaleGestureDetector.isInProgress() && cameraSessionReady) {
                     handleTapToFocus(event.getX(), event.getY(), v.getWidth(), v.getHeight());
                     return true;
                 }
