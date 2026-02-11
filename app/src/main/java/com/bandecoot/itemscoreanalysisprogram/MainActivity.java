@@ -1734,11 +1734,9 @@ public class MainActivity extends AppCompatActivity {
                 if (map != null) {
                     jpegSize = findLargestSize(map.getOutputSizes(ImageFormat.JPEG));
                     
-                    // Determine maximum preview size for SurfaceTexture
-                    previewSize = findLargestSize(map.getOutputSizes(SurfaceTexture.class));
-                    if (previewSize != null) {
-                        Log.d(CAMERA_FLOW, "Selected preview size: " + previewSize.getWidth() + "x" + previewSize.getHeight());
-                    }
+                    // Force preview size to 1280x720 for improved camera session stability
+                    previewSize = new Size(CAMERA_WIDTH, CAMERA_HEIGHT);
+                    Log.d(CAMERA_FLOW, "Selected preview size: " + previewSize.getWidth() + "x" + previewSize.getHeight());
                 }
                 
                 // Check camera capabilities for flashlight and zoom
