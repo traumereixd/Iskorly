@@ -49,6 +49,10 @@ Iskorly uses Google Cloud Vision OCR to automatically extract and score student 
 
 ## Documentation
 
+**Academic & Research:**
+- 📄 [**Research Paper**](RESEARCH_PAPER.md) - Comprehensive academic paper for scholarly use
+
+**User Guides:**
 - 📘 [Quick Start Guide](project-docs/QUICK_START.md) - Detailed usage instructions
 - 📋 [Changelog](project-docs/CHANGELOG.md) - Version history and features
 - 🔒 [Security Policy](project-docs/SECURITY.md) - Data privacy and vulnerability reporting
