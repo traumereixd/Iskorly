@@ -1734,8 +1734,9 @@ public class MainActivity extends AppCompatActivity {
                 if (map != null) {
                     jpegSize = findLargestSize(map.getOutputSizes(ImageFormat.JPEG));
                     
-                    // Determine maximum preview size for SurfaceTexture
-                    previewSize = findLargestSize(map.getOutputSizes(SurfaceTexture.class));
+                    // Force preview size to 1280x720 for improved camera session stability
+                    // Validate that the size is supported, or use the closest available size
+                    previewSize = findPreferredOrClosestSize(map.getOutputSizes(SurfaceTexture.class), CAMERA_WIDTH, CAMERA_HEIGHT);
                     if (previewSize != null) {
                         Log.d(CAMERA_FLOW, "Selected preview size: " + previewSize.getWidth() + "x" + previewSize.getHeight());
                     }
@@ -3135,6 +3136,55 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         return largest;
+    }
+
+    /**
+     * Find the preferred camera preview size, or the closest supported alternative.
+     * 
+     * @param sizes Array of supported camera preview sizes
+     * @param preferredWidth Preferred width in pixels
+     * @param preferredHeight Preferred height in pixels
+     * @return The preferred size if supported, otherwise the closest size with similar aspect ratio and area
+     */
+    private Size findPreferredOrClosestSize(Size[] sizes, int preferredWidth, int preferredHeight) {
+        if (sizes == null || sizes.length == 0) {
+            return null;
+        }
+        
+        // First, check if the preferred size is directly available
+        for (Size s : sizes) {
+            if (s.getWidth() == preferredWidth && s.getHeight() == preferredHeight) {
+                return s;
+            }
+        }
+        
+        // If preferred size not available, find the closest supported size
+        // considering both area and aspect ratio similarity
+        Size closest = sizes[0];
+        double preferredAspectRatio = (double) preferredWidth / preferredHeight;
+        long preferredArea = (long) preferredWidth * preferredHeight;
+        
+        double bestScore = Double.MAX_VALUE;
+        
+        for (Size s : sizes) {
+            long area = (long) s.getWidth() * s.getHeight();
+            double aspectRatio = (double) s.getWidth() / s.getHeight();
+            
+            // Calculate a weighted score combining area difference and aspect ratio difference
+            double areaDiff = Math.abs(area - preferredArea);
+            double aspectRatioDiff = Math.abs(aspectRatio - preferredAspectRatio);
+            
+            // Normalize and weight: 70% area, 30% aspect ratio
+            double normalizedAreaDiff = areaDiff / preferredArea;
+            double score = (0.7 * normalizedAreaDiff) + (0.3 * aspectRatioDiff);
+            
+            if (score < bestScore) {
+                bestScore = score;
+                closest = s;
+            }
+        }
+        
+        return closest;
     }
 
     private void startBackgroundThread() {
